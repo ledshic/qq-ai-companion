@@ -203,17 +203,17 @@ test('name calls share mention memory, clear locally, and ignore incidental name
       ] }));
       await new Promise(resolve => setTimeout(resolve, 30));
     };
-    await send('我问过小爱');
+    await send('小爱，你好');
     await send('小爱好者');
     assert.equal(sent, 0);
-    await send('小爱，叫我小林');
-    await send('我叫什么', true);
+    await send('大肥鱼，叫我小林');
+    await send('大肥鱼，我叫什么');
     assert.deepEqual(seen, [{ text: '叫我小林', history: [] }, { text: '我叫什么', history: ['叫我小林', 'reply'] }]);
-    await send('小爱，/清空记忆');
+    await send('大肥鱼，/清空记忆');
     assert.equal(seen.length, 2);
-    await send('小爱你记得吗');
+    await send('大肥鱼你记得吗');
     assert.deepEqual(seen.at(-1), { text: '你记得吗', history: [] });
-    await send('小爱');
+    await send('大肥鱼');
     assert.equal(seen.length, 3);
     assert.equal(sent, 5);
   } finally {

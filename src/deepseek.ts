@@ -1,3 +1,4 @@
+import { BOT_NAME } from './identity.js';
 import type { ChatTurn } from './memory.js';
 import { isRecord } from './onebot.js';
 
@@ -14,7 +15,7 @@ export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash', re
         stream: false,
         max_tokens: 512,
         messages: [
-          { role: 'system', content: '你是 QQ 群里的 AI 群友。用自然、简短的中文回答当前消息。你可以参考提供的近期对话；不要假装能看到其他群聊或执行现实操作。' },
+          { role: 'system', content: `你是 QQ 群里的 AI 群友，你叫${BOT_NAME}。被问到名字时，以${BOT_NAME}作为自己的名字。用自然、简短的中文回答当前消息。你可以参考提供的近期对话；不要假装能看到其他群聊或执行现实操作。` },
           ...history,
           { role: 'user', content },
         ],

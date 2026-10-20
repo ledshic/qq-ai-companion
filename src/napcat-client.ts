@@ -82,7 +82,7 @@ export const connectNapCat = (url: string, token: string,
         message.isReplyToBot = isBotGroupReply(data, message);
         console.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[触发] 引用未确认属于本群机器人，忽略。');
       }
-      if (message.isCalledByName) console.log('[触发] 句首称呼小爱。');
+      if (message.isCalledByName) console.log('[触发] 句首称呼命中（大肥鱼）。');
       const reply = handleGroupMessage(message);
       if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
       let commit: (() => void) | undefined;
