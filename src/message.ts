@@ -3,6 +3,7 @@ export interface GroupMessage {
   senderId: string;
   content: string;
   isMentioned: boolean;
+  hasAnyMention?: boolean;
   isCalledByName?: boolean;
   selfId?: string;
   replyMessageId?: string;

@@ -222,3 +222,58 @@ test('name calls share mention memory, clear locally, and ignore incidental name
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });
+
+test('observation never replies or changes memory and ends on another speaker', { timeout: 5000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const connection = once(server, 'connection');
+  const observed: Array<{ text: string; history: string[] }> = [];
+  const answerHistory: string[][] = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}/`, '', async (_text, history) => {
+    answerHistory.push(history.map(turn => turn.content)); return '你喜欢什么咖啡？';
+  }, async (text, history) => {
+    observed.push({ text, history: history.map(turn => turn.content) });
+    return { shouldRespond: true, reason: '回答机器人问题' };
+  });
+  try {
+    const [peer] = await connection;
+    let sent = 0;
+    peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString());
+      assert.equal(action.action, 'send_group_msg');
+      sent++;
+      peer.send(JSON.stringify({ status: 'ok', retcode: 0, echo: action.echo }));
+    });
+    const send = async (text: string, mention = false, user = 456, group = 789, imageOnly = false) => {
+      peer.send(JSON.stringify({ ...event('999'), user_id: user, group_id: group, message: [
+        ...(mention ? [{ type: 'at', data: { qq: '123' } }] : []),
+        imageOnly ? { type: 'image', data: {} } : { type: 'text', data: { text } },
+      ] }));
+      await new Promise(resolve => setTimeout(resolve, 25));
+    };
+    await send('before window');
+    assert.equal(observed.length, 0);
+    await send('聊咖啡', true);
+    await send('拿铁');
+    await send('other group', false, 999, 888);
+    await send('热拿铁');
+    assert.equal(sent, 1);
+    assert.deepEqual(observed.map(value => value.text), ['拿铁', '热拿铁']);
+    assert.deepEqual(observed[0].history, ['聊咖啡', '你喜欢什么咖啡？']);
+    await send('', false, 999, 789, true);
+    await send('should not observe');
+    assert.equal(observed.length, 2);
+    await send('再聊聊', true);
+    assert.deepEqual(answerHistory[1], ['聊咖啡', '你喜欢什么咖啡？']);
+    await send('大肥鱼，/清空记忆');
+    await send('after clear');
+    assert.equal(observed.length, 2);
+    assert.equal(sent, 3);
+  } finally {
+    stop();
+    for (const client of server.clients) client.terminate();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});

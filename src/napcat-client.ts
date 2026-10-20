@@ -1,3 +1,4 @@
+import { ObservationWindows, type FollowUpJudge } from './observation.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import { handleGroupMessage } from './message.js';
@@ -5,7 +6,10 @@ import { ConversationMemory, type ChatTurn } from './memory.js';
 import { isRecord, parseGroupMessage, isBotGroupReply } from './onebot.js';
 
 export const connectNapCat = (url: string, token: string,
-  generateReply?: (content: string, history: ChatTurn[]) => Promise<string>) => {
+  generateReply?: (content: string, history: ChatTurn[]) => Promise<string>,
+  judgeFollowUp?: FollowUpJudge) => {
+  const windows = new ObservationWindows();
+  let observing = false;
   const memory = new ConversationMemory();
   let busy: object | undefined;
   let stopped = false;
@@ -17,6 +21,7 @@ export const connectNapCat = (url: string, token: string,
   const clearPending = (): void => {
     for (const entry of pending.values()) { clearTimeout(entry.timer); entry.finish(false); }
     pending.clear();
+    windows.clear();
     for (const lookup of lookups.values()) { clearTimeout(lookup.timer); lookup.resolve(null); }
     lookups.clear();
   };
@@ -61,7 +66,26 @@ export const connectNapCat = (url: string, token: string,
 
       const message = parseGroupMessage(event);
       if (message === null) return;
-      if (!message.isMentioned && !message.replyMessageId && !message.isCalledByName) return;
+      const ticket = windows.incoming(message.groupId, message.senderId);
+      if (!message.isMentioned && !message.replyMessageId && !message.isCalledByName) {
+        const valid = windows.candidate(message.groupId, message.senderId);
+        const text = message.content.trim();
+        if (judgeFollowUp && valid && !message.hasAnyMention && text && text.length <= 4000) {
+          if (observing || busy) { console.log('[观察] 忙碌，跳过本次判断；不接话。'); return; }
+          const history = memory.get(message.groupId, message.senderId);
+          if (!history.length) return;
+          observing = true;
+          try {
+            const decision = await judgeFollowUp(text, history);
+            if (!stopped && activeSocket === socket && valid()) {
+              console.log(`[观察] wouldRespond=${decision.shouldRespond}; reason=${decision.reason}; 历史${history.length / 2}轮；仅记录，不接话。`);
+            } else console.log('[观察] 窗口已结束，丢弃迟到的判断；不接话。');
+          } catch { console.log('[观察] 判断失败或超时，默认不接话。'); }
+          finally { observing = false; }
+        }
+        return;
+      }
+      windows.close(message.groupId);
       if (busy) { console.log('[LLM] 正在处理上一条消息，忽略本次请求。'); return; }
       const job = {};
       busy = job;
@@ -90,6 +114,7 @@ export const connectNapCat = (url: string, token: string,
         const content = message.content.trim();
         if (content === '/清空记忆') {
           memory.clear(message.groupId, message.senderId);
+          windows.close(message.groupId);
           reply.content = '已清空你在本群与我的聊天记忆。';
           console.log('[记忆] 已清空当前会话。');
         } else if (!content || content.length > 4000) {
@@ -108,7 +133,13 @@ export const connectNapCat = (url: string, token: string,
       }
       if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
       const echo = randomUUID();
-      const finish = (success: boolean): void => { if (success) commit?.(); release(); };
+      const finish = (success: boolean): void => {
+        if (success && commit) {
+          commit();
+          if (judgeFollowUp) { windows.open(message.groupId, ticket); console.log('[观察] 回复成功，尝试开启同一用户60秒窗口。'); }
+        }
+        release();
+      };
       pending.set(echo, { finish, timer: setTimeout(() => {
         pending.delete(echo);
         finish(false);

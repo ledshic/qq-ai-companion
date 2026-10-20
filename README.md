@@ -143,3 +143,20 @@ calls work even when replying to someone else. Mentions and verified direct
 replies keep working, and all three triggers share the same memory.
 
 Name calls, mentions and verified replies share the same group/user memory.
+
+## Follow-up observation mode
+
+`FOLLOW_UP_OBSERVE=true` enables the explicitly authorized observation scope.
+After a successful generated reply is acknowledged by NapCat, a fixed 60-second
+window opens for that user in that group. Another member's message ends the
+window, including an image-only message. A new explicit request closes the old
+window; only its own successful reply can open a new one. Disconnects clear windows.
+
+Eligible ordinary text messages (up to 4000 characters, no @, no reply reference,
+no name trigger) are sent to DeepSeek with the user's existing recent conversation
+(up to 6 turns). IDs and other members' messages are not sent. One observation
+runs at a time and times out after 10 seconds; busy candidates are skipped.
+Observations never send QQ replies, enter memory, or extend the window. Logs
+contain only the judgment and reason, not input messages or conversation history.
+Expired/interrupted late results are discarded; errors default to no response.
+Restarting clears windows and memory. Set `FOLLOW_UP_OBSERVE=false` to disable.

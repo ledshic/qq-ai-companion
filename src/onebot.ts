@@ -31,6 +31,7 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
     senderId: String(event.user_id),
     content: addressedContent ?? content,
     isCalledByName: addressedContent !== undefined,
+    hasAnyMention: segments.some(segment => segment.type === 'at'),
     isMentioned: segments.some(segment => segment.type === 'at' && isRecord(segment.data) &&
       String(segment.data.qq) === String(event.self_id)),
   };
