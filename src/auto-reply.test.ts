@@ -12,6 +12,7 @@ async function harness() {
   const histories: Array<{ text: string; history: string[] }> = [];
   const judged: string[] = [];
   const sent: string[] = [];
+  const logs: string[] = [];
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
   await once(server, 'listening');
   const address = server.address();
@@ -23,8 +24,9 @@ async function harness() {
   }, async text => {
     judged.push(text);
     if (text === 'judge-error') throw new Error('test');
-    return { shouldRespond: text !== 'no', reason: 'test reason' };
-  }, { autoReply: true, now: () => now });
+    const intent = text === 'pause' ? 'pause' : text === 'end' ? 'end' : text === 'no' ? 'uncertain' : 'continue';
+    return { intent, shouldRespond: intent === 'continue', reason: 'test reason' };
+  }, { autoReply: true, now: () => now, log: line => logs.push(line) });
   const [peer] = await connection;
   peer.on('message', (raw: RawData) => {
     const action = JSON.parse(raw.toString());
@@ -33,7 +35,7 @@ async function harness() {
     peer.send(JSON.stringify({ echo: action.echo, status: failSend ? 'failed' : 'ok', retcode: failSend ? 1 : 0 }));
   });
   return {
-    sent, histories, judged,
+    sent, histories, judged, logs,
     time: (value: number) => { now = value; },
     failure: (value: boolean) => { failSend = value; },
     generator: (value: typeof generate) => { generate = value; },
@@ -62,6 +64,7 @@ test('auto replies stop at two, retain successful memory, and reset only on expl
     await h.send('three');
     assert.deepEqual(h.judged, ['one', 'two']);
     assert.equal(h.sent.length, 3);
+    assert.ok(h.logs.some(line => line.includes('额度已用完')));
     assert.deepEqual(h.histories[2].history, ['start', 'answer:start', 'one', 'answer:one']);
     await h.send('reset', true);
     await h.send('four');
@@ -110,3 +113,37 @@ for (const interruption of ['speaker', 'expiry', 'explicit'] as const) {
     } finally { await h.close(); }
   });
 }
+
+test('pause preserves a window, end closes it, and expiry/interruption/busy logs explain skips', { timeout: 5000 }, async () => {
+  const h = await harness();
+  let complete!: (text: string) => void;
+  try {
+    await h.send('start', true);
+    await h.send('pause');
+    assert.equal(h.sent.length, 1);
+    await h.send('one');
+    assert.equal(h.sent.length, 2);
+    await h.send('end');
+    await h.send('after-end');
+    assert.equal(h.judged.includes('after-end'), false);
+    assert.ok(h.logs.some(line => line.includes('intent=暂停')));
+    assert.ok(h.logs.some(line => line.includes('intent=结束')));
+    assert.ok(h.logs.some(line => line.includes('用户已结束对话')));
+    await h.send('again', true);
+    h.time(60_000);
+    await h.send('expired');
+    assert.ok(h.logs.some(line => line.includes('窗口已到期')));
+    await h.send('reset', true);
+    await h.send('', false, 999, true);
+    await h.send('interrupted');
+    assert.ok(h.logs.some(line => line.includes('他人插话')));
+    assert.ok(h.logs.some(line => line.includes('他人已插话')));
+    await h.send('reset again', true);
+    h.generator(() => new Promise(resolve => { complete = resolve; }));
+    await h.send('pending');
+    await h.send('busy');
+    assert.ok(h.logs.some(line => line.includes('忙碌')));
+    complete('answer');
+    await pause();
+  } finally { await h.close(); }
+});

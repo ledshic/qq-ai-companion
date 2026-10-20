@@ -235,7 +235,7 @@ test('observation never replies or changes memory and ends on another speaker', 
     answerHistory.push(history.map(turn => turn.content)); return '你喜欢什么咖啡？';
   }, async (text, history) => {
     observed.push({ text, history: history.map(turn => turn.content) });
-    return { shouldRespond: true, reason: '回答机器人问题' };
+    return { intent: 'continue' as const, shouldRespond: true, reason: '回答机器人问题' };
   });
   try {
     const [peer] = await connection;

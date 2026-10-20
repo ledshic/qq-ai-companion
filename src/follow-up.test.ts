@@ -10,9 +10,9 @@ test('judge sends only approved text/history and validates a structured decision
     assert.deepEqual(JSON.parse(body.messages[1].content), { history, followUp: '拿铁' });
     assert.equal(body.messages.length, 2);
     assert.ok(options?.signal);
-    return Response.json({ choices: [{ message: { content: JSON.stringify({ shouldRespond: true, reason: '回答问题\n可以接续' }) } }] });
+    return Response.json({ choices: [{ message: { content: JSON.stringify({ intent: 'continue' as const, shouldRespond: true, reason: '回答问题\n可以接续' }) } }] });
   });
-  assert.deepEqual(await judge('拿铁', history), { shouldRespond: true, reason: '回答问题 可以接续' });
+  assert.deepEqual(await judge('拿铁', history), { intent: 'continue' as const, shouldRespond: true, reason: '回答问题 可以接续' });
 });
 
 test('bad service and malformed decisions fail closed', async () => {
@@ -21,4 +21,13 @@ test('bad service and malformed decisions fail closed', async () => {
     await assert.rejects(judge('text', []));
   }
   await assert.rejects(createFollowUpJudge('key', undefined, async () => new Response('', { status: 500 }))('text', []));
+});
+
+test('pause and end remain distinct and inconsistent flags are rejected', async () => {
+  for (const intent of ['pause', 'end', 'uncertain'] as const) {
+    const judge = createFollowUpJudge('key', undefined, async () => Response.json({ choices: [{ message: { content: JSON.stringify({ intent, shouldRespond: false, reason: '分类依据' }) } }] }));
+    assert.equal((await judge('message', [])).intent, intent);
+  }
+  const inconsistent = createFollowUpJudge('key', undefined, async () => Response.json({ choices: [{ message: { content: JSON.stringify({ intent: 'pause', shouldRespond: true, reason: 'bad' }) } }] }));
+  await assert.rejects(inconsistent('message', []));
 });

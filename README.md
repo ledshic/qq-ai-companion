@@ -176,3 +176,15 @@ Only a successful send acknowledgement writes an automatic exchange to memory
 and consumes quota. Failures/timeouts stay silent and do not write memory.
 Judging and generation are serialized; concurrent candidates are skipped.
 No response is sent for a negative judgment, expired or interrupted window.
+
+## Follow-up judgment and diagnostics
+
+Judgments return `intent`: `continue` (reply), `pause` (wait), `end` (finish),
+or `uncertain` (stay silent), plus a short reason. Only `continue` allows a reply.
+Pause keeps the existing deadline and quota; it never extends the 60 seconds.
+End closes the window. Invalid or inconsistent results fail closed.
+
+Skip logs distinguish expired windows, interruption by another member, exhausted
+quota, closed/missing windows and busy processing. Logs contain no raw message
+text, IDs, memory content or keys. They describe decisions, not private model
+reasoning. Conversation memory remains at 6 turns.
