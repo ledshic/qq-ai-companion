@@ -95,12 +95,24 @@ In `.env`, set `DEEPSEEK_API_KEY` privately, set `DEEPSEEK_MODEL` (default
 `pnpm napcat`; do not restart NapCat or log QQ out. Stop any previous bot
 process first to avoid duplicate replies. `LLM_ENABLED=false` keeps fixed replies.
 
-Only text in the current message mentioning the bot is sent to DeepSeek.
-Account IDs, group IDs, other messages, and chat history are not included.
-No conversation memory or tools are enabled. Requests time out after 30 seconds,
+The current mentioned text and up to 6 recent successful conversation turns
+from the same user in the same group are sent to DeepSeek. Account and group
+IDs and ordinary group messages are not included. No tools are enabled. Requests time out after 30 seconds,
 are not automatically retried, and limit output to 512 tokens / 1500 characters.
 Only one LLM request is processed at a time; further mentions while busy are
 ignored. Empty or over-4000-character prompts return a local usage hint.
 API failures return a fixed friendly error without exposing service details.
 
 Official API: https://api-docs.deepseek.com/api/create-chat-completion/
+
+## Conversation memory
+
+Memory is isolated by group and sender, kept in RAM, and cleared on bot process
+restart. Sessions expire after 30 minutes without a successful exchange. Up to
+100 sessions are kept; the least recently updated session is evicted when full.
+Only replies acknowledged as sent by NapCat enter memory. Failed model calls,
+failed sends and ordinary messages do not enter memory.
+
+Mention the bot with `/清空记忆` to clear your conversation in the current group
+without calling DeepSeek. This does not delete the provider's own records.
+Wait for a reply before asking a follow-up; concurrent requests are ignored.

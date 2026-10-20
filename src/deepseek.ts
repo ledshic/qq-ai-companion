@@ -1,8 +1,9 @@
+import type { ChatTurn } from './memory.js';
 import { isRecord } from './onebot.js';
 
 export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash', request: typeof fetch = fetch) => {
   if (!apiKey.trim()) throw new Error('请在 .env 中配置 DEEPSEEK_API_KEY。');
-  return async (content: string): Promise<string> => {
+  return async (content: string, history: ChatTurn[] = []): Promise<string> => {
     const response = await request('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -13,7 +14,8 @@ export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash', re
         stream: false,
         max_tokens: 512,
         messages: [
-          { role: 'system', content: '你是 QQ 群里的 AI 群友。用自然、简短的中文回答当前消息。不要假装能看到其他聊天或执行现实操作。' },
+          { role: 'system', content: '你是 QQ 群里的 AI 群友。用自然、简短的中文回答当前消息。你可以参考提供的近期对话；不要假装能看到其他群聊或执行现实操作。' },
+          ...history,
           { role: 'user', content },
         ],
       }),

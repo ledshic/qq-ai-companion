@@ -23,3 +23,13 @@ test('missing key, service failure and empty answers are rejected', async () => 
   await assert.rejects(createDeepSeekReply('key', undefined, async () => new Response('private details', { status: 401 }))('hi'), /^Error: DeepSeek HTTP 401$/);
   await assert.rejects(createDeepSeekReply('key', undefined, async () => Response.json({ choices: [] }))('hi'));
 });
+
+test('DeepSeek receives approved history as separate turns before the current text', async () => {
+  const history = [{ role: 'user' as const, content: '叫我小林' }, { role: 'assistant' as const, content: '好的，小林' }];
+  const reply = createDeepSeekReply('key', undefined, async (_url, options) => {
+    const body = JSON.parse(options?.body as string);
+    assert.deepEqual(body.messages.slice(1), [...history, { role: 'user', content: '我叫什么？' }]);
+    return Response.json({ choices: [{ message: { content: '小林' } }] });
+  });
+  assert.equal(await reply('我叫什么？', history), '小林');
+});

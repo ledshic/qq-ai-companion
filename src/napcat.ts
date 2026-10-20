@@ -25,7 +25,7 @@ if (llmEnabled && !process.env.DEEPSEEK_API_KEY?.trim()) {
 const generateReply = llmEnabled
   ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
   : undefined;
-console.log(llmEnabled ? '[LLM] DeepSeek 已启用，仅发送当前被 @ 消息的文字。' : '[LLM] 未启用，使用固定回复。');
+console.log(llmEnabled ? '[LLM] DeepSeek 已启用，按群和用户隔离记忆，最多 6 轮，30 分钟过期。' : '[LLM] 未启用，使用固定回复。');
 const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply);
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
