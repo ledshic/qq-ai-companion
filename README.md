@@ -231,3 +231,22 @@ Generated newline-separated short messages are delivered as at most three parts,
 1.2 seconds apart. Auto-follow-ups recheck the window before each part. One batch
 counts as one conversation turn and one follow-up quota unit. If interrupted or
 partially failed, only the successfully delivered text enters memory.
+
+## Disclaimer
+
+This project drives a QQ account through a third-party protocol implementation,
+[NapCatQQ](https://github.com/NapNeko/NapCatQQ), not an official Tencent API. It
+is not affiliated with or endorsed by Tencent. Using an unofficial client may
+violate the QQ software license and can lead to account restriction or loss:
+use a dedicated account, keep message volume human-sized, and accept that risk.
+
+Messages are sent to the model provider you configure (DeepSeek by default).
+Model costs and the provider's data-retention rules are yours; conversation
+memory stays local in `data/memory.db`.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The bundled character card is redistributed
+unchanged from
+[mtshang/make-your-qq-ai-group-member](https://github.com/mtshang/make-your-qq-ai-group-member)
+under its MIT license; see `config/personas/LICENSE.mtshang`.
