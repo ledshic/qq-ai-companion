@@ -15,7 +15,12 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
   }
 
   const segments = event.message.filter(isRecord);
+  const reply = segments.find(segment => segment.type === 'reply' && isRecord(segment.data));
+  const replyId = reply && isRecord(reply.data) ? reply.data.id : undefined;
   return {
+    selfId: String(event.self_id),
+    replyMessageId: (typeof replyId === 'number' && Number.isSafeInteger(replyId)) ||
+      (typeof replyId === 'string' && /^-?\d+$/.test(replyId)) ? String(replyId) : undefined,
     groupId: String(event.group_id),
     senderId: String(event.user_id),
     content: segments.filter(segment => segment.type === 'text' && isRecord(segment.data))
@@ -25,3 +30,9 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
       String(segment.data.qq) === String(event.self_id)),
   };
 };
+
+export const isBotGroupReply = (data: unknown, message: GroupMessage): boolean =>
+  isRecord(data) && data.message_type === 'group' &&
+  String(data.group_id) === message.groupId &&
+  String(data.message_id) === message.replyMessageId &&
+  isRecord(data.sender) && String(data.sender.user_id) === message.selfId;

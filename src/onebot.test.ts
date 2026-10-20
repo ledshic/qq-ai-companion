@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { test } from 'node:test';
 import { WebSocketServer, type RawData } from 'ws';
 import { connectNapCat } from './napcat-client.js';
-import { parseGroupMessage } from './onebot.js';
+import { parseGroupMessage, isBotGroupReply } from './onebot.js';
 
 const event = (qq: string) => ({
   post_type: 'message', message_type: 'group', self_id: 123, user_id: 456, group_id: 789,
@@ -103,6 +103,73 @@ test('conversation history follows sent acknowledgements, isolation and clear co
     assert.deepEqual(seen.at(-1)?.history, []);
     await exchange('other-user-again', 999);
     assert.deepEqual(seen.at(-1)?.history, ['other-user', 'reply:other-user']);
+  } finally {
+    stop();
+    for (const client of server.clients) client.terminate();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
+test('reply parsing supports negative message IDs and validates bot, group and message ID', () => {
+  const message = parseGroupMessage({ ...event('999'), message: [{ type: 'reply', data: { id: '-42' } }, { type: 'text', data: { text: '继续' } }] })!;
+  assert.equal(message.replyMessageId, '-42');
+  assert.equal(message.isMentioned, false);
+  const data = { message_type: 'group', group_id: 789, message_id: -42, sender: { user_id: 123 } };
+  assert.equal(isBotGroupReply(data, message), true);
+  assert.equal(isBotGroupReply({ ...data, group_id: 999 }, message), false);
+  assert.equal(isBotGroupReply({ ...data, sender: { user_id: 999 } }, message), false);
+  assert.equal(isBotGroupReply({ ...data, message_id: -43 }, message), false);
+  assert.equal(isBotGroupReply(null, message), false);
+});
+
+test('unmentioned replies verify ownership and retain the same conversation memory', { timeout: 5000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const connection = once(server, 'connection');
+  const seen: Array<{ text: string; history: string[] }> = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}/`, '', async (text, history) => {
+    seen.push({ text, history: history.map(turn => turn.content) }); return 'reply';
+  });
+  try {
+    const [peer] = await connection;
+    let sent = 0;
+    const lookups: string[] = [];
+    peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString());
+      if (action.action === 'get_msg') {
+        const id = action.params.message_id;
+        lookups.push(id);
+        peer.send(JSON.stringify({ echo: action.echo, status: id === '404' ? 'failed' : 'ok', retcode: id === '404' ? 1 : 0,
+          data: { message_type: 'group', message_id: id, group_id: id === '3' ? 999 : 789,
+            sender: { user_id: id === '2' ? 999 : 123 }, message: 'quoted text must not go to the model' } }));
+      } else if (action.action === 'send_group_msg') {
+        sent++;
+        peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0 }));
+      }
+    });
+    const send = async (id: string | undefined, text: string, mention = false) => {
+      peer.send(JSON.stringify({ ...event('999'), message: [
+        ...(id ? [{ type: 'reply', data: { id } }] : []),
+        ...(mention ? [{ type: 'at', data: { qq: '123' } }] : []),
+        { type: 'text', data: { text } },
+      ] }));
+      await new Promise(resolve => setTimeout(resolve, 30));
+    };
+    await send(undefined, 'ordinary');
+    await send('2', 'reply to someone else');
+    await send('3', 'wrong group');
+    await send('404', 'not found');
+    assert.equal(seen.length, 0);
+    await send('-42', 'first');
+    assert.equal(sent, 1);
+    await send(undefined, 'follow up', true);
+    assert.deepEqual(seen, [{ text: 'first', history: [] }, { text: 'follow up', history: ['first', 'reply'] }]);
+    await send('-42', '/清空记忆');
+    await send('-42', 'after clear');
+    assert.deepEqual(seen.at(-1), { text: 'after clear', history: [] });
+    assert.deepEqual(lookups, ['2', '3', '404', '-42', '-42', '-42']);
   } finally {
     stop();
     for (const client of server.clients) client.terminate();

@@ -116,3 +116,14 @@ failed sends and ordinary messages do not enter memory.
 Mention the bot with `/清空记忆` to clear your conversation in the current group
 without calling DeepSeek. This does not delete the provider's own records.
 Wait for a reply before asking a follow-up; concurrent requests are ignored.
+
+## Replying without a mention
+
+Using QQ's Reply action on a bot message also triggers a response without an @.
+The bot queries `get_msg` and verifies the original message ID, group and sender.
+Replies to other members, ordinary messages, failed lookups and unverifiable
+references are ignored. Mentions continue to work directly.
+Only the new text and the requesting user's existing conversation memory go
+to DeepSeek; quoted messages are not appended to the model context. Memory
+isolation, limits, expiry and `/清空记忆` remain the same. The clear command
+also works when replying to a bot message.

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import { handleGroupMessage } from './message.js';
 import { ConversationMemory, type ChatTurn } from './memory.js';
-import { isRecord, parseGroupMessage } from './onebot.js';
+import { isRecord, parseGroupMessage, isBotGroupReply } from './onebot.js';
 
 export const connectNapCat = (url: string, token: string,
   generateReply?: (content: string, history: ChatTurn[]) => Promise<string>) => {
@@ -13,9 +13,12 @@ export const connectNapCat = (url: string, token: string,
   let reconnect: ReturnType<typeof setTimeout> | undefined;
   const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void }>();
 
+  const lookups = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: (data: unknown) => void }>();
   const clearPending = (): void => {
     for (const entry of pending.values()) { clearTimeout(entry.timer); entry.finish(false); }
     pending.clear();
+    for (const lookup of lookups.values()) { clearTimeout(lookup.timer); lookup.resolve(null); }
+    lookups.clear();
   };
 
   const connect = (): void => {
@@ -39,6 +42,13 @@ export const connectNapCat = (url: string, token: string,
       try { event = JSON.parse(raw.toString()); }
       catch { console.error('[NapCat] 忽略无效 JSON。'); return; }
 
+      if (isRecord(event) && typeof event.echo === 'string' && lookups.has(event.echo)) {
+        const lookup = lookups.get(event.echo)!;
+        lookups.delete(event.echo);
+        clearTimeout(lookup.timer);
+        lookup.resolve(event.status === 'ok' && event.retcode === 0 ? event.data : null);
+        return;
+      }
       if (isRecord(event) && typeof event.echo === 'string' && pending.has(event.echo)) {
         const entry = pending.get(event.echo)!;
         clearTimeout(entry.timer);
@@ -51,12 +61,29 @@ export const connectNapCat = (url: string, token: string,
 
       const message = parseGroupMessage(event);
       if (message === null) return;
-      const reply = handleGroupMessage(message);
-      if (reply === null) return;
+      if (!message.isMentioned && !message.replyMessageId) return;
       if (busy) { console.log('[LLM] 正在处理上一条消息，忽略本次请求。'); return; }
       const job = {};
       busy = job;
       const release = (): void => { if (busy === job) busy = undefined; };
+      if (!message.isMentioned && message.replyMessageId) {
+        const data = await new Promise<unknown>(resolve => {
+          const echo = randomUUID();
+          lookups.set(echo, { resolve, timer: setTimeout(() => {
+            lookups.delete(echo); resolve(null);
+          }, 5000) });
+          activeSocket.send(JSON.stringify({ action: 'get_msg', params: { message_id: message.replyMessageId }, echo }), error => {
+            if (error) {
+              const lookup = lookups.get(echo);
+              if (lookup) { clearTimeout(lookup.timer); lookups.delete(echo); resolve(null); }
+            }
+          });
+        });
+        message.isReplyToBot = isBotGroupReply(data, message);
+        console.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[触发] 引用未确认属于本群机器人，忽略。');
+      }
+      const reply = handleGroupMessage(message);
+      if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
       let commit: (() => void) | undefined;
       if (generateReply) {
         const content = message.content.trim();
