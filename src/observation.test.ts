@@ -44,3 +44,22 @@ test('close and disconnect clear invalidate in-flight observations', () => {
   windows.clear();
   assert.equal(second(), false);
 });
+
+test('two successful automatic replies exhaust quota without extending the window', () => {
+  let now = 0;
+  const windows = new ObservationWindows(() => now);
+  const ticket = windows.incoming('g', 'u');
+  windows.open('g', ticket);
+  const first = windows.candidate('g', 'u')!;
+  now = 1000;
+  assert.equal(first.consume(), true);
+  assert.equal(windows.candidate('g', 'u')!.consume(), true);
+  assert.equal(windows.candidate('g', 'u'), undefined);
+  assert.equal(first.consume(), false);
+  windows.close('g');
+  windows.open('g', ticket);
+  assert.equal(first(), false);
+  assert.ok(windows.candidate('g', 'u'));
+  now = 61_000;
+  assert.equal(windows.candidate('g', 'u'), undefined);
+});

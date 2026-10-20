@@ -28,10 +28,11 @@ const generateReply = llmEnabled
   : undefined;
 console.log(llmEnabled ? '[LLM] DeepSeek 已启用，按群和用户隔离记忆，最多 6 轮，30 分钟过期。' : '[LLM] 未启用，使用固定回复。');
 const observationEnabled = llmEnabled && process.env.FOLLOW_UP_OBSERVE === 'true';
-const judge = observationEnabled
+const autoReplyEnabled = llmEnabled && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
+const judge = (observationEnabled || autoReplyEnabled)
   ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
   : undefined;
-console.log(observationEnabled ? '[观察] 自然接话观察模式开启，判断不发送回复。' : '[观察] 自然接话观察模式关闭。');
-const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge);
+console.log(observationEnabled ? '[观察] 仅判断不回复。' : autoReplyEnabled ? '[自动接话] 同用户60秒窗口，最多2次，他人插话结束。' : '[接续] 已关闭。');
+const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, { autoReply: autoReplyEnabled });
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);

@@ -7,8 +7,9 @@ import { isRecord, parseGroupMessage, isBotGroupReply } from './onebot.js';
 
 export const connectNapCat = (url: string, token: string,
   generateReply?: (content: string, history: ChatTurn[]) => Promise<string>,
-  judgeFollowUp?: FollowUpJudge) => {
-  const windows = new ObservationWindows();
+  judgeFollowUp?: FollowUpJudge,
+  options: { autoReply?: boolean; now?: () => number } = {}) => {
+  const windows = new ObservationWindows(options.now);
   let observing = false;
   const memory = new ConversationMemory();
   let busy: object | undefined;
@@ -42,6 +43,22 @@ export const connectNapCat = (url: string, token: string,
         reconnect = setTimeout(connect, 3000);
       }
     });
+    const sendReply = (groupId: string, content: string, finish: (success: boolean) => void): void => {
+      const echo = randomUUID();
+      pending.set(echo, { finish, timer: setTimeout(() => {
+        pending.delete(echo); finish(false);
+        console.error('[NapCat] 回复确认超时，不自动重发。');
+      }, 10_000) });
+      activeSocket.send(JSON.stringify({ action: 'send_group_msg',
+        params: { group_id: groupId, message: [{ type: 'text', data: { text: content } }] }, echo,
+      }), error => {
+        if (error) {
+          const entry = pending.get(echo);
+          if (entry) { clearTimeout(entry.timer); pending.delete(echo); entry.finish(false); }
+          console.error('[NapCat] 回复写入连接失败。');
+        }
+      });
+    };
     socket.on('message', async raw => {
       let event: unknown;
       try { event = JSON.parse(raw.toString()); }
@@ -75,13 +92,29 @@ export const connectNapCat = (url: string, token: string,
           const history = memory.get(message.groupId, message.senderId);
           if (!history.length) return;
           observing = true;
+          const autoJob = {};
+          if (options.autoReply) busy = autoJob;
+          let awaitingAck = false;
+          const releaseAuto = (): void => { if (busy === autoJob) busy = undefined; };
+          const canSend = (): boolean => !stopped && activeSocket === socket && activeSocket.readyState === WebSocket.OPEN && valid();
           try {
             const decision = await judgeFollowUp(text, history);
-            if (!stopped && activeSocket === socket && valid()) {
-              console.log(`[观察] wouldRespond=${decision.shouldRespond}; reason=${decision.reason}; 历史${history.length / 2}轮；仅记录，不接话。`);
-            } else console.log('[观察] 窗口已结束，丢弃迟到的判断；不接话。');
-          } catch { console.log('[观察] 判断失败或超时，默认不接话。'); }
-          finally { observing = false; }
+            if (!canSend()) { console.log('[接续] 窗口已结束，丢弃迟到的判断；不接话。'); return; }
+            console.log(`[${options.autoReply ? '自动接话' : '观察'}] wouldRespond=${decision.shouldRespond}; reason=${decision.reason}; 历史${history.length / 2}轮。`);
+            if (!options.autoReply || !decision.shouldRespond || !generateReply) return;
+            const answer = await generateReply(text, history);
+            if (!canSend()) { console.log('[自动接话] 发送前窗口失效，取消回复。'); return; }
+            awaitingAck = true;
+            sendReply(message.groupId, answer, success => {
+              if (success) {
+                memory.add(message.groupId, message.senderId, text, answer);
+                valid.consume();
+                console.log('[自动接话] 成功回复已写入记忆，计入本窗口2次限额。');
+              }
+              releaseAuto();
+            });
+          } catch { console.log('[接续] 判断或生成失败、超时，默认不接话。'); }
+          finally { observing = false; if (!awaitingAck) releaseAuto(); }
         }
         return;
       }
@@ -132,30 +165,14 @@ export const connectNapCat = (url: string, token: string,
         }
       }
       if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
-      const echo = randomUUID();
       const finish = (success: boolean): void => {
         if (success && commit) {
           commit();
-          if (judgeFollowUp) { windows.open(message.groupId, ticket); console.log('[观察] 回复成功，尝试开启同一用户60秒窗口。'); }
+          if (judgeFollowUp) { windows.open(message.groupId, ticket); console.log('[接续] 明确呼叫回复成功，开启60秒窗口，最多自动接话2次。'); }
         }
         release();
       };
-      pending.set(echo, { finish, timer: setTimeout(() => {
-        pending.delete(echo);
-        finish(false);
-        console.error('[NapCat] 回复确认超时，不自动重发。');
-      }, 10_000) });
-      activeSocket.send(JSON.stringify({
-        action: 'send_group_msg',
-        params: { group_id: reply.groupId, message: [{ type: 'text', data: { text: reply.content } }] },
-        echo,
-      }), error => {
-        if (error) {
-          const entry = pending.get(echo);
-          if (entry) { clearTimeout(entry.timer); pending.delete(echo); entry.finish(false); }
-          console.error('[NapCat] 回复写入连接失败。');
-        }
-      });
+      sendReply(reply.groupId, reply.content, finish);
     });
   };
   connect();

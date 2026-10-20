@@ -160,3 +160,19 @@ Observations never send QQ replies, enter memory, or extend the window. Logs
 contain only the judgment and reason, not input messages or conversation history.
 Expired/interrupted late results are discarded; errors default to no response.
 Restarting clears windows and memory. Set `FOLLOW_UP_OBSERVE=false` to disable.
+
+## Limited automatic follow-ups
+
+Set `FOLLOW_UP_AUTO=true` and `FOLLOW_UP_OBSERVE=false` to enable. Observation
+mode takes precedence if both are true, and setting both false disables follow-ups.
+A successful explicit call (@, name, or verified direct reply) opens a fixed
+60-second window for that user in that group, with at most two successful
+automatic replies. Automatic replies do not extend the deadline or reset quota.
+Other speakers (including image-only messages), disconnects, clear commands and
+new explicit requests invalidate the old window. The window is checked after
+judgment and again immediately before sending the generated reply.
+
+Only a successful send acknowledgement writes an automatic exchange to memory
+and consumes quota. Failures/timeouts stay silent and do not write memory.
+Judging and generation are serialized; concurrent candidates are skipped.
+No response is sent for a negative judgment, expired or interrupted window.
