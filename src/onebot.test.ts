@@ -30,7 +30,8 @@ test('WebSocket authenticates and sends exactly one reply for a bot mention', { 
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   const connection = once(server, 'connection');
-  const stop = connectNapCat(`ws://127.0.0.1:${address.port}/`, 'test-token');
+  const prompts: string[] = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}/`, 'test-token', async content => { prompts.push(content); return '模拟模型回复'; });
   try {
     const [peer, request] = await connection;
     assert.equal(request.headers.authorization, 'Bearer test-token');
@@ -49,8 +50,9 @@ test('WebSocket authenticates and sends exactly one reply for a bot mention', { 
     await received;
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(actions.length, 1);
+    assert.deepEqual(prompts, ['你好']);
     assert.deepEqual((actions[0] as { params: unknown }).params, {
-      group_id: '789', message: [{ type: 'text', data: { text: '你好，我是 AI 群友。' } }],
+      group_id: '789', message: [{ type: 'text', data: { text: '模拟模型回复' } }],
     });
   } finally {
     stop();

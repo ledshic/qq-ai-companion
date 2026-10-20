@@ -87,3 +87,20 @@ mention triggered one fixed reply, while the ordinary message did not.
 
 References: [NapCat configuration](https://napneko.github.io/config/basic),
 [OneBot WebSocket](https://github.com/botuniverse/onebot-11/blob/master/communication/ws.md).
+
+## DeepSeek replies
+
+In `.env`, set `DEEPSEEK_API_KEY` privately, set `DEEPSEEK_MODEL` (default
+`deepseek-flash`), and set `LLM_ENABLED=true`. Restart only the Node bot with
+`pnpm napcat`; do not restart NapCat or log QQ out. Stop any previous bot
+process first to avoid duplicate replies. `LLM_ENABLED=false` keeps fixed replies.
+
+Only text in the current message mentioning the bot is sent to DeepSeek.
+Account IDs, group IDs, other messages, and chat history are not included.
+No conversation memory or tools are enabled. Requests time out after 30 seconds,
+are not automatically retried, and limit output to 512 tokens / 1500 characters.
+Only one LLM request is processed at a time; further mentions while busy are
+ignored. Empty or over-4000-character prompts return a local usage hint.
+API failures return a fixed friendly error without exposing service details.
+
+Official API: https://api-docs.deepseek.com/api/create-chat-completion/

@@ -1,4 +1,5 @@
 import { connectNapCat } from './napcat-client.js';
+import { createDeepSeekReply } from './deepseek.js';
 
 const address = process.env.NAPCAT_WS_URL;
 if (!address) {
@@ -16,6 +17,15 @@ try {
   process.exit(1);
 }
 
-const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '');
+const llmEnabled = process.env.LLM_ENABLED === 'true';
+if (llmEnabled && !process.env.DEEPSEEK_API_KEY?.trim()) {
+  console.error('LLM_ENABLED=true 时必须配置 DEEPSEEK_API_KEY。');
+  process.exit(1);
+}
+const generateReply = llmEnabled
+  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
+  : undefined;
+console.log(llmEnabled ? '[LLM] DeepSeek 已启用，仅发送当前被 @ 消息的文字。' : '[LLM] 未启用，使用固定回复。');
+const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply);
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);

@@ -3,7 +3,8 @@ import WebSocket from 'ws';
 import { handleGroupMessage } from './message.js';
 import { isRecord, parseGroupMessage } from './onebot.js';
 
-export const connectNapCat = (url: string, token: string) => {
+export const connectNapCat = (url: string, token: string, generateReply?: (content: string) => Promise<string>) => {
+  let busy = false;
   let stopped = false;
   let socket: WebSocket;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
@@ -25,7 +26,8 @@ export const connectNapCat = (url: string, token: string) => {
         reconnect = setTimeout(connect, 3000);
       }
     });
-    socket.on('message', raw => {
+    const activeSocket = socket;
+    socket.on('message', async raw => {
       let event: unknown;
       try { event = JSON.parse(raw.toString()); }
       catch { console.error('[NapCat] 忽略无效 JSON。'); return; }
@@ -42,6 +44,21 @@ export const connectNapCat = (url: string, token: string) => {
       if (message === null) return;
       const reply = handleGroupMessage(message);
       if (reply === null) return;
+      if (generateReply) {
+        if (busy) { console.log('[LLM] 正在处理上一条消息，忽略本次请求。'); return; }
+        const content = message.content.trim();
+        if (!content || content.length > 4000) {
+          reply.content = '请在 @ 后发送 1 至 4000 个字符的文字。';
+        } else {
+          busy = true;
+          try { reply.content = await generateReply(content); }
+          catch {
+            console.error('[LLM] 请求失败或超时，请检查服务、密钥和余额。');
+            reply.content = '我暂时没能生成回复，请稍后再试。';
+          } finally { busy = false; }
+        }
+      }
+      if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) return;
       const echo = randomUUID();
       pending.set(echo, setTimeout(() => {
         pending.delete(echo);
