@@ -1,14 +1,15 @@
+import { withTimeout } from './abort.js';
 import { CHAT_SYSTEM_PROMPT } from './persona.js';
 import type { ChatTurn } from './memory.js';
 import { isRecord } from './onebot.js';
 
 export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash', request: typeof fetch = fetch) => {
   if (!apiKey.trim()) throw new Error('请在 .env 中配置 DEEPSEEK_API_KEY。');
-  return async (content: string, history: ChatTurn[] = []): Promise<string> => {
+  return async (content: string, history: ChatTurn[] = [], signal?: AbortSignal): Promise<string> => {
     const response = await request('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(30_000),
+      signal: withTimeout(signal, 30_000),
       body: JSON.stringify({
         model,
         thinking: { type: 'disabled' },

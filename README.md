@@ -164,8 +164,9 @@ window; only its own successful reply can open a new one. Disconnects clear wind
 Eligible ordinary text messages (up to 4000 characters, no @, no reply reference,
 no name trigger) are sent to DeepSeek with the user's existing recent conversation
 (up to 6 turns). IDs and other members' messages are not sent. Each participant
-is judged at most once at a time and a judgment times out after 10 seconds; busy
-candidates are skipped. Observations never send QQ replies, enter memory, or
+runs at most one task, a judgment times out after 10 seconds, and a newer message
+from the same participant merges into the one already waiting. Observations never
+send QQ replies, enter memory, or
 extend the window. Logs contain only the judgment and reason, not input messages
 or conversation history. Late results that arrive after the window closed are
 discarded; errors default to no response. Restarting clears windows but keeps
@@ -184,9 +185,9 @@ judgment and again immediately before sending the generated reply.
 
 Only a successful send acknowledgement writes an automatic exchange to memory
 and consumes quota. Failures/timeouts stay silent and do not write memory.
-Judging and generation are serialized per participant; concurrent candidates
-from the same participant are skipped. No response is sent for a negative
-judgment or a window that expired or closed.
+Judging and generation are serialized per participant; a candidate that arrives
+while that participant is busy waits instead of being skipped. No response is
+sent for a negative judgment or a window that expired or closed.
 
 ## Follow-up judgment and diagnostics
 
@@ -195,21 +196,30 @@ or `uncertain` (stay silent), plus a short reason. Only `continue` allows a repl
 Pause keeps the existing deadline and quota; it never extends the 60 seconds.
 End closes the window. Invalid or inconsistent results fail closed.
 
-Skip logs distinguish expired windows, exhausted quota, closed/missing windows,
-ended conversations and busy processing. Logs contain no raw message
+Skip logs distinguish expired windows, exhausted quota, closed/missing windows
+and ended conversations. Logs contain no raw message
 text, IDs, memory content or keys. They describe decisions, not private model
 reasoning. Conversation memory remains at 6 turns.
 
 ## Concurrent participants
 
-Participants are handled independently. Reply jobs are exclusive per group and
-sender, so a slow generation for one member no longer blocks another. The number
-of jobs that may run at once is `MAX_INFLIGHT` (default 2, range 1-16); requests
-above the cap are skipped rather than queued, so a burst degrades into fewer
-replies instead of a backlog. Sends to one group are queued, so the parts of a
-multi-part reply never interleave with another member's reply. Observation mode
-follows the same rule: each participant is judged at most once at a time, and up
-to `MAX_INFLIGHT` model calls run concurrently.
+Each participant is a cooperative task on the single Node event loop: dispatch
+decides synchronously, every await is a yield point, and the task owns one
+`AbortController`. A slow generation for one member never blocks another.
+
+- A new explicit call (@, name or verified reply) supersedes whatever that
+  participant had running: the old task is aborted at its next await instead of
+  completing and being discarded afterwards.
+- While a reply is generating, follow-up messages from the same participant wait
+  in that task's inbox. Messages within three seconds of the waiting one are
+  merged into a single prompt, so a sentence split across several messages is
+  answered once; anything older replaces it.
+- `MAX_INFLIGHT` (default 2, range 1-16) limits concurrent model calls. Work
+  above the cap waits for a free slot and is cancelled if its window expires
+  first, so a burst queues instead of being dropped.
+- Sends to one group are queued, so the parts of a multi-part reply never
+  interleave with another member's reply.
+- Disconnecting aborts every running task immediately.
 
 ## Upstream whale persona
 

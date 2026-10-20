@@ -144,7 +144,7 @@ test('a slow reply for one participant does not block another explicit call', { 
   } finally { await h.close(); }
 });
 
-test('maxInflight bounds concurrent reply jobs across participants', { timeout: 5000 }, async () => {
+test('maxInflight queues a second participant instead of dropping the request', { timeout: 5000 }, async () => {
   const h = await harness({ maxInflight: 1 });
   let complete!: (text: string) => void;
   try {
@@ -154,10 +154,24 @@ test('maxInflight bounds concurrent reply jobs across participants', { timeout: 
     await h.send('alice slow', true, 456);
     await h.send('bob hello', true, 999);
     assert.deepEqual(h.sent, []);
-    assert.ok(h.logs.some(line => line.includes('并发已满')));
     complete('alice answer');
-    await pause();
-    assert.deepEqual(h.sent, ['alice answer']);
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, ['alice answer', 'answer:bob hello']);
+  } finally { await h.close(); }
+});
+
+test('split sentences merge into one prompt while a reply is generating', { timeout: 5000 }, async () => {
+  const h = await harness();
+  let complete!: (text: string) => void;
+  try {
+    await h.send('start', true);
+    h.generator(() => new Promise(resolve => { complete = resolve; }));
+    await h.send('first');
+    await h.send('second');
+    await h.send('third');
+    complete('done');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.judged, ['first', 'second\nthird']);
   } finally { await h.close(); }
 });
 
@@ -184,12 +198,19 @@ test('pause preserves a window, end closes it, and expiry/busy logs explain skip
     await h.send('', false, 999, true);
     await h.send('still open');
     assert.ok(h.judged.includes('still open'));
+    // A message that arrives mid-generation waits in the inbox instead of being dropped.
+    await h.send('reset2', true);
     h.generator(() => new Promise(resolve => { complete = resolve; }));
-    await h.send('pending');
-    await h.send('busy');
-    assert.ok(h.logs.some(line => line.includes('忙碌')));
-    complete('answer');
+    await h.send('slow');
+    await h.send('queued');
+    assert.equal(h.judged.includes('queued'), false);
+    complete('slow answer');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.ok(h.judged.includes('queued'));
+    complete('queued answer');
     await pause();
+    assert.ok(h.sent.includes('queued answer'));
+    assert.ok(!h.logs.some(line => line.includes('忙碌')));
   } finally { await h.close(); }
 });
 

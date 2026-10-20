@@ -2,7 +2,7 @@ import type { ChatTurn } from './memory.js';
 
 export type FollowUpIntent = 'continue' | 'pause' | 'end' | 'uncertain';
 export interface FollowUpDecision { intent: FollowUpIntent; shouldRespond: boolean; reason: string }
-export type FollowUpJudge = (content: string, history: ChatTurn[]) => Promise<FollowUpDecision>;
+export type FollowUpJudge = (content: string, history: ChatTurn[], signal?: AbortSignal) => Promise<FollowUpDecision>;
 export interface WindowState {
   group: string;
   sender: string;

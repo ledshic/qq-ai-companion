@@ -1,14 +1,15 @@
+import { withTimeout } from './abort.js';
 import { BOT_NAME } from './identity.js';
 import { isRecord } from './onebot.js';
 import type { FollowUpJudge } from './observation.js';
 
 export const createFollowUpJudge = (apiKey: string, model = 'deepseek-flash', request: typeof fetch = fetch): FollowUpJudge => {
   if (!apiKey.trim()) throw new Error('缺少 DeepSeek API Key');
-  return async (content, history) => {
+  return async (content, history, signal) => {
     const response = await request('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(10_000),
+      signal: withTimeout(signal, 10_000),
       body: JSON.stringify({ model, thinking: { type: 'disabled' }, stream: false, max_tokens: 256,
         response_format: { type: 'json_object' },
         messages: [
