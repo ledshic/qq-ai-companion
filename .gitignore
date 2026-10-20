@@ -6,3 +6,6 @@ coverage/
 !.env.example
 *.log
 .DS_Store
+
+# Local QQ login sessions and NapCat configuration
+data/
