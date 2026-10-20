@@ -50,8 +50,14 @@ const autoReplyEnabled = llmEnabled && !observationEnabled && process.env.FOLLOW
 const judge = (observationEnabled || autoReplyEnabled)
   ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
   : undefined;
+const maxInflight = Number(process.env.MAX_INFLIGHT ?? 2);
+if (!Number.isSafeInteger(maxInflight) || maxInflight < 1 || maxInflight > 16) {
+  console.error('MAX_INFLIGHT 必须是 1 到 16 的整数。');
+  process.exit(1);
+}
 console.log(observationEnabled ? '[观察] 仅判断不回复。' : autoReplyEnabled ? '[自动接话] 每个用户独立60秒窗口，最多2次。' : '[接续] 已关闭。');
-const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, { autoReply: autoReplyEnabled, memory });
+console.log(`[并发] 同时最多 ${maxInflight} 个生成任务。`);
+const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, { autoReply: autoReplyEnabled, memory, maxInflight });
 
 let closing = false;
 const shutdown = (): void => {

@@ -5,7 +5,7 @@ import { WebSocketServer, type RawData } from 'ws';
 import { connectNapCat } from './napcat-client.js';
 
 const pause = () => new Promise(resolve => setTimeout(resolve, 25));
-async function harness() {
+async function harness(overrides: { maxInflight?: number } = {}) {
   let now = 0;
   let failSend = false;
   let generate: (text: string) => Promise<string> = async text => `answer:${text}`;
@@ -26,7 +26,7 @@ async function harness() {
     if (text === 'judge-error') throw new Error('test');
     const intent = text === 'pause' ? 'pause' : text === 'end' ? 'end' : text === 'no' ? 'uncertain' : 'continue';
     return { intent, shouldRespond: intent === 'continue', reason: 'test reason' };
-  }, { autoReply: true, now: () => now, log: line => logs.push(line) });
+  }, { autoReply: true, now: () => now, log: line => logs.push(line), ...overrides });
   const [peer] = await connection;
   peer.on('message', (raw: RawData) => {
     const action = JSON.parse(raw.toString());
@@ -141,6 +141,23 @@ test('a slow reply for one participant does not block another explicit call', { 
     complete('alice answer');
     await pause();
     assert.deepEqual(h.sent, ['answer:bob hello', 'alice answer']);
+  } finally { await h.close(); }
+});
+
+test('maxInflight bounds concurrent reply jobs across participants', { timeout: 5000 }, async () => {
+  const h = await harness({ maxInflight: 1 });
+  let complete!: (text: string) => void;
+  try {
+    h.generator(text => text === 'alice slow'
+      ? new Promise(resolve => { complete = resolve; })
+      : Promise.resolve(`answer:${text}`));
+    await h.send('alice slow', true, 456);
+    await h.send('bob hello', true, 999);
+    assert.deepEqual(h.sent, []);
+    assert.ok(h.logs.some(line => line.includes('并发已满')));
+    complete('alice answer');
+    await pause();
+    assert.deepEqual(h.sent, ['alice answer']);
   } finally { await h.close(); }
 });
 

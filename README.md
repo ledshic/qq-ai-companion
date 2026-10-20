@@ -203,12 +203,13 @@ reasoning. Conversation memory remains at 6 turns.
 ## Concurrent participants
 
 Participants are handled independently. Reply jobs are exclusive per group and
-sender, so a slow generation for one member no longer blocks another; at most
-two jobs run at once and further requests are skipped with a `[跳过] 忙碌` log.
-Sends to one group are queued, so the parts of a multi-part reply never
-interleave with another member's reply. Observation mode follows the same rule:
-each participant is judged at most once at a time, and up to two model calls run
-concurrently.
+sender, so a slow generation for one member no longer blocks another. The number
+of jobs that may run at once is `MAX_INFLIGHT` (default 2, range 1-16); requests
+above the cap are skipped rather than queued, so a burst degrades into fewer
+replies instead of a backlog. Sends to one group are queued, so the parts of a
+multi-part reply never interleave with another member's reply. Observation mode
+follows the same rule: each participant is judged at most once at a time, and up
+to `MAX_INFLIGHT` model calls run concurrently.
 
 ## Upstream whale persona
 
