@@ -1,3 +1,4 @@
+import { deliverPersonaReply } from './delivery.js';
 import { ObservationWindows, type FollowUpJudge } from './observation.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
@@ -44,7 +45,7 @@ export const connectNapCat = (url: string, token: string,
         reconnect = setTimeout(connect, 3000);
       }
     });
-    const sendReply = (groupId: string, content: string, finish: (success: boolean) => void): void => {
+    const sendPart = (groupId: string, content: string, finish: (success: boolean) => void): void => {
       const echo = randomUUID();
       pending.set(echo, { finish, timer: setTimeout(() => {
         pending.delete(echo); finish(false);
@@ -59,6 +60,13 @@ export const connectNapCat = (url: string, token: string,
           console.error('[NapCat] 回复写入连接失败。');
         }
       });
+    };
+    const sendReply = (groupId: string, content: string,
+      finish: (success: boolean, delivered?: string) => void, guard: () => boolean = () => true): void => {
+      void deliverPersonaReply(content, part => new Promise(resolve => sendPart(groupId, part, resolve)),
+        () => !stopped && activeSocket === socket && activeSocket.readyState === WebSocket.OPEN && guard())
+        .then(delivered => finish(!!delivered, delivered))
+        .catch(() => finish(false));
     };
     socket.on('message', async raw => {
       let event: unknown;
@@ -110,14 +118,14 @@ export const connectNapCat = (url: string, token: string,
             const answer = await generateReply(text, history);
             if (!canSend()) { log('[自动接话] 发送前窗口失效，取消回复。'); return; }
             awaitingAck = true;
-            sendReply(message.groupId, answer, success => {
+            sendReply(message.groupId, answer, (success, delivered) => {
               if (success) {
-                memory.add(message.groupId, message.senderId, text, answer);
+                memory.add(message.groupId, message.senderId, text, delivered ?? answer);
                 valid.consume();
                 log('[自动接话] 成功回复已写入记忆，计入本窗口2次限额。');
               }
               releaseAuto();
-            });
+            }, canSend);
           } catch { log('[接续] 判断或生成失败、超时，默认不接话。'); }
           finally { observing = false; if (!awaitingAck) releaseAuto(); }
         }
@@ -144,7 +152,7 @@ export const connectNapCat = (url: string, token: string,
         message.isReplyToBot = isBotGroupReply(data, message);
         log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[触发] 引用未确认属于本群机器人，忽略。');
       }
-      if (message.isCalledByName) log('[触发] 句首称呼命中（大肥鱼）。');
+      if (message.isCalledByName) log('[触发] 句首称呼命中（角色称呼）。');
       const reply = handleGroupMessage(message);
       if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
       let commit: (() => void) | undefined;
@@ -170,7 +178,8 @@ export const connectNapCat = (url: string, token: string,
         }
       }
       if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
-      const finish = (success: boolean): void => {
+      const finish = (success: boolean, delivered?: string): void => {
+        if (delivered) reply.content = delivered;
         if (success && commit) {
           commit();
           if (judgeFollowUp) { windows.open(message.groupId, ticket); log('[接续] 明确呼叫回复成功，开启60秒窗口，最多自动接话2次。'); }

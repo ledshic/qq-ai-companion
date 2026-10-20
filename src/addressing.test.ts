@@ -4,7 +4,7 @@ import { stripBotName } from './addressing.js';
 import { parseGroupMessage } from './onebot.js';
 
 test('recognize direct name calls and strip the prefix', () => {
-  for (const text of ['大肥鱼，你好', '大肥鱼 你好', ' 大肥鱼：你好', '大肥鱼你好']) {
+  for (const text of ['大肥鱼，你好', '大肥鱼 你好', ' 大肥鱼：你好', '大肥鱼你好', '小鲸鱼，你好', 'DeepSeek，你好', '蓝色大肥鱼，你好', 'D指导，你好']) {
     assert.equal(stripBotName(text), '你好');
   }
   assert.equal(stripBotName('大肥鱼'), '');

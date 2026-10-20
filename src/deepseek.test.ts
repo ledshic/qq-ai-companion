@@ -10,8 +10,10 @@ test('DeepSeek request sends only the supplied text and reads assistant content'
     assert.equal(body.model, 'deepseek-flash');
     assert.deepEqual(body.thinking, { type: 'disabled' });
     assert.equal(body.messages.length, 2);
-    assert.match(body.messages[0].content, /你叫大肥鱼/);
-    assert.doesNotMatch(body.messages[0].content, /小爱|别名/);
+    assert.match(body.messages[0].content, /傲娇嘴硬/);
+    assert.match(body.messages[0].content, /QQ 群友版/);
+    assert.doesNotMatch(body.messages[0].content, /以大肥鱼作为自己的名字/);
+    assert.doesNotMatch(body.messages[0].content, /小爱/);
     assert.deepEqual(body.messages[1], { role: 'user', content: '你好' });
     assert.equal(body.max_tokens, 512);
     assert.ok(options?.signal);

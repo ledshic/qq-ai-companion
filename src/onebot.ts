@@ -29,7 +29,7 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
       (typeof replyId === 'string' && /^-?\d+$/.test(replyId)) ? String(replyId) : undefined,
     groupId: String(event.group_id),
     senderId: String(event.user_id),
-    content: addressedContent ?? content,
+    content: addressedContent === '' ? content.trim() : addressedContent ?? content,
     isCalledByName: addressedContent !== undefined,
     hasAnyMention: segments.some(segment => segment.type === 'at'),
     isMentioned: segments.some(segment => segment.type === 'at' && isRecord(segment.data) &&

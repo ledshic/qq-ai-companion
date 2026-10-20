@@ -214,7 +214,8 @@ test('name calls share mention memory, clear locally, and ignore incidental name
     await send('大肥鱼你记得吗');
     assert.deepEqual(seen.at(-1), { text: '你记得吗', history: [] });
     await send('大肥鱼');
-    assert.equal(seen.length, 3);
+    assert.equal(seen.length, 4);
+    assert.equal(seen.at(-1)?.text, '大肥鱼');
     assert.equal(sent, 5);
   } finally {
     stop();

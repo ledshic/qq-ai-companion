@@ -147,3 +147,18 @@ test('pause preserves a window, end closes it, and expiry/interruption/busy logs
     await pause();
   } finally { await h.close(); }
 });
+
+test('partial segmented delivery stores only the successfully sent text', { timeout: 5000 }, async () => {
+  const h = await harness();
+  try {
+    h.generator(async () => 'first line\nsecond line');
+    await h.send('start', true);
+    assert.equal(h.sent[0], 'first line');
+    h.failure(true);
+    await new Promise(resolve => setTimeout(resolve, 1350));
+    h.failure(false);
+    h.generator(async () => 'next answer');
+    await h.send('next', true);
+    assert.deepEqual(h.histories.at(-1)?.history, ['start', 'first line']);
+  } finally { await h.close(); }
+});

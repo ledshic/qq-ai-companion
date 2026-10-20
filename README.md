@@ -51,8 +51,8 @@ QQ may still require phone verification.
 ## NapCat connection
 
 `pnpm dev` remains an offline demo. `pnpm napcat` connects to a real NapCat
-OneBot v11 WebSocket server and sends the fixed reply when this account is
-explicitly mentioned in a group. No LLM is connected.
+OneBot v11 WebSocket server. With `LLM_ENABLED=true`, replies use DeepSeek
+and the upstream whale persona; otherwise a fixed reply is used.
 
 1. Install and log in to NapCat on a supported host.
 2. In NapCat WebUI, create and enable a **WebSocket server** (forward WS).
@@ -130,12 +130,12 @@ also works when replying to a bot message.
 
 ## Calling the bot by name
 
-The only configured name is `大肥鱼`. The system prompt
-uses the same identity. Start a new message with `大肥鱼，` (or a space/punctuation delimiter), e.g.
+The QQ nickname is `大肥鱼`; character self-identification follows the
+upstream whale persona described below. Start a new message with `大肥鱼，` (or a space/punctuation delimiter), e.g.
 `大肥鱼，记住我叫小林`. Common direct phrases such as `大肥鱼你觉得呢` also work.
 Leading whitespace is accepted; the name and separator are removed before
 processing. `大肥鱼，/清空记忆` clears the same group/user memory without an API call.
-A name-only message returns a local input hint without calling DeepSeek.
+A name-only message reaches the persona, allowing an in-character reaction.
 
 A name in the middle of text, in quoted content, or a longer name such as
 `大肥鱼爱好者` does not trigger. Nested replies are not followed. Explicit name
@@ -188,3 +188,25 @@ Skip logs distinguish expired windows, interruption by another member, exhausted
 quota, closed/missing windows and busy processing. Logs contain no raw message
 text, IDs, memory content or keys. They describe decisions, not private model
 reasoning. Conversation memory remains at 6 turns.
+
+## Upstream whale persona
+
+`config/personas/dafeiyu.md` is the full upstream QQ group-friend character card
+from mtshang/make-your-qq-ai-group-member, retained under its MIT license
+(`config/personas/LICENSE.mtshang`). `src/persona.ts` loads it from the project,
+independent of the shell's current directory. Restart the Node bot after edits.
+
+The prior forced self-name prompt was removed: the QQ nickname remains 大肥鱼,
+but the character identifies as DeepSeek / 小鲸鱼 and can object playfully to
+being called a fat fish. Sentence-start calls also accept the card's names
+小鲸鱼, DeepSeek, deepseek, 蓝色大肥鱼 and D指导; 小爱 is not restored.
+Calling only a name now reaches the character instead of returning an input hint.
+
+The judgment prompt remains separate from the persona. Data scope, six-turn
+memory and bounded automatic participation remain enforced by the platform.
+The runtime appendix states the actual available context and absence of tools.
+
+Generated newline-separated short messages are delivered as at most three parts,
+1.2 seconds apart. Auto-follow-ups recheck the window before each part. One batch
+counts as one conversation turn and one follow-up quota unit. If interrupted or
+partially failed, only the successfully delivered text enters memory.
