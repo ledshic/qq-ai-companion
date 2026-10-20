@@ -61,12 +61,12 @@ export const connectNapCat = (url: string, token: string,
 
       const message = parseGroupMessage(event);
       if (message === null) return;
-      if (!message.isMentioned && !message.replyMessageId) return;
+      if (!message.isMentioned && !message.replyMessageId && !message.isCalledByName) return;
       if (busy) { console.log('[LLM] 正在处理上一条消息，忽略本次请求。'); return; }
       const job = {};
       busy = job;
       const release = (): void => { if (busy === job) busy = undefined; };
-      if (!message.isMentioned && message.replyMessageId) {
+      if (!message.isMentioned && !message.isCalledByName && message.replyMessageId) {
         const data = await new Promise<unknown>(resolve => {
           const echo = randomUUID();
           lookups.set(echo, { resolve, timer: setTimeout(() => {
@@ -82,6 +82,7 @@ export const connectNapCat = (url: string, token: string,
         message.isReplyToBot = isBotGroupReply(data, message);
         console.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[触发] 引用未确认属于本群机器人，忽略。');
       }
+      if (message.isCalledByName) console.log('[触发] 句首称呼小爱。');
       const reply = handleGroupMessage(message);
       if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
       let commit: (() => void) | undefined;
@@ -92,7 +93,7 @@ export const connectNapCat = (url: string, token: string,
           reply.content = '已清空你在本群与我的聊天记忆。';
           console.log('[记忆] 已清空当前会话。');
         } else if (!content || content.length > 4000) {
-          reply.content = '请在 @ 后发送 1 至 4000 个字符的文字。';
+          reply.content = '请在 @、引用或称呼后发送 1 至 4000 个字符的文字。';
         } else {
           try {
             const history = memory.get(message.groupId, message.senderId);

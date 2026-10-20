@@ -1,3 +1,4 @@
+import { stripBotName } from './addressing.js';
 import type { GroupMessage } from './message.js';
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -17,15 +18,19 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
   const segments = event.message.filter(isRecord);
   const reply = segments.find(segment => segment.type === 'reply' && isRecord(segment.data));
   const replyId = reply && isRecord(reply.data) ? reply.data.id : undefined;
+  const content = segments.filter(segment => segment.type === 'text' && isRecord(segment.data))
+      .map(segment => (segment.data as Record<string, unknown>).text)
+      .filter(text => typeof text === 'string').join('');
+  const first = segments.find(segment => segment.type !== 'reply');
+  const addressedContent = first?.type === 'text' ? stripBotName(content) : undefined;
   return {
     selfId: String(event.self_id),
     replyMessageId: (typeof replyId === 'number' && Number.isSafeInteger(replyId)) ||
       (typeof replyId === 'string' && /^-?\d+$/.test(replyId)) ? String(replyId) : undefined,
     groupId: String(event.group_id),
     senderId: String(event.user_id),
-    content: segments.filter(segment => segment.type === 'text' && isRecord(segment.data))
-      .map(segment => (segment.data as Record<string, unknown>).text)
-      .filter(text => typeof text === 'string').join(''),
+    content: addressedContent ?? content,
+    isCalledByName: addressedContent !== undefined,
     isMentioned: segments.some(segment => segment.type === 'at' && isRecord(segment.data) &&
       String(segment.data.qq) === String(event.self_id)),
   };

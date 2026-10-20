@@ -127,3 +127,16 @@ Only the new text and the requesting user's existing conversation memory go
 to DeepSeek; quoted messages are not appended to the model context. Memory
 isolation, limits, expiry and `/清空记忆` remain the same. The clear command
 also works when replying to a bot message.
+
+## Calling the bot by name
+
+Start a new message with `小爱，` (or a space/punctuation delimiter), e.g.
+`小爱，记住我叫小林`. Common direct phrases such as `小爱你觉得呢` also work.
+Leading whitespace is accepted; the name and separator are removed before
+processing. `小爱，/清空记忆` clears the same group/user memory without an API call.
+A name-only message returns a local input hint without calling DeepSeek.
+
+A name in the middle of text, in quoted content, or a longer name such as
+`小爱好者` does not trigger. Nested replies are not followed. Explicit name
+calls work even when replying to someone else. Mentions and verified direct
+replies keep working, and all three triggers share the same memory.

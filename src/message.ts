@@ -3,6 +3,7 @@ export interface GroupMessage {
   senderId: string;
   content: string;
   isMentioned: boolean;
+  isCalledByName?: boolean;
   selfId?: string;
   replyMessageId?: string;
   isReplyToBot?: boolean;
@@ -14,7 +15,7 @@ export interface GroupReply {
 }
 
 export const handleGroupMessage = (message: GroupMessage): GroupReply | null => {
-  if (!message.isMentioned && !message.isReplyToBot) {
+  if (!message.isMentioned && !message.isReplyToBot && !message.isCalledByName) {
     return null;
   }
 

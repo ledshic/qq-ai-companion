@@ -176,3 +176,49 @@ test('unmentioned replies verify ownership and retain the same conversation memo
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });
+
+test('name calls share mention memory, clear locally, and ignore incidental names', { timeout: 5000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const connection = once(server, 'connection');
+  const seen: Array<{ text: string; history: string[] }> = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}/`, '', async (text, history) => {
+    seen.push({ text, history: history.map(turn => turn.content) }); return 'reply';
+  });
+  try {
+    const [peer] = await connection;
+    let sent = 0;
+    peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString());
+      assert.equal(action.action, 'send_group_msg');
+      sent++;
+      peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0 }));
+    });
+    const send = async (text: string, mention = false) => {
+      peer.send(JSON.stringify({ ...event('999'), message: [
+        ...(mention ? [{ type: 'at', data: { qq: '123' } }] : []),
+        { type: 'text', data: { text } },
+      ] }));
+      await new Promise(resolve => setTimeout(resolve, 30));
+    };
+    await send('我问过小爱');
+    await send('小爱好者');
+    assert.equal(sent, 0);
+    await send('小爱，叫我小林');
+    await send('我叫什么', true);
+    assert.deepEqual(seen, [{ text: '叫我小林', history: [] }, { text: '我叫什么', history: ['叫我小林', 'reply'] }]);
+    await send('小爱，/清空记忆');
+    assert.equal(seen.length, 2);
+    await send('小爱你记得吗');
+    assert.deepEqual(seen.at(-1), { text: '你记得吗', history: [] });
+    await send('小爱');
+    assert.equal(seen.length, 3);
+    assert.equal(sent, 5);
+  } finally {
+    stop();
+    for (const client of server.clients) client.terminate();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
