@@ -1,0 +1,20 @@
+{
+  "name": "qq-ai-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A minimal foundation for a QQ AI companion.",
+  "type": "module",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
