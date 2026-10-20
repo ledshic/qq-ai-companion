@@ -7,7 +7,7 @@ test('fixed 60-second window expires without extending on follow-ups', () => {
   const windows = new ObservationWindows(() => now);
   const ticket = windows.incoming('g', 'u');
   assert.equal(windows.candidate('g', 'u'), undefined);
-  windows.open('g', ticket);
+  windows.open(ticket);
   const valid = windows.candidate('g', 'u')!;
   now = 59_999;
   windows.incoming('g', 'u');
@@ -18,28 +18,44 @@ test('fixed 60-second window expires without extending on follow-ups', () => {
   assert.equal(windows.candidate('g', 'u'), undefined);
 });
 
-test('other speakers invalidate windows and cannot reopen a pending old reply', () => {
+test('each participant holds an independent window in the same group', () => {
   const windows = new ObservationWindows();
-  const old = windows.incoming('g', 'u');
-  windows.open('g', old);
-  const valid = windows.candidate('g', 'u')!;
-  windows.incoming('other-group', 'other');
-  assert.equal(valid(), true);
-  windows.incoming('g', 'other');
-  windows.open('g', old);
-  assert.equal(valid(), false);
-  windows.incoming('g', 'u');
+  const alice = windows.incoming('g', 'alice');
+  windows.open(alice);
+  const bob = windows.incoming('g', 'bob');
+  windows.open(bob);
+  windows.incoming('g', 'carol');
+  const aliceTicket = windows.candidate('g', 'alice')!;
+  const bobTicket = windows.candidate('g', 'bob')!;
+  assert.equal(aliceTicket(), true);
+  assert.equal(bobTicket(), true);
+  windows.close('g', 'bob');
+  assert.equal(bobTicket(), false);
+  assert.equal(aliceTicket(), true);
+  assert.equal(windows.candidate('g', 'carol'), undefined);
+});
+
+test('a window closed by another event reports the matching skip reason', () => {
+  let now = 0;
+  const windows = new ObservationWindows(() => now);
+  const ticket = windows.incoming('g', 'u');
+  windows.open(ticket);
+  now = 60_000;
+  assert.equal(windows.skipReason('g', 'u'), '窗口已到期（60秒）');
   assert.equal(windows.candidate('g', 'u'), undefined);
+  windows.close('g', 'u', 'ended');
+  assert.equal(windows.skipReason('g', 'u'), '用户已结束对话，窗口关闭');
+  assert.equal(windows.skipReason('g', 'stranger'), '没有开放窗口');
 });
 
 test('close and disconnect clear invalidate in-flight observations', () => {
   const windows = new ObservationWindows();
   const ticket = windows.incoming('g', 'u');
-  windows.open('g', ticket);
+  windows.open(ticket);
   const first = windows.candidate('g', 'u')!;
-  windows.close('g');
+  windows.close('g', 'u');
   assert.equal(first(), false);
-  windows.open('g', ticket);
+  windows.open(ticket);
   const second = windows.candidate('g', 'u')!;
   windows.clear();
   assert.equal(second(), false);
@@ -49,17 +65,27 @@ test('two successful automatic replies exhaust quota without extending the windo
   let now = 0;
   const windows = new ObservationWindows(() => now);
   const ticket = windows.incoming('g', 'u');
-  windows.open('g', ticket);
+  windows.open(ticket);
   const first = windows.candidate('g', 'u')!;
   now = 1000;
   assert.equal(first.consume(), true);
   assert.equal(windows.candidate('g', 'u')!.consume(), true);
   assert.equal(windows.candidate('g', 'u'), undefined);
   assert.equal(first.consume(), false);
-  windows.close('g');
-  windows.open('g', ticket);
+  windows.close('g', 'u');
+  windows.open(ticket);
   assert.equal(first(), false);
   assert.ok(windows.candidate('g', 'u'));
   now = 61_000;
   assert.equal(windows.candidate('g', 'u'), undefined);
+});
+
+test('capacity eviction keeps the most recently used windows', () => {
+  const windows = new ObservationWindows(undefined, 60_000, 2);
+  windows.open(windows.incoming('g', 'a'));
+  windows.open(windows.incoming('g', 'b'));
+  windows.open(windows.incoming('g', 'c'));
+  assert.equal(windows.candidate('g', 'a'), undefined);
+  assert.ok(windows.candidate('g', 'b'));
+  assert.ok(windows.candidate('g', 'c'));
 });

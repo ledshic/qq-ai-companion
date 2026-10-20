@@ -3,37 +3,54 @@ export interface ChatTurn {
   content: string;
 }
 
-// Local storage only: this module makes no network requests.
+export interface StoredSession {
+  turns: ChatTurn[];
+  touched: number;
+}
+
+// Persistence is delegated: the memory policy stays independent of the backend.
+export interface SessionStore {
+  load(key: string): StoredSession | undefined;
+  save(key: string, groupId: string, senderId: string, turns: ChatTurn[], touched: number): void;
+  delete(key: string): void;
+  prune(before: number, keep: number): void;
+  close(): void;
+}
+
+// Sessions are isolated by group and sender; this class owns expiry, turn
+// limits and capacity, and makes no network requests.
 export class ConversationMemory {
-  private sessions = new Map<string, { turns: ChatTurn[]; touched: number }>();
-  constructor(private now = Date.now, private ttl = 30 * 60_000, private maxTurns = 6, private maxSessions = 100) {}
+  constructor(private store: SessionStore, private now = Date.now,
+    private ttl = 30 * 60_000, private maxTurns = 6, private maxSessions = 100) {}
 
   private key(groupId: string, senderId: string): string {
     return JSON.stringify([groupId, senderId]);
   }
 
-  private prune(): void {
-    for (const [key, entry] of this.sessions) {
-      if (this.now() - entry.touched >= this.ttl) this.sessions.delete(key);
-    }
-  }
-
   get(groupId: string, senderId: string): ChatTurn[] {
-    this.prune();
-    return this.sessions.get(this.key(groupId, senderId))?.turns.map(turn => ({ ...turn })) ?? [];
+    const key = this.key(groupId, senderId);
+    const session = this.store.load(key);
+    if (!session) return [];
+    if (this.now() - session.touched >= this.ttl) {
+      this.store.delete(key);
+      return [];
+    }
+    return session.turns.map(turn => ({ ...turn }));
   }
 
   add(groupId: string, senderId: string, prompt: string, reply: string): void {
-    this.prune();
-    const key = this.key(groupId, senderId);
     const turns: ChatTurn[] = [...this.get(groupId, senderId),
       { role: 'user', content: prompt }, { role: 'assistant', content: reply }];
-    this.sessions.delete(key);
-    this.sessions.set(key, { turns: turns.slice(-this.maxTurns * 2), touched: this.now() });
-    while (this.sessions.size > this.maxSessions) this.sessions.delete(this.sessions.keys().next().value!);
+    const now = this.now();
+    this.store.save(this.key(groupId, senderId), groupId, senderId, turns.slice(-this.maxTurns * 2), now);
+    this.store.prune(now - this.ttl, this.maxSessions);
   }
 
   clear(groupId: string, senderId: string): void {
-    this.sessions.delete(this.key(groupId, senderId));
+    this.store.delete(this.key(groupId, senderId));
+  }
+
+  close(): void {
+    this.store.close();
   }
 }

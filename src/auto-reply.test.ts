@@ -94,7 +94,7 @@ test('negative judgments and failed sends/generation are silent and do not consu
   } finally { await h.close(); }
 });
 
-for (const interruption of ['speaker', 'expiry', 'explicit'] as const) {
+for (const interruption of ['expiry', 'explicit'] as const) {
   test(`cancel generated auto reply before sending on ${interruption}`, { timeout: 5000 }, async () => {
     const h = await harness();
     let complete!: (text: string) => void;
@@ -102,7 +102,6 @@ for (const interruption of ['speaker', 'expiry', 'explicit'] as const) {
       await h.send('start', true);
       h.generator(() => new Promise(resolve => { complete = resolve; }));
       await h.send('pending');
-      if (interruption === 'speaker') await h.send('', false, 999, true);
       if (interruption === 'expiry') h.time(60_000);
       if (interruption === 'explicit') await h.send('new explicit', true);
       complete('late answer');
@@ -114,7 +113,38 @@ for (const interruption of ['speaker', 'expiry', 'explicit'] as const) {
   });
 }
 
-test('pause preserves a window, end closes it, and expiry/interruption/busy logs explain skips', { timeout: 5000 }, async () => {
+test('another member speaking does not cancel a pending automatic reply', { timeout: 5000 }, async () => {
+  const h = await harness();
+  let complete!: (text: string) => void;
+  try {
+    await h.send('start', true);
+    h.generator(() => new Promise(resolve => { complete = resolve; }));
+    await h.send('pending');
+    await h.send('', false, 999, true);
+    await h.send('hello from someone else', false, 999);
+    complete('late answer');
+    await pause();
+    assert.deepEqual(h.sent, ['answer:start', 'late answer']);
+  } finally { await h.close(); }
+});
+
+test('a slow reply for one participant does not block another explicit call', { timeout: 5000 }, async () => {
+  const h = await harness();
+  let complete!: (text: string) => void;
+  try {
+    h.generator(text => text === 'alice slow'
+      ? new Promise(resolve => { complete = resolve; })
+      : Promise.resolve(`answer:${text}`));
+    await h.send('alice slow', true, 456);
+    await h.send('bob hello', true, 999);
+    assert.deepEqual(h.sent, ['answer:bob hello']);
+    complete('alice answer');
+    await pause();
+    assert.deepEqual(h.sent, ['answer:bob hello', 'alice answer']);
+  } finally { await h.close(); }
+});
+
+test('pause preserves a window, end closes it, and expiry/busy logs explain skips', { timeout: 5000 }, async () => {
   const h = await harness();
   let complete!: (text: string) => void;
   try {
@@ -135,10 +165,8 @@ test('pause preserves a window, end closes it, and expiry/interruption/busy logs
     assert.ok(h.logs.some(line => line.includes('窗口已到期')));
     await h.send('reset', true);
     await h.send('', false, 999, true);
-    await h.send('interrupted');
-    assert.ok(h.logs.some(line => line.includes('他人插话')));
-    assert.ok(h.logs.some(line => line.includes('他人已插话')));
-    await h.send('reset again', true);
+    await h.send('still open');
+    assert.ok(h.judged.includes('still open'));
     h.generator(() => new Promise(resolve => { complete = resolve; }));
     await h.send('pending');
     await h.send('busy');

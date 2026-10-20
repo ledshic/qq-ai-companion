@@ -224,7 +224,7 @@ test('name calls share mention memory, clear locally, and ignore incidental name
   }
 });
 
-test('observation never replies or changes memory and ends on another speaker', { timeout: 5000 }, async () => {
+test('observation never replies or changes memory and ignores other speakers', { timeout: 5000 }, async () => {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
   await once(server, 'listening');
   const address = server.address();
@@ -264,13 +264,14 @@ test('observation never replies or changes memory and ends on another speaker', 
     assert.deepEqual(observed.map(value => value.text), ['拿铁', '热拿铁']);
     assert.deepEqual(observed[0].history, ['聊咖啡', '你喜欢什么咖啡？']);
     await send('', false, 999, 789, true);
-    await send('should not observe');
-    assert.equal(observed.length, 2);
+    await send('should observe');
+    assert.equal(observed.length, 3);
+    assert.deepEqual(observed.at(-1)?.text, 'should observe');
     await send('再聊聊', true);
     assert.deepEqual(answerHistory[1], ['聊咖啡', '你喜欢什么咖啡？']);
     await send('大肥鱼，/清空记忆');
     await send('after clear');
-    assert.equal(observed.length, 2);
+    assert.equal(observed.length, 3);
     assert.equal(sent, 3);
   } finally {
     stop();

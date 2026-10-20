@@ -4,23 +4,61 @@ import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import { handleGroupMessage } from './message.js';
 import { ConversationMemory, type ChatTurn } from './memory.js';
+import { SqliteSessionStore } from './store.js';
 import { isRecord, parseGroupMessage, isBotGroupReply } from './onebot.js';
+
+export interface NapCatOptions {
+  autoReply?: boolean;
+  memory?: ConversationMemory;
+  maxInflight?: number;
+  now?: () => number;
+  log?: (line: string) => void;
+}
+
+const sessionKey = (groupId: string, senderId: string): string => JSON.stringify([groupId, senderId]);
 
 export const connectNapCat = (url: string, token: string,
   generateReply?: (content: string, history: ChatTurn[]) => Promise<string>,
   judgeFollowUp?: FollowUpJudge,
-  options: { autoReply?: boolean; now?: () => number; log?: (line: string) => void } = {}) => {
+  options: NapCatOptions = {}) => {
   const log = options.log ?? console.log;
-  const windows = new ObservationWindows(options.now, 60_000, () => log('[跳过] 他人插话，窗口立即结束。'));
-  let observing = false;
-  const memory = new ConversationMemory();
-  let busy: object | undefined;
+  const memory = options.memory ?? new ConversationMemory(new SqliteSessionStore(':memory:'));
+  const maxInflight = options.maxInflight ?? 2;
+  const windows = new ObservationWindows(options.now, 60_000);
   let stopped = false;
   let socket: WebSocket;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
+  // Reply jobs are exclusive per session, so one participant never waits for
+  // another; maxInflight bounds the total number of concurrent model calls.
+  const jobs = new Map<string, object>();
+  let inflight = 0;
+  // Sends are serialized per group so multi-part replies never interleave.
+  const sendQueues = new Map<string, Promise<void>>();
   const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void }>();
-
   const lookups = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: (data: unknown) => void }>();
+
+  const acquire = (key: string): object | undefined => {
+    if (jobs.has(key) || inflight >= maxInflight) return undefined;
+    const job = {};
+    jobs.set(key, job);
+    inflight++;
+    return job;
+  };
+  const release = (key: string, job: object): void => {
+    if (jobs.get(key) !== job) return;
+    jobs.delete(key);
+    inflight--;
+  };
+
+  const enqueueSend = <T,>(group: string, task: () => Promise<T>): Promise<T> => {
+    const previous = sendQueues.get(group) ?? Promise.resolve();
+    const next = previous.then(task, task);
+    const tail = next.then(() => undefined, () => undefined);
+    sendQueues.set(group, tail);
+    void tail.then(() => { if (sendQueues.get(group) === tail) sendQueues.delete(group); });
+    return next;
+  };
+
   const clearPending = (): void => {
     for (const entry of pending.values()) { clearTimeout(entry.timer); entry.finish(false); }
     pending.clear();
@@ -63,8 +101,9 @@ export const connectNapCat = (url: string, token: string,
     };
     const sendReply = (groupId: string, content: string,
       finish: (success: boolean, delivered?: string) => void, guard: () => boolean = () => true): void => {
-      void deliverPersonaReply(content, part => new Promise(resolve => sendPart(groupId, part, resolve)),
-        () => !stopped && activeSocket === socket && activeSocket.readyState === WebSocket.OPEN && guard())
+      void enqueueSend(groupId, () => deliverPersonaReply(content,
+        part => new Promise<boolean>(resolve => sendPart(groupId, part, resolve)),
+        () => !stopped && activeSocket === socket && activeSocket.readyState === WebSocket.OPEN && guard()))
         .then(delivered => finish(!!delivered, delivered))
         .catch(() => finish(false));
     };
@@ -92,28 +131,29 @@ export const connectNapCat = (url: string, token: string,
 
       const message = parseGroupMessage(event);
       if (message === null) return;
-      const ticket = windows.incoming(message.groupId, message.senderId);
+      const key = sessionKey(message.groupId, message.senderId);
+      windows.incoming(message.groupId, message.senderId);
+
       if (!message.isMentioned && !message.replyMessageId && !message.isCalledByName) {
         const valid = windows.candidate(message.groupId, message.senderId);
         const text = message.content.trim();
         if (judgeFollowUp && !valid) log(`[跳过] ${windows.skipReason(message.groupId, message.senderId)}。`);
         if (judgeFollowUp && valid && (message.hasAnyMention || !text || text.length > 4000)) log('[跳过] 消息含其他@、无文本或文本超限。');
         if (judgeFollowUp && valid && !message.hasAnyMention && text && text.length <= 4000) {
-          if (observing || busy) { log(`[跳过] 忙碌（${observing ? '正在判断或生成接话' : '正在生成回复或等待发送确认'}），本次不处理。`); return; }
+          if (jobs.has(key)) { log('[跳过] 忙碌（该会话正在生成回复或等待发送确认），本次不处理。'); return; }
+          if (inflight >= maxInflight) { log('[跳过] 忙碌（并发已满），本次不处理。'); return; }
           const history = memory.get(message.groupId, message.senderId);
           if (!history.length) return;
-          observing = true;
-          const autoJob = {};
-          if (options.autoReply) busy = autoJob;
-          let awaitingAck = false;
-          const releaseAuto = (): void => { if (busy === autoJob) busy = undefined; };
+          const autoJob = acquire(key);
+          if (!autoJob) { log('[跳过] 忙碌（并发已满），本次不处理。'); return; }
           const canSend = (): boolean => !stopped && activeSocket === socket && activeSocket.readyState === WebSocket.OPEN && valid();
+          let awaitingAck = false;
           try {
             const decision = await judgeFollowUp(text, history);
             if (!canSend()) { log('[接续] 窗口已结束，丢弃迟到的判断；不接话。'); return; }
             const intentLabel = { continue: '继续', pause: '暂停', end: '结束', uncertain: '不确定' }[decision.intent];
             log(`[${options.autoReply ? '自动接话' : '观察'}] intent=${intentLabel}; wouldRespond=${decision.shouldRespond}; reason=${decision.reason}; 历史${history.length / 2}轮。`);
-            if (decision.intent === 'end') { windows.close(message.groupId, 'ended'); log('[跳过] 用户明确结束对话，关闭窗口。'); }
+            if (decision.intent === 'end') { windows.close(message.groupId, message.senderId, 'ended'); log('[跳过] 用户明确结束对话，关闭窗口。'); }
             if (!options.autoReply || !decision.shouldRespond || !generateReply) return;
             const answer = await generateReply(text, history);
             if (!canSend()) { log('[自动接话] 发送前窗口失效，取消回复。'); return; }
@@ -124,18 +164,18 @@ export const connectNapCat = (url: string, token: string,
                 valid.consume();
                 log('[自动接话] 成功回复已写入记忆，计入本窗口2次限额。');
               }
-              releaseAuto();
+              release(key, autoJob);
             }, canSend);
           } catch { log('[接续] 判断或生成失败、超时，默认不接话。'); }
-          finally { observing = false; if (!awaitingAck) releaseAuto(); }
+          finally { if (!awaitingAck) release(key, autoJob); }
         }
         return;
       }
-      windows.close(message.groupId);
-      if (busy) { log('[跳过] 忙碌，明确呼叫暂未处理；旧窗口已关闭。'); return; }
-      const job = {};
-      busy = job;
-      const release = (): void => { if (busy === job) busy = undefined; };
+      windows.close(message.groupId, message.senderId);
+      if (jobs.has(key)) { log('[跳过] 忙碌，明确呼叫暂未处理；旧窗口已关闭。'); return; }
+      const job = acquire(key);
+      if (!job) { log('[跳过] 忙碌（并发已满），明确呼叫暂未处理；旧窗口已关闭。'); return; }
+      const releaseJob = (): void => release(key, job);
       if (!message.isMentioned && !message.isCalledByName && message.replyMessageId) {
         const data = await new Promise<unknown>(resolve => {
           const echo = randomUUID();
@@ -154,13 +194,13 @@ export const connectNapCat = (url: string, token: string,
       }
       if (message.isCalledByName) log('[触发] 句首称呼命中（角色称呼）。');
       const reply = handleGroupMessage(message);
-      if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
+      if (reply === null || stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { releaseJob(); return; }
       let commit: (() => void) | undefined;
       if (generateReply) {
         const content = message.content.trim();
         if (content === '/清空记忆') {
           memory.clear(message.groupId, message.senderId);
-          windows.close(message.groupId);
+          windows.close(message.groupId, message.senderId);
           reply.content = '已清空你在本群与我的聊天记忆。';
           log('[记忆] 已清空当前会话。');
         } else if (!content || content.length > 4000) {
@@ -177,14 +217,14 @@ export const connectNapCat = (url: string, token: string,
           }
         }
       }
-      if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { release(); return; }
+      if (stopped || activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) { releaseJob(); return; }
       const finish = (success: boolean, delivered?: string): void => {
         if (delivered) reply.content = delivered;
         if (success && commit) {
           commit();
-          if (judgeFollowUp) { windows.open(message.groupId, ticket); log('[接续] 明确呼叫回复成功，开启60秒窗口，最多自动接话2次。'); }
+          if (judgeFollowUp) { windows.open(windows.incoming(message.groupId, message.senderId)); log('[接续] 明确呼叫回复成功，开启60秒窗口，最多自动接话2次。'); }
         }
-        release();
+        releaseJob();
       };
       sendReply(reply.groupId, reply.content, finish);
     });

@@ -4,7 +4,7 @@ A minimal Node.js and TypeScript foundation for a QQ AI companion.
 
 ## Requirements
 
-- Node.js 22 or later
+- Node.js 22.13 or later (the built-in `node:sqlite` module must be available)
 - pnpm 10.20.0
 
 ## Getting started
@@ -22,10 +22,16 @@ pnpm typecheck
 
 - `src/index.ts`: local simulation with mentioned and non-mentioned messages
 - `src/message.ts`: message types and reply rule
+- `src/store.ts`: SQLite session store behind the memory policy
+- `src/lock.ts`: single-instance lock for the NapCat bot
 - `package.json`: project metadata, scripts, and dependencies
 - `pnpm-lock.yaml`: reproducible dependency versions
 - `tsconfig.json`: strict TypeScript configuration
 - `.gitignore`: generated files and local secrets excluded from Git
+
+Only one bot process may run at a time: `pnpm napcat` takes `data/bot.lock`,
+refuses to start while another live instance holds it, and removes the lock on
+Ctrl+C. A lock left behind by a crashed process is reclaimed on the next start.
 
 ## Local Docker deployment
 
@@ -107,11 +113,13 @@ Official API: https://api-docs.deepseek.com/api/create-chat-completion/
 
 ## Conversation memory
 
-Memory is isolated by group and sender, kept in RAM, and cleared on bot process
-restart. Sessions expire after 30 minutes without a successful exchange. Up to
-100 sessions are kept; the least recently updated session is evicted when full.
-Only replies acknowledged as sent by NapCat enter memory. Failed model calls,
-failed sends and ordinary messages do not enter memory.
+Memory is isolated by group and sender and stored in `data/memory.db` through
+the built-in `node:sqlite` module, so it survives a bot restart. Sessions expire
+after 30 minutes without a successful exchange; up to 100 sessions are kept and
+the least recently updated one is evicted when full. Only replies acknowledged
+as sent by NapCat enter memory. Failed model calls, failed sends and ordinary
+messages do not enter memory. Set `MEMORY_DB` to move the database; `:memory:`
+keeps it local to one process. Delete the file to forget everything.
 
 Mention the bot with `/清空记忆` to clear your conversation in the current group
 without calling DeepSeek. This does not delete the provider's own records.
@@ -148,18 +156,20 @@ Name calls, mentions and verified replies share the same group/user memory.
 
 `FOLLOW_UP_OBSERVE=true` enables the explicitly authorized observation scope.
 After a successful generated reply is acknowledged by NapCat, a fixed 60-second
-window opens for that user in that group. Another member's message ends the
-window, including an image-only message. A new explicit request closes the old
+window opens for that user in that group. Windows are keyed by group and sender:
+another member speaking never ends your window, and each participant keeps their
+own 60-second window and two-reply quota. A new explicit request closes the old
 window; only its own successful reply can open a new one. Disconnects clear windows.
 
 Eligible ordinary text messages (up to 4000 characters, no @, no reply reference,
 no name trigger) are sent to DeepSeek with the user's existing recent conversation
-(up to 6 turns). IDs and other members' messages are not sent. One observation
-runs at a time and times out after 10 seconds; busy candidates are skipped.
-Observations never send QQ replies, enter memory, or extend the window. Logs
-contain only the judgment and reason, not input messages or conversation history.
-Expired/interrupted late results are discarded; errors default to no response.
-Restarting clears windows and memory. Set `FOLLOW_UP_OBSERVE=false` to disable.
+(up to 6 turns). IDs and other members' messages are not sent. Each participant
+is judged at most once at a time and a judgment times out after 10 seconds; busy
+candidates are skipped. Observations never send QQ replies, enter memory, or
+extend the window. Logs contain only the judgment and reason, not input messages
+or conversation history. Late results that arrive after the window closed are
+discarded; errors default to no response. Restarting clears windows but keeps
+memory, which is persisted. Set `FOLLOW_UP_OBSERVE=false` to disable.
 
 ## Limited automatic follow-ups
 
@@ -168,14 +178,15 @@ mode takes precedence if both are true, and setting both false disables follow-u
 A successful explicit call (@, name, or verified direct reply) opens a fixed
 60-second window for that user in that group, with at most two successful
 automatic replies. Automatic replies do not extend the deadline or reset quota.
-Other speakers (including image-only messages), disconnects, clear commands and
-new explicit requests invalidate the old window. The window is checked after
+Other speakers do not affect your window; disconnects, clear commands and new
+explicit requests from the same user invalidate it. The window is checked after
 judgment and again immediately before sending the generated reply.
 
 Only a successful send acknowledgement writes an automatic exchange to memory
 and consumes quota. Failures/timeouts stay silent and do not write memory.
-Judging and generation are serialized; concurrent candidates are skipped.
-No response is sent for a negative judgment, expired or interrupted window.
+Judging and generation are serialized per participant; concurrent candidates
+from the same participant are skipped. No response is sent for a negative
+judgment or a window that expired or closed.
 
 ## Follow-up judgment and diagnostics
 
@@ -184,10 +195,20 @@ or `uncertain` (stay silent), plus a short reason. Only `continue` allows a repl
 Pause keeps the existing deadline and quota; it never extends the 60 seconds.
 End closes the window. Invalid or inconsistent results fail closed.
 
-Skip logs distinguish expired windows, interruption by another member, exhausted
-quota, closed/missing windows and busy processing. Logs contain no raw message
+Skip logs distinguish expired windows, exhausted quota, closed/missing windows,
+ended conversations and busy processing. Logs contain no raw message
 text, IDs, memory content or keys. They describe decisions, not private model
 reasoning. Conversation memory remains at 6 turns.
+
+## Concurrent participants
+
+Participants are handled independently. Reply jobs are exclusive per group and
+sender, so a slow generation for one member no longer blocks another; at most
+two jobs run at once and further requests are skipped with a `[跳过] 忙碌` log.
+Sends to one group are queued, so the parts of a multi-part reply never
+interleave with another member's reply. Observation mode follows the same rule:
+each participant is judged at most once at a time, and up to two model calls run
+concurrently.
 
 ## Upstream whale persona
 
