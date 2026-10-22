@@ -205,6 +205,19 @@ Judging and generation are serialized per participant; a candidate that arrives
 while that participant is busy waits instead of being skipped. No response is
 sent for a negative judgment or a window that expired or closed.
 
+## Judging every message
+
+`FOLLOW_UP_MODE=always` removes the window: every ordinary group message goes to
+a judge that decides whether the bot should answer it, using the recent group
+text plus that sender's history. Two limits keep it from taking over:
+`AUTO_REPLY_COOLDOWN_SECONDS` (default 45) between two bot replies in the same
+group, and `AUTO_REPLY_HOURLY_CAP` (default 12) per group per hour.
+
+In this mode `MAX_WINDOWS` and `WINDOW_SECONDS` do not apply, and random
+interjection is skipped because the judge already covers it. Each message costs
+one extra model call of a few hundred tokens, so the mode trades money for
+naturalness; `FOLLOW_UP_MODE=window` (the default) stays cheaper.
+
 ## Follow-up judgment and diagnostics
 
 Judgments return `intent`: `continue` (reply), `pause` (wait), `end` (finish),

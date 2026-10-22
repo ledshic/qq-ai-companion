@@ -11,6 +11,12 @@ type HarnessOptions = {
   random?: () => number;
   interject?: { probability: number; cooldownMs: number };
   warmup?: { probability: number; hours: [number, number]; cooldownMs: number; idleMs: number };
+  judgeEvery?: {
+    cooldownMs: number;
+    hourlyCap: number;
+    judge: (input: { text: string; recent: string; history: Array<{ role: 'user' | 'assistant'; content: string }> },
+      signal?: AbortSignal) => Promise<{ respond: boolean; reason: string }>;
+  };
 };
 async function harness(overrides: HarnessOptions = {}) {
   let now = 0;
@@ -325,4 +331,69 @@ test('interjection behaves like a normal reply and opens a follow-up window', { 
     assert.deepEqual(h.judged, ['是啊']);
     assert.deepEqual(h.histories.at(-1)?.history, ['今天好热', '今天确实热']);
   } finally { await h.close(); }
+});
+
+test('every-message mode replies when the judge says yes', { timeout: 5000 }, async () => {
+  const seen: string[] = [];
+  const h = await harness({
+    judgeEvery: {
+      cooldownMs: 0,
+      hourlyCap: 10,
+      judge: async ({ text, recent }) => {
+        seen.push(text);
+        assert.ok(recent.includes(text));
+        return { respond: true, reason: '直接提问' };
+      },
+    },
+  });
+  try {
+    h.generator(async () => '在的');
+    await h.send('有人知道怎么修图吗');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, ['在的']);
+    assert.deepEqual(seen, ['有人知道怎么修图吗']);
+    assert.ok(h.logs.some(line => line.includes('[接话]')));
+  } finally { await h.close(); }
+});
+
+test('every-message mode stays silent when the judge declines', { timeout: 5000 }, async () => {
+  const h = await harness({
+    judgeEvery: { cooldownMs: 0, hourlyCap: 10, judge: async () => ({ respond: false, reason: '在对别人说' }) },
+  });
+  try {
+    await h.send('今晚吃啥');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, []);
+    assert.ok(h.logs.some(line => line.includes('[判断] 不接')));
+  } finally { await h.close(); }
+});
+
+test('every-message mode honours its cooldown and hourly cap', { timeout: 5000 }, async () => {
+  let calls = 0;
+  const judge = async () => { calls++; return { respond: true, reason: '提问' }; };
+
+  const cooled = await harness({ judgeEvery: { cooldownMs: 60_000, hourlyCap: 10, judge } });
+  try {
+    cooled.generator(async () => '好');
+    await cooled.send('第一句');
+    await new Promise(resolve => setTimeout(resolve, 60));
+    await cooled.send('第二句');
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(calls, 1);
+    assert.deepEqual(cooled.sent, ['好']);
+    assert.ok(cooled.logs.some(line => line.includes('冷却中')));
+  } finally { await cooled.close(); }
+
+  calls = 0;
+  const capped = await harness({ judgeEvery: { cooldownMs: 0, hourlyCap: 1, judge } });
+  try {
+    capped.generator(async () => '好');
+    await capped.send('第一句');
+    await new Promise(resolve => setTimeout(resolve, 60));
+    await capped.send('第二句');
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(calls, 1);
+    assert.deepEqual(capped.sent, ['好']);
+    assert.ok(capped.logs.some(line => line.includes('上限')));
+  } finally { await capped.close(); }
 });

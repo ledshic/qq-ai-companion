@@ -3,6 +3,7 @@ import type { GroupMessage } from './message.js';
 import { handleGroupMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import { isBotGroupReply } from './onebot.js';
+import type { GroupJudge } from './group-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
 
@@ -23,6 +24,12 @@ export interface ContextOptions {
   ttlMs: number;
 }
 
+export interface JudgeEveryOptions {
+  judge: GroupJudge;
+  cooldownMs: number;
+  hourlyCap: number;
+}
+
 export interface ConversationOptions {
   memory: ConversationMemory;
   send: (groupId: string, content: string, guard: () => boolean) => Promise<string | undefined>;
@@ -38,10 +45,11 @@ export interface ConversationOptions {
   interject?: InterjectOptions;
   warmup?: WarmupOptions;
   context?: ContextOptions;
+  judgeEvery?: JudgeEveryOptions;
   log?: (line: string) => void;
 }
 
-type Kind = 'explicit' | 'follow-up' | 'interject';
+type Kind = 'explicit' | 'follow-up' | 'interject' | 'judge';
 
 interface Inbound {
   kind: Kind;
@@ -80,6 +88,8 @@ export class Conversation {
   private readonly recent = new Map<string, Array<{ text: string; at: number }>>();
   private readonly lastInterject = new Map<string, number>();
   private readonly lastWarmup = new Map<string, number>();
+  private readonly lastAuto = new Map<string, number>();
+  private readonly hourly = new Map<string, { hour: number; count: number }>();
   private readonly warmups = new Set<AbortController>();
 
   constructor(private readonly options: ConversationOptions) {
@@ -104,6 +114,11 @@ export class Conversation {
       session.controller?.abort(new Error('被新的呼叫取代'));
       session.pending = { kind: 'explicit', message, text, receivedAt: this.now() };
       void this.run(session);
+      return;
+    }
+
+    if (this.options.judgeEvery) {
+      this.handleEvery(session, message, text);
       return;
     }
 
@@ -149,6 +164,8 @@ export class Conversation {
     for (const controller of this.warmups) controller.abort(new Error('连接已断开'));
     this.sessions.clear();
     this.windows.clear();
+    this.lastAuto.clear();
+    this.hourly.clear();
   }
 
   private key(message: GroupMessage): string {
@@ -166,7 +183,7 @@ export class Conversation {
 
   // Only stored while a proactive feature is enabled, and never with IDs.
   private remember(message: GroupMessage): void {
-    if (!this.options.interject && !this.options.warmup) return;
+    if (!this.options.interject && !this.options.warmup && !this.options.judgeEvery) return;
     const text = message.content.trim();
     if (!text) return;
     const list = this.recent.get(message.groupId) ?? [];
@@ -194,6 +211,69 @@ export class Conversation {
     if (this.random() >= interject.probability) return;
     session.pending = { kind: 'interject', message, text, receivedAt: this.now() };
     void this.run(session);
+  }
+
+  // Window-free mode: every ordinary group message is judged, then rate limited.
+  private handleEvery(session: Session, message: GroupMessage, text: string): void {
+    const every = this.options.judgeEvery!;
+    if (message.hasAnyMention || !text || text.length > MAX_TEXT) {
+      this.log('[跳过] 消息含其他@、无文本或文本超限。');
+      return;
+    }
+    const pending = session.pending;
+    if (pending && pending.kind === 'judge' && this.now() - pending.receivedAt < MERGE_MS
+        && pending.text.length + text.length < MAX_TEXT) {
+      pending.text = `${pending.text}\n${text}`;
+      pending.receivedAt = this.now();
+      return;
+    }
+    if (this.cooling(this.lastAuto, message.groupId, every.cooldownMs)) {
+      this.log('[跳过] 刚接过话，冷却中。');
+      return;
+    }
+    if (this.overHourlyCap(message.groupId, every.hourlyCap)) {
+      this.log('[跳过] 本小时接话已达上限。');
+      return;
+    }
+    if (session.pending) return;
+    session.pending = { kind: 'judge', message, text, receivedAt: this.now() };
+    void this.run(session);
+  }
+
+  private async judged(item: Inbound, signal: AbortSignal): Promise<void> {
+    const every = this.options.judgeEvery!;
+    const { message } = item;
+    const history = this.options.memory.get(message.groupId, message.senderId);
+    const decision = await every.judge({ text: item.text, recent: this.recentText(message.groupId), history }, signal);
+    if (!decision.respond) {
+      this.log(`[判断] 不接：${decision.reason}`);
+      return;
+    }
+    if (this.cooling(this.lastAuto, message.groupId, every.cooldownMs)
+        || this.overHourlyCap(message.groupId, every.hourlyCap)) {
+      this.log('[跳过] 判断期间冷却或额度已变，放弃本次接话。');
+      return;
+    }
+    const answer = await this.options.generate!(item.text, history, signal, false);
+    const delivered = await this.options.send(message.groupId, answer, () => !signal.aborted);
+    if (!delivered) return;
+    this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
+    this.lastAuto.set(message.groupId, this.now());
+    this.recordHourly(message.groupId);
+    this.log(`[接话] 已回复（${decision.reason}）。`);
+  }
+
+  private overHourlyCap(group: string, cap: number): boolean {
+    const entry = this.hourly.get(group);
+    if (!entry) return false;
+    return entry.hour === new Date(this.now()).getHours() && entry.count >= cap;
+  }
+
+  private recordHourly(group: string): void {
+    const hour = new Date(this.now()).getHours();
+    const entry = this.hourly.get(group);
+    if (!entry || entry.hour !== hour) this.hourly.set(group, { hour, count: 1 });
+    else entry.count++;
   }
 
   private pickWarmupGroup(warmup: WarmupOptions): string | undefined {
@@ -240,6 +320,7 @@ export class Conversation {
   private async execute(item: Inbound, signal: AbortSignal): Promise<void> {
     if (item.kind === 'follow-up') await this.followUp(item, signal);
     else if (item.kind === 'interject') await this.interject(item, signal);
+    else if (item.kind === 'judge') await this.judged(item, signal);
     else await this.explicit(item, signal);
   }
 

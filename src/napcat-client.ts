@@ -1,5 +1,5 @@
 import { deliverPersonaReply } from './delivery.js';
-import { Conversation, type ContextOptions, type InterjectOptions, type WarmupOptions } from './conversation.js';
+import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import { ConversationMemory, type ChatTurn } from './memory.js';
@@ -17,6 +17,7 @@ export interface NapCatOptions {
   random?: () => number;
   interject?: InterjectOptions;
   warmup?: WarmupOptions;
+  judgeEvery?: JudgeEveryOptions;
   context?: ContextOptions;
   log?: (line: string) => void;
 }
@@ -110,6 +111,7 @@ export const connectNapCat = (url: string, token: string,
     random: options.random,
     interject: options.interject,
     warmup: options.warmup,
+    judgeEvery: options.judgeEvery,
     context: options.context,
     log,
   });
