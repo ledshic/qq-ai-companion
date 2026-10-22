@@ -37,3 +37,54 @@ test('DeepSeek receives approved history as separate turns before the current te
   });
   assert.equal(await reply('我叫什么？', history), '小林');
 });
+
+test('tool calls are executed, fed back to the model and logged', async () => {
+  const bodies: any[] = [];
+  let round = 0;
+  const request: typeof fetch = async (_url, options) => {
+    bodies.push(JSON.parse(options?.body as string));
+    round++;
+    if (round === 1) {
+      return Response.json({ choices: [{ message: { content: null, tool_calls: [
+        { id: 'call_1', type: 'function', function: { name: 'roll_dice', arguments: '{"count":2,"sides":6}' } },
+      ] } }] });
+    }
+    return Response.json({ choices: [{ message: { content: '是 8 点' } }] });
+  };
+  const logs: string[] = [];
+  const reply = createDeepSeekReply('key', undefined, request, { log: line => logs.push(line) });
+  assert.equal(await reply('掷两个骰子', []), '是 8 点');
+  assert.equal(bodies.length, 2);
+  assert.ok(Array.isArray(bodies[0].tools));
+  assert.equal(bodies[0].tool_choice, 'auto');
+  const followUp = bodies[1].messages.at(-2);
+  assert.equal(followUp.role, 'assistant');
+  assert.equal(bodies[1].messages.at(-1).role, 'tool');
+  assert.match(bodies[1].messages.at(-1).content, /^2d6 = /);
+  assert.ok(logs.some(line => line.includes('[工具] roll_dice')));
+});
+
+test('tools are omitted when the caller disables them', async () => {
+  const bodies: any[] = [];
+  const request: typeof fetch = async (_url, options) => {
+    bodies.push(JSON.parse(options?.body as string));
+    return Response.json({ choices: [{ message: { content: '好' } }] });
+  };
+  const reply = createDeepSeekReply('key', undefined, request, { log: () => {} });
+  assert.equal(await reply('你好', [], undefined, false), '好');
+  assert.equal(bodies[0].tools, undefined);
+});
+
+test('a model that keeps calling tools is cut off after three rounds', async () => {
+  const bodies: any[] = [];
+  const request: typeof fetch = async (_url, options) => {
+    bodies.push(JSON.parse(options?.body as string));
+    return Response.json({ choices: [{ message: { content: null, tool_calls: [
+      { id: `call_${bodies.length}`, type: 'function', function: { name: 'roll_dice', arguments: '{}' } },
+    ] } }] });
+  };
+  const reply = createDeepSeekReply('key', undefined, request, { log: () => {} });
+  await assert.rejects(reply('一直掷骰子', []), /轮次超限/);
+  assert.equal(bodies.length, 4);
+  assert.ok(bodies[3].tools === undefined);
+});

@@ -28,7 +28,7 @@ export interface ConversationOptions {
   send: (groupId: string, content: string, guard: () => boolean) => Promise<string | undefined>;
   lookup?: (messageId: string, signal: AbortSignal) => Promise<unknown>;
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal) => Promise<FollowUpDecision>;
-  generate?: (text: string, history: ChatTurn[], signal: AbortSignal) => Promise<string>;
+  generate?: (text: string, history: ChatTurn[], signal: AbortSignal, allowTools?: boolean) => Promise<string>;
   maxInflight?: number;
   maxWindows?: number;
   windowMs?: number;
@@ -259,7 +259,7 @@ export class Conversation {
       this.log('[跳过] 用户明确结束对话，关闭窗口。');
     }
     if (!this.options.autoReply || !decision.shouldRespond || !this.options.generate) return;
-    const answer = await this.options.generate(item.text, history, signal);
+    const answer = await this.options.generate(item.text, history, signal, false);
     if (!candidate()) {
       this.log('[自动接话] 发送前窗口失效，取消回复。');
       return;
@@ -275,7 +275,7 @@ export class Conversation {
     const context = this.recentText(item.message.groupId);
     if (!context) return;
     const content = `最近群里的聊天：\n${context}\n\n（你可以自然地插一句，符合你的人设；一两句话，不复述、不解释、不点评谁说了什么。）`;
-    const answer = await this.options.generate!(content, [], signal);
+    const answer = await this.options.generate!(content, [], signal, false);
     const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted);
     if (!delivered) return;
     // An interjection is a normal reply: it enters memory and opens a window.
@@ -294,7 +294,7 @@ export class Conversation {
       const context = this.recentText(group);
       if (!context) return;
       const content = `最近群里的聊天：\n${context}\n\n（群里安静了一会儿。主动开一个轻松的话题暖场，一两句话，符合你的人设；不要说自己是AI，也不要解释你在暖场。）`;
-      const answer = await this.options.generate!(content, [], controller.signal);
+      const answer = await this.options.generate!(content, [], controller.signal, false);
       const delivered = await this.options.send(group, answer, () => !controller.signal.aborted);
       if (!delivered) return;
       this.lastWarmup.set(group, this.now());

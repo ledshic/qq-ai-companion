@@ -62,11 +62,12 @@ try {
 const memoryTurns = readNumber('MEMORY_TURNS', 9, 1, 50);
 const memory = new ConversationMemory(new SqliteSessionStore(memoryPath), Date.now, 30 * 60_000, memoryTurns);
 const generateReply = llmEnabled
-  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, memoryTurns)
+  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns })
   : undefined;
 console.log(llmEnabled
   ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
   : '[LLM] 未启用，使用固定回复。');
+if (llmEnabled) console.log('[工具] 已启用 get_current_time、roll_dice，仅明确呼叫时可用。');
 const observationEnabled = llmEnabled && process.env.FOLLOW_UP_OBSERVE === 'true';
 const autoReplyEnabled = llmEnabled && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
 const judge = (observationEnabled || autoReplyEnabled)

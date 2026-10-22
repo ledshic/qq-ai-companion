@@ -101,15 +101,31 @@ In `.env`, set `DEEPSEEK_API_KEY` privately, set `DEEPSEEK_MODEL` (default
 `pnpm napcat`; do not restart NapCat or log QQ out. Stop any previous bot
 process first to avoid duplicate replies. `LLM_ENABLED=false` keeps fixed replies.
 
-The current mentioned text and up to 6 recent successful conversation turns
+The current mentioned text and up to 9 recent successful conversation turns
 from the same user in the same group are sent to DeepSeek. Account and group
-IDs and ordinary group messages are not included. No tools are enabled. Requests time out after 30 seconds,
+IDs and ordinary group messages are not included; only explicitly addressed
+messages may use the tools described above. Requests time out after 30 seconds,
 are not automatically retried, and limit output to 512 tokens / 1500 characters.
-Only one LLM request is processed at a time; further mentions while busy are
-ignored. Empty or over-4000-character prompts return a local usage hint.
-API failures return a fixed friendly error without exposing service details.
+Concurrent replies are bounded by `MAX_INFLIGHT`, and empty or
+over-4000-character prompts return a local usage hint. API failures return a
+fixed friendly error without exposing service details.
 
 Official API: https://api-docs.deepseek.com/api/create-chat-completion/
+
+## Tools
+
+Explicit calls (@, name call or a verified reply) may use two function tools,
+executed locally by `src/tools.ts`:
+
+- `get_current_time` — current date and time in a timezone, default Asia/Shanghai
+- `roll_dice` — one to ten dice with two to a hundred sides
+
+The model may ask for at most three tool rounds per reply; each result is
+truncated to 2000 characters and every call is logged as
+`[工具] name → result`. Follow-up replies, interjections and warm-up messages
+never receive tools, so a casual message cannot trigger extra requests. Tool
+output is treated as data, and the system prompt says so explicitly, because a
+tool result is not a trusted instruction.
 
 ## Conversation memory
 
