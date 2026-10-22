@@ -12,6 +12,7 @@ export interface NapCatOptions {
   memory?: ConversationMemory;
   maxInflight?: number;
   maxWindows?: number;
+  windowMs?: number;
   now?: () => number;
   random?: () => number;
   interject?: InterjectOptions;
@@ -103,6 +104,7 @@ export const connectNapCat = (url: string, token: string,
     generate: generateReply,
     maxInflight: options.maxInflight,
     maxWindows: options.maxWindows,
+    windowMs: options.windowMs,
     autoReply: options.autoReply,
     now: options.now,
     random: options.random,

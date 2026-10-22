@@ -21,7 +21,7 @@ export interface SessionStore {
 // limits and capacity, and makes no network requests.
 export class ConversationMemory {
   constructor(private store: SessionStore, private now = Date.now,
-    private ttl = 30 * 60_000, private maxTurns = 6, private maxSessions = 100) {}
+    private ttl = 30 * 60_000, private maxTurns = 9, private maxSessions = 100) {}
 
   private key(groupId: string, senderId: string): string {
     return JSON.stringify([groupId, senderId]);

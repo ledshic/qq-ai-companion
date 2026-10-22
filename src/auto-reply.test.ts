@@ -260,8 +260,8 @@ test('interjection stays off at probability zero and respects its cooldown', { t
   const h = await harness({ interject: { probability: 1, cooldownMs: 60_000 }, random: () => 0 });
   try {
     h.generator(async () => '嗯');
-    await h.send('第一句');
-    await h.send('第二句');
+    await h.send('第一句', false, 456);
+    await h.send('第二句', false, 999);
     await new Promise(resolve => setTimeout(resolve, 80));
     assert.deepEqual(h.sent, ['嗯']);
     assert.ok(h.logs.some(line => line.includes('插话')));
@@ -310,5 +310,19 @@ test('warmup keeps its per-group cooldown between ticks', { timeout: 5000 }, asy
     h.tick();
     await new Promise(resolve => setTimeout(resolve, 80));
     assert.equal(h.sent.length, 1);
+  } finally { await h.close(); }
+});
+
+test('interjection behaves like a normal reply and opens a follow-up window', { timeout: 5000 }, async () => {
+  const h = await harness({ interject: { probability: 1, cooldownMs: 0 }, random: () => 0 });
+  try {
+    h.generator(async text => text.startsWith('最近群里的聊天') ? '今天确实热' : `answer:${text}`);
+    await h.send('今天好热');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, ['今天确实热']);
+    await h.send('是啊');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.judged, ['是啊']);
+    assert.deepEqual(h.histories.at(-1)?.history, ['今天好热', '今天确实热']);
   } finally { await h.close(); }
 });

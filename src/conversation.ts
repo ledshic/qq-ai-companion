@@ -31,6 +31,7 @@ export interface ConversationOptions {
   generate?: (text: string, history: ChatTurn[], signal: AbortSignal) => Promise<string>;
   maxInflight?: number;
   maxWindows?: number;
+  windowMs?: number;
   autoReply?: boolean;
   now?: () => number;
   random?: () => number;
@@ -86,7 +87,7 @@ export class Conversation {
     this.random = options.random ?? Math.random;
     this.log = options.log ?? console.log;
     this.context = options.context ?? DEFAULT_CONTEXT;
-    this.windows = new ObservationWindows(this.now, 60_000, options.maxWindows ?? 6);
+    this.windows = new ObservationWindows(this.now, options.windowMs ?? 60_000, options.maxWindows ?? 6);
     this.slots = new Semaphore(options.maxInflight ?? 2);
   }
 
@@ -277,8 +278,11 @@ export class Conversation {
     const answer = await this.options.generate!(content, [], signal);
     const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted);
     if (!delivered) return;
+    // An interjection is a normal reply: it enters memory and opens a window.
+    this.options.memory.add(item.message.groupId, item.message.senderId, item.text, delivered);
+    this.windows.open(this.windows.incoming(item.message.groupId, item.message.senderId));
     this.lastInterject.set(item.message.groupId, this.now());
-    this.log('[插话] 已主动参与当前话题。');
+    this.log('[插话] 已主动参与当前话题，按普通回复开窗并写入记忆。');
   }
 
   private async warmUp(group: string, warmup: WarmupOptions): Promise<void> {

@@ -163,7 +163,7 @@ window; only its own successful reply can open a new one. Disconnects clear wind
 
 Eligible ordinary text messages (up to 4000 characters, no @, no reply reference,
 no name trigger) are sent to DeepSeek with the user's existing recent conversation
-(up to 6 turns). IDs and other members' messages are not sent. Each participant
+(up to 9 turns, `MEMORY_TURNS`). IDs and other members' messages are not sent. Each participant
 runs at most one task, a judgment times out after 10 seconds, and a newer message
 from the same participant merges into the one already waiting. Observations never
 send QQ replies, enter memory, or
@@ -199,7 +199,7 @@ End closes the window. Invalid or inconsistent results fail closed.
 Skip logs distinguish expired windows, exhausted quota, closed/missing windows
 and ended conversations. Logs contain no raw message
 text, IDs, memory content or keys. They describe decisions, not private model
-reasoning. Conversation memory remains at 6 turns.
+reasoning. Conversation memory remains at 9 turns by default (`MEMORY_TURNS`).
 
 ## Concurrent participants
 
@@ -214,11 +214,14 @@ decides synchronously, every await is a yield point, and the task owns one
   in that task's inbox. Messages within three seconds of the waiting one are
   merged into a single prompt, so a sentence split across several messages is
   answered once; anything older replaces it.
-- `MAX_INFLIGHT` (default 2, range 1-16) limits concurrent model calls. Work
-  above the cap waits for a free slot and is cancelled if its window expires
-  first, so a burst queues instead of being dropped.
-- `MAX_WINDOWS` (default 6) caps how many 60-second windows are kept; the least
-  recently used one is evicted when a seventh participant opens a window.
+- `MAX_INFLIGHT` (default 2 in the library, 3 in the shipped `.env`) limits
+  concurrent model calls. Work above the cap waits for a free slot and is
+  cancelled if its window expires first, so a burst queues instead of being
+  dropped.
+- `MAX_WINDOWS` (default 6) caps how many follow-up windows are kept; the least
+  recently used one is evicted when another participant opens a window.
+- `WINDOW_SECONDS` (default 60, shipped `.env` 90) is how long a window stays
+  open after a successful reply.
 - Sends to one group are queued, so the parts of a multi-part reply never
   interleave with another member's reply.
 - Disconnecting aborts every running task immediately.
@@ -242,8 +245,10 @@ Every `WARMUP_INTERVAL_MINUTES` (default 30) inside `WARMUP_HOURS` (default
 quiet for `WARMUP_IDLE_MINUTES` (default 45) and has not been warmed up within
 `WARMUP_COOLDOWN_MINUTES` (default 60).
 
-Proactive messages do not enter conversation memory, do not open or extend a
-follow-up window, and never start while `MAX_INFLIGHT` slots are saturated.
+An interjection counts as a normal reply: it is written to that sender's memory
+and opens a follow-up window, so the conversation can continue. Warm-up messages
+carry no sender, so they only enter the group context. Neither path preempts an
+explicit call, and neither starts while `MAX_INFLIGHT` slots are saturated.
 
 ## Privacy note
 
@@ -264,7 +269,7 @@ being called a fat fish. Sentence-start calls also accept the card's names
 小鲸鱼, DeepSeek, deepseek, 蓝色大肥鱼 and D指导; 小爱 is not restored.
 Calling only a name now reaches the character instead of returning an input hint.
 
-The judgment prompt remains separate from the persona. Data scope, six-turn
+The judgment prompt remains separate from the persona. Data scope, nine-turn
 memory and bounded automatic participation remain enforced by the platform.
 The runtime appendix states the actual available context and absence of tools.
 

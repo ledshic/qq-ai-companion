@@ -59,22 +59,24 @@ try {
   fail(error instanceof Error ? error.message : '无法获取实例锁。');
 }
 
-const memory = new ConversationMemory(new SqliteSessionStore(memoryPath));
+const memoryTurns = readNumber('MEMORY_TURNS', 9, 1, 50);
+const memory = new ConversationMemory(new SqliteSessionStore(memoryPath), Date.now, 30 * 60_000, memoryTurns);
 const generateReply = llmEnabled
-  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
+  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, memoryTurns)
   : undefined;
 console.log(llmEnabled
-  ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 6 轮，30 分钟过期。`
+  ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
   : '[LLM] 未启用，使用固定回复。');
 const observationEnabled = llmEnabled && process.env.FOLLOW_UP_OBSERVE === 'true';
 const autoReplyEnabled = llmEnabled && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
 const judge = (observationEnabled || autoReplyEnabled)
   ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
   : undefined;
-const maxInflight = readNumber('MAX_INFLIGHT', 2, 1, 16);
-const maxWindows = readNumber('MAX_WINDOWS', 6, 1, 1000);
-console.log(observationEnabled ? '[观察] 仅判断不回复。' : autoReplyEnabled ? '[自动接话] 每个用户独立60秒窗口，最多2次。' : '[接续] 已关闭。');
-console.log(`[并发] 同时最多 ${maxInflight} 个生成任务，最多 ${maxWindows} 个活跃窗口。`);
+const maxInflight = readNumber('MAX_INFLIGHT', 3, 1, 16);
+const maxWindows = readNumber('MAX_WINDOWS', 12, 1, 1000);
+const windowSeconds = readNumber('WINDOW_SECONDS', 90, 10, 600);
+console.log(observationEnabled ? '[观察] 仅判断不回复。' : autoReplyEnabled ? `[自动接话] 每个用户独立 ${windowSeconds} 秒窗口，最多2次。` : '[接续] 已关闭。');
+console.log(`[并发] 同时最多 ${maxInflight} 个生成任务，最多 ${maxWindows} 个活跃窗口，窗口 ${windowSeconds} 秒。`);
 
 const interjectProbability = readNumber('INTERJECT_PROBABILITY', 0, 0, 1);
 const interject = (llmEnabled && interjectProbability > 0)
@@ -106,6 +108,7 @@ const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateRepl
   memory,
   maxInflight,
   maxWindows,
+  windowMs: windowSeconds * 1000,
   interject,
   warmup,
 });

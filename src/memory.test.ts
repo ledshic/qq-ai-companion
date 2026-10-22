@@ -64,3 +64,10 @@ test('memory survives a restart when backed by a file', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('memory keeps nine turns by default', () => {
+  const store = new ConversationMemory(new SqliteSessionStore(':memory:'));
+  for (let i = 0; i < 12; i++) store.add('g', 'u', `q${i}`, `a${i}`);
+  assert.equal(store.get('g', 'u').length, 18);
+  store.close();
+});
