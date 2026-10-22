@@ -89,3 +89,13 @@ test('capacity eviction keeps the most recently used windows', () => {
   assert.ok(windows.candidate('g', 'b'));
   assert.ok(windows.candidate('g', 'c'));
 });
+
+test('six windows is the configured ceiling and evicts the oldest', () => {
+  const windows = new ObservationWindows(undefined, 60_000, 6);
+  for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) windows.open(windows.incoming('g', name));
+  assert.ok(windows.candidate('g', 'a'));
+  windows.open(windows.incoming('g', 'seven'));
+  assert.equal(windows.candidate('g', 'a'), undefined);
+  assert.ok(windows.candidate('g', 'seven'));
+  assert.ok(windows.candidate('g', 'f'));
+});

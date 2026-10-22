@@ -217,9 +217,39 @@ decides synchronously, every await is a yield point, and the task owns one
 - `MAX_INFLIGHT` (default 2, range 1-16) limits concurrent model calls. Work
   above the cap waits for a free slot and is cancelled if its window expires
   first, so a burst queues instead of being dropped.
+- `MAX_WINDOWS` (default 6) caps how many 60-second windows are kept; the least
+  recently used one is evicted when a seventh participant opens a window.
 - Sends to one group are queued, so the parts of a multi-part reply never
   interleave with another member's reply.
 - Disconnecting aborts every running task immediately.
+
+## Proactive participation
+
+Two opt-in features let the bot speak without being addressed. Both read a short
+rolling buffer of recent group text (at most 12 messages, 5 minutes) and send it
+to the model with the request; message IDs and account IDs are never included.
+
+`INTERJECT_PROBABILITY` (0-1, default 0) is the chance that an ordinary group
+message makes the bot chime in. It fires at most once per group per
+`INTERJECT_COOLDOWN_SECONDS` (default 180), never while that sender's task is
+busy, and answers the recent context rather than the single message. Set it to
+`0` to disable interjection entirely.
+
+`WARMUP_ENABLED=true` makes the bot occasionally open a topic in a quiet group.
+Every `WARMUP_INTERVAL_MINUTES` (default 30) inside `WARMUP_HOURS` (default
+`20-23`, wrap-around such as `22-2` works) it rolls `WARMUP_PROBABILITY`
+(default 0.3). On a hit it picks the most recently active group that has been
+quiet for `WARMUP_IDLE_MINUTES` (default 45) and has not been warmed up within
+`WARMUP_COOLDOWN_MINUTES` (default 60).
+
+Proactive messages do not enter conversation memory, do not open or extend a
+follow-up window, and never start while `MAX_INFLIGHT` slots are saturated.
+
+## Privacy note
+
+With a proactive feature enabled, the recent group text is part of the model
+request. IDs are still excluded, and with both features off a request contains
+only the triggering message, that caller's history and the persona card.
 
 ## Upstream whale persona
 

@@ -5,7 +5,14 @@ import { WebSocketServer, type RawData } from 'ws';
 import { connectNapCat } from './napcat-client.js';
 
 const pause = () => new Promise(resolve => setTimeout(resolve, 25));
-async function harness(overrides: { maxInflight?: number } = {}) {
+type HarnessOptions = {
+  maxInflight?: number;
+  maxWindows?: number;
+  random?: () => number;
+  interject?: { probability: number; cooldownMs: number };
+  warmup?: { probability: number; hours: [number, number]; cooldownMs: number; idleMs: number };
+};
+async function harness(overrides: HarnessOptions = {}) {
   let now = 0;
   let failSend = false;
   let generate: (text: string) => Promise<string> = async text => `answer:${text}`;
@@ -36,6 +43,7 @@ async function harness(overrides: { maxInflight?: number } = {}) {
   });
   return {
     sent, histories, judged, logs,
+    tick: () => { stop.tick(); },
     time: (value: number) => { now = value; },
     failure: (value: boolean) => { failSend = value; },
     generator: (value: typeof generate) => { generate = value; },
@@ -226,5 +234,81 @@ test('partial segmented delivery stores only the successfully sent text', { time
     h.generator(async () => 'next answer');
     await h.send('next', true);
     assert.deepEqual(h.histories.at(-1)?.history, ['start', 'first line']);
+  } finally { await h.close(); }
+});
+
+test('random interjection replies to an unaddressed message when the roll passes', { timeout: 5000 }, async () => {
+  const h = await harness({ interject: { probability: 1, cooldownMs: 0 }, random: () => 0 });
+  try {
+    h.generator(async () => '今天确实热');
+    await h.send('今天好热');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, ['今天确实热']);
+    assert.ok(h.histories.at(-1)?.text.includes('今天好热'));
+    assert.ok(h.logs.some(line => line.includes('[插话]')));
+  } finally { await h.close(); }
+});
+
+test('interjection stays off at probability zero and respects its cooldown', { timeout: 5000 }, async () => {
+  const off = await harness({ random: () => 0 });
+  try {
+    await off.send('随便说一句');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.equal(off.sent.length, 0);
+  } finally { await off.close(); }
+
+  const h = await harness({ interject: { probability: 1, cooldownMs: 60_000 }, random: () => 0 });
+  try {
+    h.generator(async () => '嗯');
+    await h.send('第一句');
+    await h.send('第二句');
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(h.sent, ['嗯']);
+    assert.ok(h.logs.some(line => line.includes('插话')));
+  } finally { await h.close(); }
+});
+
+test('warmup opens a topic only inside the configured hours', { timeout: 5000 }, async () => {
+  const hour = new Date(0).getHours();
+  const inside = await harness({
+    warmup: { probability: 1, hours: [hour, (hour + 1) % 24], cooldownMs: 0, idleMs: 600_000 },
+    random: () => 0,
+  });
+  try {
+    inside.generator(async () => '有人在吗');
+    await inside.send('闲聊一句');
+    inside.tick();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(inside.sent, ['有人在吗']);
+    assert.ok(inside.histories.at(-1)?.text.includes('暖场'));
+    assert.ok(inside.logs.some(line => line.includes('[暖场]')));
+  } finally { await inside.close(); }
+
+  const outside = await harness({
+    warmup: { probability: 1, hours: [(hour + 2) % 24, (hour + 3) % 24], cooldownMs: 0, idleMs: 600_000 },
+    random: () => 0,
+  });
+  try {
+    outside.generator(async () => '有人在吗');
+    await outside.send('闲聊一句');
+    outside.tick();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.equal(outside.sent.length, 0);
+  } finally { await outside.close(); }
+});
+
+test('warmup keeps its per-group cooldown between ticks', { timeout: 5000 }, async () => {
+  const hour = new Date(0).getHours();
+  const h = await harness({
+    warmup: { probability: 1, hours: [hour, (hour + 1) % 24], cooldownMs: 3_600_000, idleMs: 600_000 },
+    random: () => 0,
+  });
+  try {
+    await h.send('闲聊一句');
+    h.tick();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    h.tick();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.equal(h.sent.length, 1);
   } finally { await h.close(); }
 });

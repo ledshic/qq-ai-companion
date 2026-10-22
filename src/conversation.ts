@@ -6,6 +6,23 @@ import { isBotGroupReply } from './onebot.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
 
+export interface InterjectOptions {
+  probability: number;
+  cooldownMs: number;
+}
+
+export interface WarmupOptions {
+  probability: number;
+  hours: [number, number];
+  cooldownMs: number;
+  idleMs: number;
+}
+
+export interface ContextOptions {
+  maxMessages: number;
+  ttlMs: number;
+}
+
 export interface ConversationOptions {
   memory: ConversationMemory;
   send: (groupId: string, content: string, guard: () => boolean) => Promise<string | undefined>;
@@ -13,13 +30,20 @@ export interface ConversationOptions {
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal) => Promise<FollowUpDecision>;
   generate?: (text: string, history: ChatTurn[], signal: AbortSignal) => Promise<string>;
   maxInflight?: number;
+  maxWindows?: number;
   autoReply?: boolean;
   now?: () => number;
+  random?: () => number;
+  interject?: InterjectOptions;
+  warmup?: WarmupOptions;
+  context?: ContextOptions;
   log?: (line: string) => void;
 }
 
+type Kind = 'explicit' | 'follow-up' | 'interject';
+
 interface Inbound {
-  kind: 'explicit' | 'follow-up';
+  kind: Kind;
   message: GroupMessage;
   text: string;
   receivedAt: number;
@@ -36,6 +60,10 @@ interface Session {
 
 const MERGE_MS = 3000;
 const MAX_TEXT = 4000;
+const DEFAULT_CONTEXT: ContextOptions = { maxMessages: 12, ttlMs: 5 * 60_000 };
+
+const withinHours = (hour: number, [start, end]: [number, number]): boolean =>
+  start === end ? true : start < end ? hour >= start && hour < end : hour >= start || hour < end;
 
 // Conversation windows are single-threaded tasks: dispatch() decides
 // synchronously, the loop yields at each await, and a superseded task is
@@ -46,11 +74,19 @@ export class Conversation {
   private readonly slots: Semaphore;
   private readonly log: (line: string) => void;
   private readonly now: () => number;
+  private readonly random: () => number;
+  private readonly context: ContextOptions;
+  private readonly recent = new Map<string, Array<{ text: string; at: number }>>();
+  private readonly lastInterject = new Map<string, number>();
+  private readonly lastWarmup = new Map<string, number>();
+  private readonly warmups = new Set<AbortController>();
 
   constructor(private readonly options: ConversationOptions) {
     this.now = options.now ?? Date.now;
+    this.random = options.random ?? Math.random;
     this.log = options.log ?? console.log;
-    this.windows = new ObservationWindows(this.now, 60_000);
+    this.context = options.context ?? DEFAULT_CONTEXT;
+    this.windows = new ObservationWindows(this.now, 60_000, options.maxWindows ?? 6);
     this.slots = new Semaphore(options.maxInflight ?? 2);
   }
 
@@ -58,6 +94,7 @@ export class Conversation {
     const key = this.key(message);
     const session = this.session(key, message);
     this.windows.incoming(message.groupId, message.senderId);
+    this.remember(message);
     const text = message.content.trim();
 
     if (message.isMentioned || message.isCalledByName || message.replyMessageId) {
@@ -69,26 +106,38 @@ export class Conversation {
       return;
     }
 
-    if (!this.options.judge) return;
-    const candidate = this.windows.candidate(message.groupId, message.senderId);
-    if (!candidate) {
-      this.log(`[跳过] ${this.windows.skipReason(message.groupId, message.senderId)}。`);
+    const candidate = this.options.judge ? this.windows.candidate(message.groupId, message.senderId) : undefined;
+    if (candidate) {
+      if (message.hasAnyMention || !text || text.length > MAX_TEXT) {
+        this.log('[跳过] 消息含其他@、无文本或文本超限。');
+        return;
+      }
+      const pending = session.pending;
+      if (pending && pending.kind === 'follow-up' && this.now() - pending.receivedAt < MERGE_MS
+          && pending.text.length + text.length < MAX_TEXT) {
+        // Split sentences arrive as separate messages; answer them together.
+        pending.text = `${pending.text}\n${text}`;
+        pending.receivedAt = this.now();
+        return;
+      }
+      session.pending = { kind: 'follow-up', message, text, receivedAt: this.now(), candidate };
+      void this.run(session);
       return;
     }
-    if (message.hasAnyMention || !text || text.length > MAX_TEXT) {
-      this.log('[跳过] 消息含其他@、无文本或文本超限。');
-      return;
-    }
-    const pending = session.pending;
-    if (pending && pending.kind === 'follow-up' && this.now() - pending.receivedAt < MERGE_MS
-        && pending.text.length + text.length < MAX_TEXT) {
-      // Split sentences arrive as separate messages; answer them together.
-      pending.text = `${pending.text}\n${text}`;
-      pending.receivedAt = this.now();
-      return;
-    }
-    session.pending = { kind: 'follow-up', message, text, receivedAt: this.now(), candidate };
-    void this.run(session);
+
+    if (this.options.judge) this.log(`[跳过] ${this.windows.skipReason(message.groupId, message.senderId)}。`);
+    this.maybeInterject(session, message, text);
+  }
+
+  // Called on a timer: occasionally open a topic in a group that has been quiet.
+  tick(): void {
+    const warmup = this.options.warmup;
+    if (!warmup || !this.options.generate) return;
+    if (!withinHours(new Date(this.now()).getHours(), warmup.hours)) return;
+    if (this.random() >= warmup.probability) return;
+    const group = this.pickWarmupGroup(warmup);
+    if (!group) return;
+    void this.warmUp(group, warmup);
   }
 
   disconnect(): void {
@@ -96,6 +145,7 @@ export class Conversation {
       session.controller?.abort(new Error('连接已断开'));
       session.pending = undefined;
     }
+    for (const controller of this.warmups) controller.abort(new Error('连接已断开'));
     this.sessions.clear();
     this.windows.clear();
   }
@@ -107,14 +157,54 @@ export class Conversation {
   private session(key: string, message: GroupMessage): Session {
     let session = this.sessions.get(key);
     if (!session) {
-      session = {
-        pending: undefined,
-        controller: undefined,
-        running: false,
-      };
+      session = { pending: undefined, controller: undefined, running: false };
       this.sessions.set(key, session);
     }
     return session;
+  }
+
+  // Only stored while a proactive feature is enabled, and never with IDs.
+  private remember(message: GroupMessage): void {
+    if (!this.options.interject && !this.options.warmup) return;
+    const text = message.content.trim();
+    if (!text) return;
+    const list = this.recent.get(message.groupId) ?? [];
+    list.push({ text, at: this.now() });
+    const cutoff = this.now() - this.context.ttlMs;
+    while (list.length && (list[0].at < cutoff || list.length > this.context.maxMessages)) list.shift();
+    this.recent.set(message.groupId, list);
+  }
+
+  private recentText(groupId: string): string {
+    return (this.recent.get(groupId) ?? []).map(entry => entry.text).join('\n');
+  }
+
+  private cooling(map: Map<string, number>, groupId: string, cooldownMs: number): boolean {
+    const last = map.get(groupId);
+    return last !== undefined && this.now() - last < cooldownMs;
+  }
+
+  private maybeInterject(session: Session, message: GroupMessage, text: string): void {
+    const interject = this.options.interject;
+    if (!interject || !this.options.generate) return;
+    if (session.pending) return;
+    if (!text || text.length > MAX_TEXT) return;
+    if (this.cooling(this.lastInterject, message.groupId, interject.cooldownMs)) return;
+    if (this.random() >= interject.probability) return;
+    session.pending = { kind: 'interject', message, text, receivedAt: this.now() };
+    void this.run(session);
+  }
+
+  private pickWarmupGroup(warmup: WarmupOptions): string | undefined {
+    const cutoff = this.now() - warmup.idleMs;
+    let best: { group: string; at: number } | undefined;
+    for (const [group, list] of this.recent) {
+      const last = list.at(-1);
+      if (!last || last.at < cutoff) continue;
+      if (this.cooling(this.lastWarmup, group, warmup.cooldownMs)) continue;
+      if (!best || last.at > best.at) best = { group, at: last.at };
+    }
+    return best?.group;
   }
 
   private async run(session: Session): Promise<void> {
@@ -148,6 +238,7 @@ export class Conversation {
 
   private async execute(item: Inbound, signal: AbortSignal): Promise<void> {
     if (item.kind === 'follow-up') await this.followUp(item, signal);
+    else if (item.kind === 'interject') await this.interject(item, signal);
     else await this.explicit(item, signal);
   }
 
@@ -177,6 +268,40 @@ export class Conversation {
     this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
     candidate.consume();
     this.log('[自动接话] 成功回复已写入记忆，计入本窗口2次限额。');
+  }
+
+  private async interject(item: Inbound, signal: AbortSignal): Promise<void> {
+    const context = this.recentText(item.message.groupId);
+    if (!context) return;
+    const content = `最近群里的聊天：\n${context}\n\n（你可以自然地插一句，符合你的人设；一两句话，不复述、不解释、不点评谁说了什么。）`;
+    const answer = await this.options.generate!(content, [], signal);
+    const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted);
+    if (!delivered) return;
+    this.lastInterject.set(item.message.groupId, this.now());
+    this.log('[插话] 已主动参与当前话题。');
+  }
+
+  private async warmUp(group: string, warmup: WarmupOptions): Promise<void> {
+    const controller = new AbortController();
+    this.warmups.add(controller);
+    let release: (() => void) | undefined;
+    try {
+      release = await this.slots.acquire(controller.signal);
+      const context = this.recentText(group);
+      if (!context) return;
+      const content = `最近群里的聊天：\n${context}\n\n（群里安静了一会儿。主动开一个轻松的话题暖场，一两句话，符合你的人设；不要说自己是AI，也不要解释你在暖场。）`;
+      const answer = await this.options.generate!(content, [], controller.signal);
+      const delivered = await this.options.send(group, answer, () => !controller.signal.aborted);
+      if (!delivered) return;
+      this.lastWarmup.set(group, this.now());
+      this.log('[暖场] 已主动开启话题。');
+    } catch (error) {
+      if (isAbort(error)) this.log(`[取消] ${abortReason(error)}，暖场放弃。`);
+      else this.log('[暖场] 生成或发送失败，本次跳过。');
+    } finally {
+      release?.();
+      this.warmups.delete(controller);
+    }
   }
 
   private async explicit(item: Inbound, signal: AbortSignal): Promise<void> {
