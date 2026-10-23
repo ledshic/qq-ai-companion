@@ -1,3 +1,4 @@
+import { MemeManager, JsonMemeState, loadMemeCatalog } from './memes.js';
 import { createVisionReply, createImageRequestJudge } from './vision.js';
 import { dirname, join } from 'node:path';
 import { createFollowUpJudge } from './follow-up.js';
@@ -62,11 +63,20 @@ try {
 }
 
 const visionEnabled = llmEnabled && process.env.VISION_ENABLED === 'true';
-const vision = visionEnabled ? createVisionReply(process.env.DEEPSEEK_API_KEY!, process.env.VISION_MODEL || 'deepseek-flash') : undefined;
+let memes: MemeManager | undefined;
+if (llmEnabled && process.env.MEMES_ENABLED === 'true') {
+  try {
+    const catalog = loadMemeCatalog('config/memes/tieba');
+    memes = new MemeManager(catalog, process.env.DEEPSEEK_API_KEY!, new JsonMemeState(join(dataDir, 'memes-state.json')),
+      readNumber('MEME_REPLY_GAP', 7, 1, 100));
+    console.log(`[表情] 已启用，图库 ${catalog.length} 张，${catalog.filter(entry => entry.confidence >= 0.8).length} 张可自动选用；具体选图，按已送达回复控制频率。`);
+  } catch { console.error('[表情] 图库或频率状态异常，停用配图，保留文字。'); }
+}
+const vision = visionEnabled ? createVisionReply(process.env.DEEPSEEK_API_KEY!, process.env.VISION_MODEL || 'deepseek-flash', undefined, undefined, { memesEnabled: !!memes }) : undefined;
 const memoryTurns = readNumber('MEMORY_TURNS', 9, 1, 50);
 const memory = new ConversationMemory(new SqliteSessionStore(memoryPath), Date.now, 30 * 60_000, memoryTurns);
 const generateReply = llmEnabled
-  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns, visionEnabled, searchEnabled: process.env.WEB_SEARCH_ENABLED === 'true' })
+  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns, memesEnabled: !!memes, visionEnabled, searchEnabled: process.env.WEB_SEARCH_ENABLED === 'true' })
   : undefined;
 console.log(llmEnabled
   ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
@@ -129,6 +139,7 @@ console.log(warmup
   : '[暖场] 已关闭。');
 
 const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, {
+  memes,
   vision,
   imageRequest: visionEnabled ? createImageRequestJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash') : undefined,
   autoReply: autoReplyEnabled,

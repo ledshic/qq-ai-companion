@@ -1,6 +1,7 @@
+import { memeNote, stripMemeRecords, type MemeManager, type MemeSendContext } from './memes.js';
 import type { VisionHandler, ImageRequestJudge } from './vision.js';
 import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
-import { deliverPersonaReply } from './delivery.js';
+import { deliverPersonaReply, splitPersonaReply } from './delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
@@ -10,6 +11,7 @@ import type { FollowUpJudge } from './observation.js';
 import { isRecord, parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
+  memes?: MemeManager;
   vision?: VisionHandler;
   imageRequest?: ImageRequestJudge;
   autoReply?: boolean;
@@ -54,14 +56,14 @@ export const connectNapCat = (url: string, token: string,
   const activeSocket = (): WebSocket | undefined =>
     !stopped && socket?.readyState === WebSocket.OPEN ? socket : undefined;
 
-  const sendPart = (target: WebSocket, groupId: string, content: string, finish: (success: boolean) => void, targetInfo?: DeliveryTarget): void => {
+  const sendPart = (target: WebSocket, groupId: string, content: string, finish: (success: boolean) => void, targetInfo?: DeliveryTarget, image?: string): void => {
     const echo = randomUUID();
     pending.set(echo, { finish, groupId, content, target: targetInfo, timer: setTimeout(() => {
       pending.delete(echo); finish(false);
       console.error('[NapCat] 回复确认超时，不自动重发。');
     }, 10_000) });
     target.send(JSON.stringify({ action: 'send_group_msg',
-      params: { group_id: groupId, message: [{ type: 'text', data: { text: content } }] }, echo,
+      params: { group_id: groupId, message: image ? [{ type: 'image', data: { file: image, sub_type: 1 } }] : [{ type: 'text', data: { text: content } }] }, echo,
     }), error => {
       if (!error) return;
       const entry = pending.get(echo);
@@ -70,17 +72,40 @@ export const connectNapCat = (url: string, token: string,
     });
   };
 
-  const deliver = (groupId: string, content: string, guard: SendGuard, targetInfo?: DeliveryTarget): Promise<string | undefined> => {
+  const deliver = (groupId: string, content: string, guard: SendGuard, targetInfo?: DeliveryTarget, media?: MemeSendContext): Promise<string | undefined> => {
+    content = stripMemeRecords(content);
+    if (!content) return Promise.resolve(undefined);
     const target = activeSocket();
     if (!target) return Promise.resolve(undefined);
     return new Promise(resolve => {
-      void enqueueSend(groupId, () => deliverPersonaReply(content,
-        part => new Promise<boolean>(partDone => sendPart(target, groupId, part, partDone, targetInfo)),
-        async () => {
-          if (stopped || socket !== target || target.readyState !== WebSocket.OPEN) return false;
-          if (!await guard()) return false;
-          return !stopped && socket === target && target.readyState === WebSocket.OPEN;
-        }))
+      void enqueueSend(groupId, async () => {
+        const connected = () => !stopped && socket === target && target.readyState === WebSocket.OPEN;
+        const allowed = async (check = guard) => connected() && await check() && connected();
+        if (!await allowed()) return '';
+        let entry = media && options.memes ? await options.memes.choose(groupId, content, media.context, media.signal) : undefined;
+        let effectiveGuard = guard;
+        if (entry && media) {
+          try { const approved = await media.approve(memeNote(entry)); if (approved) effectiveGuard = async () => await approved() && await guard(); else entry = undefined; }
+          catch { entry = undefined; }
+        }
+        let delivered = await deliverPersonaReply(content,
+          part => new Promise<boolean>(done => sendPart(target, groupId, part, done, targetInfo)), () => allowed(effectiveGuard));
+        let attempted = false;
+        if (entry && options.memes && delivered === splitPersonaReply(content).join('\n')) {
+          try {
+            const image = options.memes.image(entry);
+            if (await allowed(effectiveGuard)) {
+              options.memes.attempt(groupId, entry.id); attempted = true;
+              const note = memeNote(entry);
+              const ok = await new Promise<boolean>(done => sendPart(target, groupId, note, done, targetInfo, image));
+              if (ok) delivered += '\n' + note;
+              log(`[表情] ${ok ? '已确认发送' : '发送未确认，不重发'} ${entry.id}`);
+            }
+          } catch { log('[表情] 图片未发送，保留已确认文字。'); }
+        }
+        options.memes?.finish(groupId, !!delivered, attempted);
+        return delivered;
+      })
         .then(delivered => resolve(delivered || undefined))
         .catch(() => resolve(undefined));
     });

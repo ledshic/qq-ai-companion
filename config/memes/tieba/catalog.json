@@ -1,0 +1,2425 @@
+{
+  "version": 1,
+  "model": "deepseek-flash",
+  "images": [
+    {
+      "id": "tb_02cf3923b01a",
+      "file": "memes/surprised/image_emoticon109.png",
+      "sha256": "02cf3923b01a1fc5e95b97c70b36fba576598063821e148d1e1ae6480315452d",
+      "category": "surprised",
+      "meaning": "夸张的恍然、惊讶或装傻式回应，带有调侃和轻微卖萌感；不是委屈，也不是安慰",
+      "visibleText": "",
+      "speaker": "发送者以夸张表情表达自己刚反应过来、惊讶或装傻",
+      "target": "无特定对象",
+      "scenes": [
+        "对方说了让人意外或冷知识的话时，用装傻/恍然回应",
+        "群聊里用夸张反应承接上一句，制造轻松气氛"
+      ],
+      "avoid": [
+        "对方认真倾诉难过、需要安慰时",
+        "正式严肃的事务沟通"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_09a28924b42c",
+      "file": "memes/affection/image_emoticon118.png",
+      "sha256": "09a28924b42c8fd1d21dba740991f0892e0dc408b812f3fdbb023c7a95a1df0b",
+      "category": "affection",
+      "meaning": "一个向日葵造型的黄豆表情，大眼微张、腮红浅笑，神态呆萌又略带无辜，核心语气是装乖、卖萌式回应，也可带轻微自嘲或撒娇感",
+      "visibleText": "",
+      "speaker": "以呆萌无辜的姿态回应，轻微示弱但不等于安慰",
+      "target": "对方或无特定对象",
+      "scenes": [
+        "被调侃后想卖萌混过去",
+        "轻松闲聊中表示乖巧或无语",
+        "接话时用呆萌表情缓和气氛"
+      ],
+      "avoid": [
+        "需要严肃安慰对方的场景",
+        "表达强烈嘲讽或攻击时",
+        "对方明显委屈难过时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_0a6f7917b242",
+      "file": "memes/angry/image_emoticon94.png",
+      "sha256": "0a6f7917b242c0e1db6589ee0b9ce3da252cc69879a2ea43c97574ca73163673",
+      "category": "angry",
+      "meaning": "一只黄色小动物趴在横线后，皱眉瞪眼、双爪扒边，呈现憋屈、气鼓鼓又有点委屈的复合语气；无文字，多义时偏'我忍着火/我有点不服但没办法'",
+      "visibleText": "",
+      "speaker": "表达自己憋屈、轻微抗议或自嘲式情绪",
+      "target": "针对自己或回应对方",
+      "scenes": [
+        "对方说了让你无语或轻微不爽的话，用来表达'我盯着你但我不说'",
+        "自己遇到小挫折或受委屈后，发到群里自嘲式泄气",
+        "群聊里被调侃后回一个'气鼓鼓趴着'的反应，半认真半撒娇"
+      ],
+      "avoid": [
+        "对方真的难过需要正经安慰时",
+        "严肃工作沟通或需要明确表态的场合",
+        "对上级或长辈表达不满时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_0bedd9fa4efd",
+      "file": "memes/confused/image_emoticon15.png",
+      "sha256": "0bedd9fa4efd0de2cb3dc069d199dc7efd8e05671362c9092be35a182720881b",
+      "category": "confused",
+      "meaning": "以小黄脸惊讶、张嘴、脸颊泛红并配红色问号的疑惑表情，核心是表达困惑、没听懂或对某说法感到意外，带一点卖萌和委婉质疑的复合语气。",
+      "visibleText": "",
+      "speaker": "发送者表现出困惑、意外并略带无辜的立场",
+      "target": "针对对方或对方的话语内容",
+      "scenes": [
+        "对方说了奇怪或难以理解的话，用来表示没看懂",
+        "群聊中遇到离谱观点时，用疑惑代替直接反驳",
+        "被人调侃后，用装傻式疑惑回应"
+      ],
+      "avoid": [
+        "严肃安慰对方情绪低落时",
+        "表达强烈愤怒或攻击性嘲讽时"
+      ],
+      "confidence": 0.92,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_0d2f8a5417fb",
+      "file": "memes/surprised/image_emoticon4.png",
+      "sha256": "0d2f8a5417fb1599b6a458ce27525e9864192437d8221bf5ff7be5212006c999",
+      "category": "surprised",
+      "meaning": "震惊、慌张或紧张到不知所措，带一点夸张可爱感，常用于被突发情况吓到或看到离谱事情时",
+      "visibleText": "",
+      "speaker": "表达自己受到惊吓、意外或紧张的情绪",
+      "target": "针对所回应的消息或情境，无特定攻击对象",
+      "scenes": [
+        "突然得知意外消息时的惊讶回应",
+        "看到离谱或出乎意料的内容时表达震惊",
+        "被点名或面对突发要求时表现慌张"
+      ],
+      "avoid": [
+        "需要严肃安慰对方的场景",
+        "表达真诚道歉或深刻共情的场景"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_15c18d2661d3",
+      "file": "memes/teasing/image_emoticon70.png",
+      "sha256": "15c18d2661d3515977e0ff8360bbb3795cdaff52f709d45869cab69850cf664b",
+      "category": "teasing",
+      "meaning": "表示晕头转向、大脑宕机、被搞懵或“我不行了”的夸张反应，带一点滑稽、卖萌和不知所措；核心是发懵/迷糊，也可轻微表达想吐或难以接受。",
+      "visibleText": "",
+      "speaker": "发送者表达自身发懵、犯晕或吃不消的夸张状态",
+      "target": "针对自己",
+      "scenes": [
+        "对方说了很离谱或信息量很大的话后，回复表示被绕晕",
+        "自己遇到难题或混乱局面时，自嘲式表示脑子不转了"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "需要表达严肃关切或正式道歉时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_15ca488ce697",
+      "file": "memes/happy/image_emoticon24.png",
+      "sha256": "15ca488ce697afedd37a2303fc2bdf97b7c8d54ee87bf0b804846411c3d157b0",
+      "category": "happy",
+      "meaning": "开心、害羞又带点撒娇的可爱反应，表达被夸奖或遇到好事时的喜悦和不好意思，整体语气轻松、软萌。",
+      "visibleText": "",
+      "speaker": "表达自己开心、害羞的情绪",
+      "target": "针对自己",
+      "scenes": [
+        "被夸奖后害羞回应",
+        "收到好消息时开心撒娇"
+      ],
+      "avoid": [
+        "需要严肃讨论时",
+        "对方在倾诉委屈时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_17ea254e7c47",
+      "file": "memes/angry/image_emoticon69.png",
+      "sha256": "17ea254e7c47d70dbc877c854e76d8ba0094f97414e565806d753728846c473f",
+      "category": "angry",
+      "meaning": "夸张的愤怒咆哮，带有炸毛、抓狂的冲动感，常用于表达强烈不满、急躁或戏剧化发火",
+      "visibleText": "",
+      "speaker": "发送者表达自身强烈情绪",
+      "target": "对方或第三方",
+      "scenes": [
+        "对方反复犯错或装傻时表达抓狂",
+        "遇到离谱事情时夸张表达愤怒",
+        "朋友间玩笑式地假装生气"
+      ],
+      "avoid": [
+        "对方真的受伤需要安慰时",
+        "严肃冲突中作为真实攻击情绪"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_19d2c43a2321",
+      "file": "memes/confused/image_emoticon18.png",
+      "sha256": "19d2c43a2321759431dba383b39de20054f2ab769f8a68d610a2307bcb7ad512",
+      "category": "confused",
+      "meaning": "表示惊讶、疑惑、尴尬或无语的复合情绪，常带轻微卖萌或无奈感，用于对对方话语感到意外或不理解。",
+      "visibleText": "",
+      "speaker": "发送者表达自身的惊讶、疑惑或无语",
+      "target": "对方或第三方",
+      "scenes": [
+        "对方说了出人意料或离谱的话时",
+        "对某件事表示疑惑或无法理解时",
+        "轻微尴尬或无语地回应对方时"
+      ],
+      "avoid": [
+        "正式安慰对方时",
+        "严肃表达悲伤或委屈时",
+        "强烈的嘲讽攻击时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_1a46c6c0f397",
+      "file": "memes/shy/image_emoticon114.png",
+      "sha256": "1a46c6c0f397c09e365960f39d96df6d2d9aeaef36e2469eeeb02313330451e6",
+      "category": "shy",
+      "meaning": "躲在门后探出半个身子、手持玫瑰偷看，核心是害羞试探地讨好/示好，带一点偷看和期待回应的俏皮感",
+      "visibleText": "无",
+      "speaker": "发送者本人害羞、试探性地表达好感",
+      "target": "对方",
+      "scenes": [
+        "想示好或撩一下对方但不好意思直说时",
+        "群聊里接话时想俏皮地表达关注或好感"
+      ],
+      "avoid": [
+        "正式严肃的道歉或求原谅场景",
+        "对方明显在生气需要认真安抚时"
+      ],
+      "confidence": 0.8,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_1d865b1a29ac",
+      "file": "memes/teasing/image_emoticon90.png",
+      "sha256": "1d865b1a29acc9af47e01102f708485e17d7d2dfc7160a7fb23d170ba9e1d1a5",
+      "category": "teasing",
+      "meaning": "半睁眼、撇嘴、单爪托脸，传达嫌弃、无语、敷衍或轻微不耐烦的复合语气，带一点看戏式冷淡，不是安慰。",
+      "visibleText": "",
+      "speaker": "发送者表达冷淡、不以为然或轻微嫌弃的立场",
+      "target": "针对对方或第三方言论",
+      "scenes": [
+        "对方说了离谱或冷场的话，用来表达无语",
+        "群聊里看人吹牛时轻量泼冷水",
+        "对重复抱怨作敷衍回应，表示听腻了"
+      ],
+      "avoid": [
+        "对方认真难过需要安慰时",
+        "正式沟通或需要表达支持的场合",
+        "想真诚道歉或缓和冲突时"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_1d9be6ad394d",
+      "file": "memes/entertainment/image_emoticon78.png",
+      "sha256": "1d9be6ad394d27a8a578c4c1460083c0fc36a276573189e6562d7e048afd0c21",
+      "category": "entertainment",
+      "meaning": "一卷卫生纸的表情符号，常用于表达「拉屎/蹲坑」「去厕所」「擦屁股（收拾烂摊子/兜底）」「厕纸/物资（如囤纸）」等含义；在群聊回复中多为轻松戏谑的语气，低分辨率下无额外配字，不强行引申。",
+      "visibleText": "",
+      "speaker": "发送者以轻松自嘲或戏谑方式表示如厕、兜底或物资相关话题",
+      "target": "无特定对象",
+      "scenes": [
+        "有人说要上厕所或聊到便秘/拉肚子",
+        "需要表达「擦屁股/收拾烂摊子」的吐槽",
+        "聊到囤纸、缺纸等日常物资话题"
+      ],
+      "avoid": [
+        "严肃悲伤的安慰场景",
+        "正式工作汇报场合",
+        "需要表达强烈攻击性的嘲讽"
+      ],
+      "confidence": 0.78,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_1e688270d68b",
+      "file": "memes/sleep/image_emoticon71.png",
+      "sha256": "1e688270d68b019acf2766dae1aa1de60fbb413d376395354354fe72106644f7",
+      "category": "sleep",
+      "meaning": "张嘴大喊、闭眼皱眉的崩溃感，核心表达抓狂、无奈和强烈情绪宣泄，语气夸张但偏玩笑化",
+      "visibleText": "",
+      "speaker": "表达自己抓狂、崩溃或无奈",
+      "target": "针对对方或当前情境",
+      "scenes": [
+        "被对方的话或离谱要求气到无语时回复",
+        "自嘲式表达自己快被逼疯了",
+        "群聊中遇到离谱事情时夸张吐槽"
+      ],
+      "avoid": [
+        "对方真的情绪低落需要安慰时",
+        "严肃道歉或正式沟通场合"
+      ],
+      "confidence": 0.92,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_1f540820a9ae",
+      "file": "memes/teasing/image_emoticon62.png",
+      "sha256": "1f540820a9aedd6cb07eb91826cdf2d150adde734cb021d6bd92b7a59d6e7fd4",
+      "category": "teasing",
+      "meaning": "以吃瓜看戏的旁观姿态表达八卦、围观或看热闹；人物眉眼带有戏谑和淡定感，整体是轻松调侃的复合语气",
+      "visibleText": "",
+      "speaker": "发送者以旁观者身份表达看戏、吃瓜的心态",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中有人开始争论或爆八卦时，表示自己正在围观",
+        "看到离谱或好笑的事情时，用来看戏回应"
+      ],
+      "avoid": [
+        "对方需要认真安慰或求助时",
+        "表达自己委屈或伤心时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_22150521fa64",
+      "file": "memes/affection/image_emoticon93.png",
+      "sha256": "22150521fa64bd019eb1c024125aed81120c3cb70d8d94309d2ef486098b517e",
+      "category": "affection",
+      "meaning": "装可爱、卖萌或撒娇，带一点害羞、期待和轻微无辜感；也可能被用来缓和语气、活跃群聊，或轻佻地回应对方",
+      "visibleText": "",
+      "speaker": "发送者把自己放在可爱、无害、略撒娇的位置",
+      "target": "对方或群聊整体",
+      "scenes": [
+        "回应夸奖或玩笑时卖萌",
+        "需要缓和气氛或撒娇求让步时",
+        "群聊里轻松互动、自嘲式装可爱"
+      ],
+      "avoid": [
+        "严肃安慰对方",
+        "正式道歉或处理冲突",
+        "表达强烈委屈或不满"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_2312aa68f69a",
+      "file": "memes/entertainment/image_emoticon77.png",
+      "sha256": "2312aa68f69a6808070194e0feea65206837a7c88f3bf548008d587d1b29b9ef",
+      "category": "entertainment",
+      "meaning": "一张红色沙发图标，无人物、表情或文字，常被用作『坐等』『沙发位』『吃瓜围观』的中性符号，本身不含委屈或安慰语气。",
+      "visibleText": "",
+      "speaker": "发送者以中性或轻松姿态表示自己占位、坐等或围观。",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊抢首评或占楼时",
+        "表示坐等后续或围观聊天时",
+        "轻松闲聊中用作状态图标时"
+      ],
+      "avoid": [
+        "需要明确安慰对方时",
+        "需要表达自嘲或委屈时",
+        "严肃讨论或冲突回应时"
+      ],
+      "confidence": 0.55,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_2335543f9d36",
+      "file": "memes/food/image_emoticon44.png",
+      "sha256": "2335543f9d36c59df0f71cc803ccadff7df2566671bd4b6f14eeaeb386dc0e1a",
+      "category": "food",
+      "meaning": "表示庆祝生日或祝贺的轻松友好语气",
+      "visibleText": "",
+      "speaker": "发送者表达祝贺或轻松互动",
+      "target": "对方",
+      "scenes": [
+        "群聊中有人过生日",
+        "祝贺对方生日快乐",
+        "提到生日相关话题"
+      ],
+      "avoid": [
+        "严肃工作讨论",
+        "需要表达悲伤或安慰的场合",
+        "嘲讽或冲突场景"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_27e7877076cb",
+      "file": "memes/affection/image_emoticon102.png",
+      "sha256": "27e7877076cb7cddd8b0119c3284c5234a3f2a5148b85861a6dbe9148f1ba801",
+      "category": "affection",
+      "meaning": "以闭眼仰头、脸颊泛红、摊手转圈的黄色卡通形象表达无语、无奈或摆烂，常带轻微自嘲或对他人言行的无力吐槽。",
+      "visibleText": "",
+      "speaker": "发送者表达无奈、躺平或轻微摆烂的立场",
+      "target": "无特定对象或针对对方言论",
+      "scenes": [
+        "对方说了让人无奈或离谱的话",
+        "自嘲式表达没办法、随便吧",
+        "群聊里回应无厘头话题"
+      ],
+      "avoid": [
+        "真心安慰情绪低落的人",
+        "正式严肃讨论场景",
+        "需要明确积极回应的场合"
+      ],
+      "confidence": 0.78,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_28adefce214b",
+      "file": "memes/teasing/image_emoticon5.png",
+      "sha256": "28adefce214b3dbb5f7b6e41cf2938ebce6f4c134a5f23b934bfe690f0698d79",
+      "category": "teasing",
+      "meaning": "戴墨镜、挑浓眉、带腮红和上扬嘴角的黄豆表情，核心是自信得意、耍酷卖萌的复合语气，略带一点傲娇或嘚瑟。",
+      "visibleText": "",
+      "speaker": "发送者表现自信、得意、耍帅和轻微卖萌的立场",
+      "target": "针对自己或泛化互动对象",
+      "scenes": [
+        "自己完成某事或说了得意的话后，用来耍酷自夸",
+        "回应对方夸奖时，带点傲娇地接受",
+        "群聊里发轻松玩笑，活跃气氛"
+      ],
+      "avoid": [
+        "对方认真诉苦、需要安慰时",
+        "严肃争论或正式事务沟通时",
+        "表达真诚道歉或委屈情绪时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_29edaa191d6d",
+      "file": "memes/shy/image_emoticon73.png",
+      "sha256": "29edaa191d6ddc138656ad5baa80db745240feb6bfd7d44323101afeb3ff2331",
+      "category": "shy",
+      "meaning": "侧目斜视、捂嘴憋笑或思索，带有看戏、打量、无语和轻微调侃的复合语气",
+      "visibleText": "",
+      "speaker": "发送者表达旁观、怀疑或忍俊不禁的立场",
+      "target": "对方或第三方",
+      "scenes": [
+        "群友说了离谱或搞笑的话，发送者表示看戏、琢磨或憋笑",
+        "回应对方炫耀或夸张言论时，表达半信半疑和调侃"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "表达真诚认同或热烈赞同时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_2bdbaeb6b7d7",
+      "file": "memes/teasing/image_emoticon26.png",
+      "sha256": "2bdbaeb6b7d7e587d54ea200110b092c551b319d8a4e26a4714c16739464b69c",
+      "category": "teasing",
+      "meaning": "俏皮眨眼露齿笑，带轻微得意和示好意味，整体轻松活跃；也可在尴尬时用来自我调侃，并非委屈或安慰",
+      "visibleText": "",
+      "speaker": "发送者表达轻松、俏皮、略得意的姿态",
+      "target": "无特定对象",
+      "scenes": [
+        "接一句轻松玩笑后调节气氛",
+        "想活跃群聊、卖萌示好时"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "严肃争论或正式通知场景"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_2be41c43b3a6",
+      "file": "memes/happy/image_emoticon95.png",
+      "sha256": "2be41c43b3a6e43aa0b19e84e9ed41c44a7a592418d6516e33d93deaf20355ad",
+      "category": "happy",
+      "meaning": "夸张狂喜/大笑，带一点'绷不住'或起哄式欢乐；不是安慰或委屈",
+      "visibleText": "",
+      "speaker": "表达发送者本人狂笑/起哄的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊里接梗、起哄、被逗笑时",
+        "对方发了搞笑或离谱内容后回复",
+        "表达自己看到某事忍不住大笑"
+      ],
+      "avoid": [
+        "对方倾诉难过需要安慰时",
+        "严肃讨论或冲突调解场景",
+        "需要表达委屈或示弱时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_2f3bc59c2119",
+      "file": "memes/affection/image_emoticon2.png",
+      "sha256": "2f3bc59c21193db491deab9bb3100b7d869742f8992f95ae649dabc02999f9c6",
+      "category": "affection",
+      "meaning": "夸张的开心、卖萌或示好，张大的嘴里含着一颗爱心，带有讨好式亲昵和轻微憨态，整体语气积极、热情、卖萌。",
+      "visibleText": "",
+      "speaker": "表达自己开心、卖萌或示好",
+      "target": "对方或无特定对象",
+      "scenes": [
+        "对方说了暖心或有趣的话，发送者用夸张卖萌表示开心回应",
+        "群聊中想活跃气氛、表达友善或撒娇时",
+        "收到帮助后表达夸张的感谢和喜欢"
+      ],
+      "avoid": [
+        "严肃讨论或正式事务场合",
+        "对方表达委屈或难过需要认真安慰时",
+        "带有攻击性或嘲讽意味的对话"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_3070e9a12107",
+      "file": "memes/happy/image_emoticon72.png",
+      "sha256": "3070e9a12107ea93527594f382d2d098c686190d49aaa483435f859a399779d2",
+      "category": "happy",
+      "meaning": "笑哭：被逗乐、觉得好笑，带夸张或自嘲式无奈，不表示安慰",
+      "visibleText": "",
+      "speaker": "发送者觉得好笑或无奈",
+      "target": "对方或具体事件",
+      "scenes": [
+        "对方说了很好笑的话",
+        "自嘲式吐槽自己的糗事",
+        "回应离谱或荒诞的内容"
+      ],
+      "avoid": [
+        "对方明确表达难过需要安慰",
+        "严肃冲突或道歉场景"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_348552ff74a9",
+      "file": "memes/teasing/image_emoticon25.png",
+      "sha256": "348552ff74a9d8603c811ae45eb7bc74e56898eb5d2739a1cd4ba01027dfc845",
+      "category": "teasing",
+      "meaning": "核心含义是\"斜眼笑/坏笑\"，带有调侃、看戏、心照不宣的意味，复合语气轻微暧昧或促狭。",
+      "visibleText": "",
+      "speaker": "发送者表达的立场是旁观调侃、带点小得意或心照不宣",
+      "target": "针对对方或第三方",
+      "scenes": [
+        "群友说了句意味深长的话，发送者表示\"我懂我懂\"",
+        "有人发糗事或八卦时，用此表情表达偷笑围观"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈寻求安慰时",
+        "正式严肃的道歉或工作沟通场合"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_3a6c6e753202",
+      "file": "memes/shy/image_emoticon75.png",
+      "sha256": "3a6c6e75320279d7609bf8541242ddeb47d3028e572adf82bdde2d15ddc44561",
+      "category": "shy",
+      "meaning": "害羞又带点委屈、窘迫或心虚的复杂情绪，不是安慰语气",
+      "visibleText": "",
+      "speaker": "表达自己害羞、窘迫或轻微委屈的立场",
+      "target": "针对自己",
+      "scenes": [
+        "被对方调侃或说中短处时",
+        "表达自己尴尬、不好意思承认时",
+        "回应略带暧昧或让人害羞的话题时"
+      ],
+      "avoid": [
+        "真正需要安慰对方时",
+        "严肃道歉或表达歉意时",
+        "强烈嘲讽或攻击对方时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_3d5932e8e849",
+      "file": "memes/money/image_emoticon14.png",
+      "sha256": "3d5932e8e8495ece84b0a0afc4e0711c99c36ae2b2b25f037c5d4449523033fd",
+      "category": "money",
+      "meaning": "看到钱/利益时两眼放光、兴奋心动，带财迷式调侃和玩笑夸张语气",
+      "visibleText": "$ $",
+      "speaker": "发送者本人夸张表达对金钱/利益的兴趣",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊里聊到红包、工资、赚钱、优惠、买单等话题时",
+        "有人提到发红包或请客时，用来起哄调侃",
+        "自嘲见钱眼开、表达对收入的期待"
+      ],
+      "avoid": [
+        "严肃讨论经济困难或求助借钱时",
+        "需要认真安慰对方经济压力的场景"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_3f7785892be4",
+      "file": "memes/teasing/image_emoticon113.png",
+      "sha256": "3f7785892be46743bc95ce4ae9fb067579343c531257e30089cab7abfbdbc281",
+      "category": "teasing",
+      "meaning": "撒娇式卑微或自嘲，表达可怜巴巴、楚楚可怜地想抱大腿或求关注",
+      "visibleText": "",
+      "speaker": "发送者自嘲/示弱，带撒娇意味",
+      "target": "针对自己或向对方示弱",
+      "scenes": [
+        "群友发福利图或大佬发言后，用此表情装可怜求带",
+        "自我调侃地位低、求安慰或求资源时"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈时用来安慰",
+        "严肃讨论或正式场合"
+      ],
+      "confidence": 0.75,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_3fea8cf2ea63",
+      "file": "memes/affection/image_emoticon28.png",
+      "sha256": "3fea8cf2ea63278433e4bdc454ace48551c6abebc536828b4100fa65658d11bc",
+      "category": "affection",
+      "meaning": "委屈巴巴、可怜讨好地示弱，带轻微撒娇和恳求意味；也可用于被调侃时自嘲式装委屈，并非真正安慰对方",
+      "visibleText": "",
+      "speaker": "发送者表达自己委屈、示弱或撒娇的立场",
+      "target": "针对自己，兼向对方传递恳求",
+      "scenes": [
+        "被对方吐槽或拒绝后，示弱求放过",
+        "想请求对方帮忙或让步时，软性撒娇",
+        "自嘲式表达自己很惨、很委屈"
+      ],
+      "avoid": [
+        "对方真正难过需要安慰时",
+        "严肃争论或正式沟通场合",
+        "对第三方表达嘲讽时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_409990bf56b7",
+      "file": "memes/surprised/image_emoticon30.png",
+      "sha256": "409990bf56b7c817e5d88ffb9716f811e12a2c0aaa6a38a08b858f4d1f4ae9e7",
+      "category": "surprised",
+      "meaning": "极度震惊、目瞪口呆、难以置信，带夸张搞笑的强烈惊讶语气",
+      "visibleText": "",
+      "speaker": "表达自己受到强烈冲击、惊讶到失语的反应",
+      "target": "针对对方或第三方消息内容",
+      "scenes": [
+        "对方说了离谱或惊人的消息时回复",
+        "看到意外结果或反转内容时表达震惊",
+        "群聊中配合夸张吐槽营造搞笑效果"
+      ],
+      "avoid": [
+        "对方正经倾诉委屈需要安慰时",
+        "严肃讨论或需要克制情绪的场合",
+        "嘲讽他人时使用，该表情更偏自身反应而非攻击"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_409f5dfb09a5",
+      "file": "memes/confused/image_emoticon84.png",
+      "sha256": "409f5dfb09a5bf0831de21dc52668598b64b2a6ade3823824390751a011ab25b",
+      "category": "confused",
+      "meaning": "表示无语、沉默或省略号，常带有冷场、无言以对的意味。",
+      "visibleText": "无",
+      "speaker": "表达自身无语或不想继续发言的立场",
+      "target": "针对对方或当前话题",
+      "scenes": [
+        "对方说了让人不知道怎么接的话",
+        "群聊中出现冷场或尴尬话题"
+      ],
+      "avoid": [
+        "需要安慰对方的场景",
+        "需要明确赞同或鼓励的场景"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_429cdc9eb09d",
+      "file": "memes/teasing/image_emoticon76.png",
+      "sha256": "429cdc9eb09d07231ded7610cc47f4da26b98f6f99d575e74d93b140355cd389",
+      "category": "teasing",
+      "meaning": "用一个夸张的捂嘴/单眼闭合的憋笑或呲牙表情，表达憋笑、偷笑、滑稽的尴尬或俏皮的无奈，整体语气轻快而非委屈",
+      "visibleText": "",
+      "speaker": "发送者以轻松搞怪、略带自嘲或看热闹的立场表达情绪",
+      "target": "无特定对象或针对对方",
+      "scenes": [
+        "群聊里看到别人发了好笑但不好直接大笑的内容时用来回应",
+        "自己说了略带自嘲或搞怪的话后作为语气补充",
+        "对方发了尴尬或离谱的事，用来表达憋笑或看热闹"
+      ],
+      "avoid": [
+        "对方认真倾诉负面情绪需要安慰时",
+        "严肃讨论或工作沟通中",
+        "需要表达真诚歉意或委屈时"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_44d1a2aa85b0",
+      "file": "memes/entertainment/image_emoticon45.png",
+      "sha256": "44d1a2aa85b0d20963ab1fa67cc200d14751e2a02a2d3311600094db46dbba2d",
+      "category": "entertainment",
+      "meaning": "轻松哼歌、表示心情不错或对话题不较真，带一点俏皮敷衍感",
+      "visibleText": "无",
+      "speaker": "发送者表达自己轻松、不置可否的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊里气氛轻松，有人分享日常时",
+        "对方发来一段语音或歌曲相关内容时",
+        "想轻描淡写地回应、不深入争论时"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈时",
+        "需要严肃表态或安慰别人的场景",
+        "嘲讽别人且容易引发误解时"
+      ],
+      "confidence": 0.8,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_45c895fb359d",
+      "file": "memes/angry/image_emoticon6.png",
+      "sha256": "45c895fb359d0acfac805722c0921f74a2987d00b09463becf1a83bad8fdf224",
+      "category": "angry",
+      "meaning": "咬牙切齿的愤怒与憋火，带一点可爱化夸张；多用于表达强烈不满、被气到无语或强压怒火",
+      "visibleText": "",
+      "speaker": "发送者表达自己正在生气或强忍怒火",
+      "target": "针对对方或当前话题",
+      "scenes": [
+        "朋友反复踩雷或抬杠时",
+        "遇到离谱事情后表达气炸",
+        "群聊中被调侃后假生气"
+      ],
+      "avoid": [
+        "认真安慰对方时",
+        "需要礼貌克制的正式沟通",
+        "对方明显难过求安慰时"
+      ],
+      "confidence": 0.93,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_4642da1c5183",
+      "file": "memes/teasing/image_emoticon63.png",
+      "sha256": "4642da1c5183f6f7d379b6a9309e4a9bb5289dd83980f5a103c0f36e11c82677",
+      "category": "teasing",
+      "meaning": "用笑眯眯的表情捧着一坨大便，形成强烈反差，核心是'看似乖巧/礼貌，实则给你一坨屎'的阴阳怪气或自嘲式摆烂，带轻微嘲讽和荒诞感。",
+      "visibleText": "",
+      "speaker": "发送者表达一种戏谑、反讽或摆烂的立场",
+      "target": "对方或第三方",
+      "scenes": [
+        "回应对方说了不靠谱/糟糕的建议时，表示'你这主意真臭'",
+        "自嘲自己干了一件很蠢或很糟糕的事",
+        "群聊中面对离谱发言，用此表情表达'我服了，给你一坨'的无奈嘲讽"
+      ],
+      "avoid": [
+        "对方认真倾诉烦恼需要安慰时",
+        "正式工作沟通或需要严肃回应的场合"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_46b06269680e",
+      "file": "memes/affection/image_emoticon103.png",
+      "sha256": "46b06269680eaf4a3925ae607b26773b8d1fda5da25f6500088b6267b2014ffb",
+      "category": "affection",
+      "meaning": "瘫软侧躺、腮红闭眼的黄色卡通形象，配合尿不湿上的蓝色标识，传递出极度疲惫、摆烂、躺平、无力或生无可恋的复合语气，常带自嘲与幽默感",
+      "visibleText": "尿不湿上可见蓝色方形标识，但分辨率低且模糊，无法辨认具体文字",
+      "speaker": "发送者自述摆烂、疲惫或无力应对的状态",
+      "target": "针对自己",
+      "scenes": [
+        "群聊中对方提出麻烦任务时用来自嘲无力完成",
+        "表达自己累到不想动或彻底摆烂时",
+        "朋友讲述疲惫经历时用来共情回应"
+      ],
+      "avoid": [
+        "对方需要认真安慰或求助时",
+        "表达强势嘲讽第三方时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_4729a34330a9",
+      "file": "memes/greeting/image_emoticon47.png",
+      "sha256": "4729a34330a98ab7430fd0784f293b9cbcf69183ae813d21f01f11cfe50cf22f",
+      "category": "greeting",
+      "meaning": "比耶/V字手势，语气以轻松、友好、俏皮为主；在群聊中常作简短积极回应，也可轻微自嘲式认同或配合调侃",
+      "visibleText": "",
+      "speaker": "表达轻松、友好、俏皮的积极立场，不表现委屈",
+      "target": "无特定对象",
+      "scenes": [
+        "对方分享好消息或达成小目标，用于轻松祝贺或“我也一样”",
+        "群聊里气氛轻松，作为俏皮、活泼的应答收尾"
+      ],
+      "avoid": [
+        "严肃安慰对方情绪低落时",
+        "正式工作汇报或需要权威表态的场合"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_4ccaad9a1309",
+      "file": "memes/shy/image_emoticon11.png",
+      "sha256": "4ccaad9a1309aefe695eb7689177d7baee30e86cf249019837055f516b3c2090",
+      "category": "shy",
+      "meaning": "半眯眼、鼓腮红、双手食指对戳，传达一种略带尴尬、犹豫、委屈或撒娇的复合情绪，像是在小声嘀咕或不好意思地回应。",
+      "visibleText": "",
+      "speaker": "表达自己尴尬、犹豫或轻微委屈的立场",
+      "target": "针对自己",
+      "scenes": [
+        "被对方调侃后不好意思地回应",
+        "自己犯了小错时撒娇式认错",
+        "想开口又犹豫时表达纠结"
+      ],
+      "avoid": [
+        "需要严肃安慰对方时",
+        "明确嘲讽或攻击对方时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_50fca028b8aa",
+      "file": "memes/sleep/image_emoticon64.png",
+      "sha256": "50fca028b8aade53cff09fb966b3a2cffd4e6a986475dce4e70160e42e999870",
+      "category": "sleep",
+      "meaning": "表达极度疲惫、委屈或“撑不住了”的丧气感，常带自嘲和求安慰的复合语气。",
+      "visibleText": "",
+      "speaker": "表达自己疲惫、委屈的示弱立场",
+      "target": "针对自己",
+      "scenes": [
+        "连续加班/熬夜后吐槽很累",
+        "遇到麻烦事感到无力时自嘲",
+        "向群友表达委屈求安慰"
+      ],
+      "avoid": [
+        "轻松搞笑场合",
+        "嘲讽对方时使用（容易误读为示弱）",
+        "正式严肃的工作沟通"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_53eea127848f",
+      "file": "memes/teasing/image_emoticon79.png",
+      "sha256": "53eea127848f76a9b61d3d1f9992487577587b94470ae5e851152399a6951665",
+      "category": "teasing",
+      "meaning": "剥开的香蕉emoji放大版，群聊回复中通常作为无明确语义的插科打诨或刷屏表情，无固定情绪，常带调侃、敷衍或凑热闹语气。",
+      "visibleText": "",
+      "speaker": "发送者无明确立场，多为随意调侃或敷衍围观",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊冷场时用来刷存在感或活跃气氛",
+        "对方说了莫名其妙/抽象的话时用来打岔",
+        "朋友间互相调侃、斗图时当占位表情"
+      ],
+      "avoid": [
+        "对方明显在倾诉委屈或需要安慰时",
+        "严肃讨论工作或正经事务时",
+        "需要明确表达认同或反对态度的场合"
+      ],
+      "confidence": 0.4,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_5635bde48c37",
+      "file": "memes/entertainment/image_emoticon42.png",
+      "sha256": "5635bde48c37f1855bc2928fa6413b57e514297e206714f046d4c7562f82b1b4",
+      "category": "entertainment",
+      "meaning": "表示灵光一现、想到办法、突然明白或提醒对方注意；语气积极，带有\"有了/懂了/注意\"的提示感，复合轻微俏皮。",
+      "visibleText": "",
+      "speaker": "表达自己产生想法或理解，或向他人发出提示",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中有人提出难题后，表示自己想到了解决办法",
+        "对方解释完一件事后，表示自己恍然大悟",
+        "提醒大家注意某个关键点或新想法"
+      ],
+      "avoid": [
+        "对方在倾诉委屈需要安慰时",
+        "严肃争论中用来嘲讽对方时",
+        "需要正式表态或道歉时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_567b553551b5",
+      "file": "memes/teasing/image_emoticon12.png",
+      "sha256": "567b553551b54b9bfc834514b64cf6eed377ac6644f1c1484710bead54f341a6",
+      "category": "teasing",
+      "meaning": "微微脸红地向下看并撇嘴，表达无语、嫌弃、憋屈或尴尬不满的复合情绪；常带轻微傲娇和内心吐槽感。",
+      "visibleText": "",
+      "speaker": "发送者表达轻微的嫌弃、无语或尴尬不满",
+      "target": "对方",
+      "scenes": [
+        "对方说了让人无语或不太靠谱的话",
+        "轻微表达尴尬、嫌弃或不满",
+        "自嘲式表达自己有点委屈又不能直说"
+      ],
+      "avoid": [
+        "真诚安慰对方",
+        "表达开心或积极认同",
+        "正式严肃表达立场或道歉"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_5929007193cf",
+      "file": "memes/teasing/image_emoticon120.png",
+      "sha256": "5929007193cf02b0755c922597ef18bb8bf2300e2b8721e6e0cdcda47530eb7f",
+      "category": "teasing",
+      "meaning": "核心是斜眼冷看、半眯眼的无语嫌弃感，带轻微审视和敷衍不耐；没有文字时主要靠眼神传达“你在逗我吗”的质疑，不是委屈，也不是安慰。",
+      "visibleText": "",
+      "speaker": "发送者表达冷淡审视、无语和轻微嫌弃",
+      "target": "对方",
+      "scenes": [
+        "对方说了离谱或重复的话，回复表示无语和轻微嫌弃",
+        "对群友的吹牛或烂梗做冷眼旁观式回应",
+        "自嘲式表达“我就静静看你表演”"
+      ],
+      "avoid": [
+        "对方明显难过需要安慰时",
+        "正式道歉或严肃沟通场景"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_5a3c80ed4cc0",
+      "file": "memes/teasing/image_emoticon107.png",
+      "sha256": "5a3c80ed4cc09bb8a19b407dbd8f364dfd0b80a7ebb38b7309717e20bf5cb449",
+      "category": "teasing",
+      "meaning": "戴礼帽、叼玫瑰的黄色表情角色摆出眯眼半躺姿势，整体带有耍帅、装酷、自恋和轻微滑稽感；常用于调侃式自我展示或玩笑互动",
+      "visibleText": "无",
+      "speaker": "发送者本人；也可代指被调侃对象",
+      "target": "自己或对方，视语境而定",
+      "scenes": [
+        "自夸或装酷后活跃气氛",
+        "调侃对方发言很'帅'或很做作",
+        "群聊里故意摆出油腻/耍帅姿态"
+      ],
+      "avoid": [
+        "严肃安慰他人",
+        "正式道歉或说明事情",
+        "表达真实委屈"
+      ],
+      "confidence": 0.74,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_5c9f79d76e3f",
+      "file": "memes/teasing/image_emoticon23.png",
+      "sha256": "5c9f79d76e3f12cf11bf93b214caf8f240f87dcfca0df95571a83d5a441b80d6",
+      "category": "teasing",
+      "meaning": "带得意、狡黠、看戏或坏笑的调侃表情，闭眼弯眉加咧嘴笑表现轻松占上风或准备看热闹的复合语气，无明显文字，不按安慰理解",
+      "visibleText": "",
+      "speaker": "发送者表达轻松得意、调侃看戏的立场",
+      "target": "对方或第三方",
+      "scenes": [
+        "回应对方出糗或说错话时调侃",
+        "群聊中准备看戏或起哄",
+        "对熟人玩笑式炫耀或反讽"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "严肃道歉或正式沟通场景",
+        "陌生人初次交流需要保持礼貌时"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_5ffa351f8fd3",
+      "file": "memes/happy/image_emoticon40.png",
+      "sha256": "5ffa351f8fd3c175db725a294cee7c0c57f4528e5afc54c74618a2fad5313a01",
+      "category": "happy",
+      "meaning": "一个简单的微笑太阳表情，表面是礼貌、温和或“阳光”的回应，但在群聊语境下常带有克制、敷衍或“强撑微笑”的复合语气，也可能只是中性卖萌。",
+      "visibleText": "",
+      "speaker": "发送者表现出温和、无害或轻微敷衍的立场",
+      "target": "对方或无特定对象",
+      "scenes": [
+        "被@后礼貌回应但不想多聊",
+        "对方说了让人无语的话，用微笑太阳表示已阅",
+        "群聊冷场时发个表情缓和气氛"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "激烈争吵需要明确表态时"
+      ],
+      "confidence": 0.7,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_60bf1fc7d7e0",
+      "file": "memes/angry/image_emoticon13.png",
+      "sha256": "60bf1fc7d7e0b5952f64dbc0a2576a7e705090294f7073fa190cddbef3c119ef",
+      "category": "angry",
+      "meaning": "表面点赞实则不满的复合语气，常用于表达'行吧你厉害''我服了'式反讽或压着火气的勉强认可",
+      "visibleText": "",
+      "speaker": "表达发送者压抑不满、勉强认可或反讽的立场",
+      "target": "针对对方",
+      "scenes": [
+        "对方说了离谱或让人无语的话时，用点赞表达'你说得都对'的反讽",
+        "自己被气到但不想正面争吵时，发一个表示'我忍了'",
+        "回应对方的炫耀或阴阳怪气，以示不甘示弱的敷衍认可"
+      ],
+      "avoid": [
+        "真心恭喜或赞赏对方时",
+        "需要安慰对方情绪低落时",
+        "正式严肃沟通中表达明确赞同"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_6371bd653cc2",
+      "file": "memes/affection/image_emoticon83.png",
+      "sha256": "6371bd653cc2ee9d0a42eb3f7753c9dd46afba054de6ddbf85b235e0c5c51d78",
+      "category": "affection",
+      "meaning": "以一支正在燃烧、边缘有烛泪的红色蜡烛表达祭奠、哀悼或沉痛悼念，也常被挪用作黑色幽默式的“点蜡/默哀”反应，复合语气偏沉重、无奈或带反讽",
+      "visibleText": "",
+      "speaker": "表达哀悼、沉重或无奈反应的一方",
+      "target": "第三方或当前话题事件",
+      "scenes": [
+        "群聊中有人分享不幸、噩耗或令人无语的坏消息时，用来表达哀悼或默哀",
+        "看到离谱、悲惨或令人沉默的发言后，发送蜡烛表示沉重或无语",
+        "讨论纪念、悼念话题时作为象征性回复"
+      ],
+      "avoid": [
+        "对方只是表达轻微委屈或日常小挫折时，不宜用蜡烛，容易显得过度沉重或像在看热闹",
+        "轻松活跃的玩笑氛围中，点蜡可能被误解为扫兴或嘲讽",
+        "直接安慰需要温暖鼓励的人时，蜡烛偏冷峻，不如拥抱或加油类表情合适"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_65292b687c83",
+      "file": "memes/teasing/image_emoticon100.png",
+      "sha256": "65292b687c834010823dcbd15aa2a903f5efa03950ec6991afe3bba37ea2e5ac",
+      "category": "teasing",
+      "meaning": "夸张的咧嘴大笑、瞪眼搞怪或兴奋围观，带滑稽和看热闹意味，可兼有轻微魔性/沙雕感",
+      "visibleText": "",
+      "speaker": "发送者表现出夸张、亢奋或吃瓜的旁观姿态",
+      "target": "无特定对象或针对对方/第三方看热闹",
+      "scenes": [
+        "群聊里回应搞笑或离谱的事，表示看乐子",
+        "有人发夸张好消息时，用搞怪大笑捧场",
+        "自嘲式表达自己震惊又无话可说"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈、需要安慰时",
+        "严肃讨论、正式通知场景"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_656bf81235ee",
+      "file": "memes/teasing/image_emoticon104.png",
+      "sha256": "656bf81235ee6e44ae5db821f0fd8c9b1cde2fdbeb6fca85561ddf60299e1c13",
+      "category": "teasing",
+      "meaning": "以婴儿奶嘴、围兜和眯眼斜视构成反差：表面装乖/摆烂，实际带嫌弃、无语或阴阳吐槽；常为轻微嘲讽或敷衍回应",
+      "visibleText": "",
+      "speaker": "发送者摆出无辜婴儿姿态，但态度带嫌弃/无语",
+      "target": "对方",
+      "scenes": [
+        "对方说了让人无语或离谱的话时回复",
+        "群聊里用装傻摆烂的方式表达不满",
+        "熟人之间轻微互怼或调侃"
+      ],
+      "avoid": [
+        "认真安慰对方",
+        "正式严肃沟通",
+        "表达纯粹委屈或示弱"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_694941c33be7",
+      "file": "memes/happy/image_emoticon97.png",
+      "sha256": "694941c33be720ec988070f9b28724f3ef4be662ce7e312a50609bf3d84ec45a",
+      "category": "happy",
+      "meaning": "表面是夸张瞪眼大笑、双手捧脸的兴奋期待，实际群聊中常带'坐等吃瓜/看戏'或'阴阳怪气地围观'的复合语气",
+      "visibleText": "",
+      "speaker": "发送者表达自己看热闹不嫌事大的围观立场",
+      "target": "针对第三方或当前事件",
+      "scenes": [
+        "群里有人爆料八卦时表示坐等看戏",
+        "对方即将出糗或发生尴尬场面时表达兴奋围观"
+      ],
+      "avoid": [
+        "对方认真倾诉烦恼需要安慰时",
+        "需要表达真诚同情或道歉时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_6ab7c1cf5baf",
+      "file": "memes/shy/image_emoticon8.png",
+      "sha256": "6ab7c1cf5baf70e18bc006a84463c91fbf06e10374d91ce4c4135776de526f4a",
+      "category": "shy",
+      "meaning": "流汗黄豆/无语汗颜，表达尴尬、无语、无奈或轻微窘迫的复合情绪",
+      "visibleText": "",
+      "speaker": "发送者自身感到尴尬或无奈",
+      "target": "无特定对象",
+      "scenes": [
+        "对方说了离谱或尴尬的话时回应",
+        "自己遇到无奈、社死场面时自嘲",
+        "对某件事感到无力吐槽时"
+      ],
+      "avoid": [
+        "需要认真安慰对方时",
+        "表达强烈愤怒时",
+        "正式严肃讨论时"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_6cf2beb7329b",
+      "file": "memes/affection/image_emoticon46.png",
+      "sha256": "6cf2beb7329b09f92fcfdbe59d7de0c8dad942ddc9de2fab7f99d620ff024050",
+      "category": "affection",
+      "meaning": "这是一个简笔手势表情，核心含义是“摇滚/酷”，传递轻松、随性、带点调侃的打气或认同语气",
+      "visibleText": "",
+      "speaker": "发送者表达自己随性、认同或捧场的轻松立场",
+      "target": "无特定对象/对方",
+      "scenes": [
+        "群聊中接一句轻松自嘲或摆烂发言后，表示“就这样酷/无所谓”",
+        "对方分享好消息或酷炫操作时，用这表情随性捧场",
+        "讨论音乐、玩乐、聚会时表达嗨起来的氛围"
+      ],
+      "avoid": [
+        "需要严肃安慰情绪低落的朋友时",
+        "正式工作讨论、道歉或表达委屈时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_6f8dfc3c2fed",
+      "file": "memes/shy/image_emoticon85.png",
+      "sha256": "6f8dfc3c2fede1df3032615b434224df8f426639f9082a68d5737d09493980eb",
+      "category": "shy",
+      "meaning": "探头暗中观察、略带害羞与审视的围观姿态，语气是调侃式的偷看或弱弱关注",
+      "visibleText": "",
+      "speaker": "发送者以半躲半看的姿态表达关注或好奇",
+      "target": "对方或群聊中的第三方",
+      "scenes": [
+        "群里有人聊八卦时冒泡围观",
+        "想插话又有点不好意思时",
+        "回应对方时表示已悄悄看到"
+      ],
+      "avoid": [
+        "正式道歉或安慰对方",
+        "表达强烈愤怒或嘲讽",
+        "严肃工作沟通"
+      ],
+      "confidence": 0.78,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_701ff97e4411",
+      "file": "memes/shy/image_emoticon19.png",
+      "sha256": "701ff97e441187618de53de9304b2a8ef127e0b338939fd689b0e1e9801ce191",
+      "category": "shy",
+      "meaning": "委屈、憋屈、强忍情绪地小幅抗议，带有撒娇或别扭感，不是在安慰对方",
+      "visibleText": "",
+      "speaker": "表达自己委屈、憋屈或轻微抗议",
+      "target": "针对自己或对方",
+      "scenes": [
+        "被误解或受委屈后回应对方",
+        "表达自己憋着不说、快忍不住了",
+        "撒娇式抗议对方的话"
+      ],
+      "avoid": [
+        "安慰正在难过的人",
+        "认真道歉或表达成熟认错",
+        "嘲讽第三方"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_710b7e35813f",
+      "file": "memes/sad/image_emoticon89.png",
+      "sha256": "710b7e35813f1c1e07c66e909373faf5c589c6595a7c0adb4454a359e820e1aa",
+      "category": "sad",
+      "meaning": "捂嘴憋笑/偷笑到流泪，带一点不好意思或看热闹的意味",
+      "visibleText": "",
+      "speaker": "发送者自己觉得好笑但试图克制",
+      "target": "无特定对象",
+      "scenes": [
+        "看到好笑但不想太明显的事",
+        "回应尴尬又搞笑的发言",
+        "熟人之间轻松调侃"
+      ],
+      "avoid": [
+        "正式严肃场合",
+        "对方明显在倾诉痛苦",
+        "需要表达真诚安慰时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_7511fc3d8e8f",
+      "file": "memes/sleep/image_emoticon29.png",
+      "sha256": "7511fc3d8e8f49907ad43e0536b3752f448bee11952a567de53f31b2ccea03e7",
+      "category": "sleep",
+      "meaning": "困倦、睡着或对话题不感兴趣/无聊，语气偏轻松调侃或敷衍",
+      "visibleText": "Z Z",
+      "speaker": "发送者表达自己困了、无聊或想结束对话",
+      "target": "针对自己或对当前话题",
+      "scenes": [
+        "群聊深夜有人还在说话时",
+        "话题枯燥让人想睡时",
+        "回应冗长无趣的内容时"
+      ],
+      "avoid": [
+        "对方认真倾诉烦恼求安慰时",
+        "需要表达强烈关心或道歉时",
+        "严肃工作讨论中"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_805f8bbbd40f",
+      "file": "memes/confused/image_emoticon27.png",
+      "sha256": "805f8bbbd40ff06e28cf749fc009bf8ad0cceb5edbcc6cfe273c14ba82fdd3a9",
+      "category": "confused",
+      "meaning": "表达强烈的难受、委屈或崩溃，带一点'撑不住了'的夸张诉苦语气，不是安慰别人",
+      "visibleText": "",
+      "speaker": "发送者表达自己难受、委屈或撑不住",
+      "target": "针对自己",
+      "scenes": [
+        "自己遇到倒霉事或压力大时诉苦",
+        "对方说了让人难受或无语的话后作反应",
+        "回应高强度消耗或尴尬处境"
+      ],
+      "avoid": [
+        "真心安慰对方时",
+        "需要严肃道歉或处理冲突时",
+        "对方正难过求安慰时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_807902a181a7",
+      "file": "memes/happy/image_emoticon22.png",
+      "sha256": "807902a181a76175d533a41c2fcef11cc3bfa786ebec7e4dda2d227ec8002244",
+      "category": "happy",
+      "meaning": "开心大笑、眯眼咧嘴的喜悦，语气轻松调皮，也可能带一点卖萌或憨笑感",
+      "visibleText": "",
+      "speaker": "表达自己开心、轻松、卖萌的情绪",
+      "target": "无特定对象",
+      "scenes": [
+        "对方说了好笑的话时回复",
+        "自己分享开心事时用来活跃气氛",
+        "群聊中轻松调侃或接梗"
+      ],
+      "avoid": [
+        "需要严肃安慰对方的场景",
+        "正式道歉或表达歉意的场景",
+        "对方明显难过委屈时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_80fecacbe4c4",
+      "file": "memes/teasing/image_emoticon80.png",
+      "sha256": "80fecacbe4c43fb3747af11c66706fcd77232ae6ccef1d02f7ba319101a6cf52",
+      "category": "teasing",
+      "meaning": "以卡通大便emoji表达'屎/烂'的评价，核心是贬低或否定，可带调侃、无奈或轻度嘲讽语气",
+      "visibleText": "",
+      "speaker": "表达否定评价或自嘲式吐槽的发送者",
+      "target": "对方或第三方内容，也可针对自己刚发生的事",
+      "scenes": [
+        "对方说了离谱或糟糕的内容时，发图表示'太屎了'",
+        "自嘲刚做了一件很烂的事或遇到倒霉情况",
+        "对群聊里低质量发言做简短嫌弃式回应"
+      ],
+      "avoid": [
+        "正式安慰对方情绪低落时",
+        "需要表达真诚赞美或鼓励的场合",
+        "严肃工作讨论中作为结论"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_81f82df031f3",
+      "file": "memes/angry/image_emoticon87.png",
+      "sha256": "81f82df031f34a5fe5d87dc62521ea9024a54237a995784f6781b9a9d1a5988f",
+      "category": "angry",
+      "meaning": "夸张的委屈/挫败感，用酒瓶砸头加流泪表现'太难受了、受不了了'的崩溃情绪，兼有自嘲和求安慰的意味。",
+      "visibleText": "",
+      "speaker": "发送者表达自己受挫或无奈的情绪",
+      "target": "针对自己",
+      "scenes": [
+        "自己遇到倒霉事想表达崩溃",
+        "吐槽某件事让人受不了",
+        "回应对方的话表示'我快被整哭了'"
+      ],
+      "avoid": [
+        "真心安慰对方",
+        "严肃讨论问题",
+        "嘲讽第三方"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_88d7a1f9f400",
+      "file": "memes/teasing/image_emoticon21.png",
+      "sha256": "88d7a1f9f40048cf79ef7eb9a06ef74bd59a7ba78849b7a664491ea15f312dac",
+      "category": "teasing",
+      "meaning": "斜眼撇嘴、脸颊泛红的黄豆表情，核心是带点傲娇/无语的轻微嫌弃或审视，也可表示不服气地瞥一眼；语气偏调侃、轻蔑而非安慰。",
+      "visibleText": "",
+      "speaker": "发送者表达轻微嫌弃、无语或不以为然",
+      "target": "对方",
+      "scenes": [
+        "对方说了离谱或自夸的话，用来表达无语斜视",
+        "朋友间互怼时表示不服或轻蔑打量"
+      ],
+      "avoid": [
+        "对方明显难过需要安慰时",
+        "严肃正式沟通中表达否定意见"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_8acdbc1579f7",
+      "file": "memes/shy/image_emoticon92.png",
+      "sha256": "8acdbc1579f7c239ba61e993825d5aa7e0baf7d425ef0672ea9c29261208153f",
+      "category": "shy",
+      "meaning": "睁大眼睛、双手贴脸，表达乖巧期待、害羞求关注或一脸无辜的复合语气",
+      "visibleText": "",
+      "speaker": "发送者表达自己乖巧、期待或略带害羞的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中回应夸奖后发送，表示害羞和乖巧",
+        "提出请求或等待回复时，营造期待、讨喜的氛围"
+      ],
+      "avoid": [
+        "对方明显在抱怨或诉苦时，用此图会显得敷衍",
+        "严肃事务讨论中，可能弱化沟通分量"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_8ae06de0f93e",
+      "file": "memes/teasing/image_emoticon101.png",
+      "sha256": "8ae06de0f93e562eb306e586e557eddcf157d9670820f3796acda24dcecb0f4e",
+      "category": "teasing",
+      "meaning": "以无奈、无辜又带点小脾气的姿态举牌辩解，核心意思是“我这局/这次真不是故意坑人”，并顺带调侃自己或对方是'丑'，语气偏软萌卖惨而非真正攻击",
+      "visibleText": "我不丑 我只是 帅得不明显 丑",
+      "speaker": "发送者表达的是自我调侃与委屈辩解",
+      "target": "针对自己，兼向吐槽自己的对方回应",
+      "scenes": [
+        "游戏/群聊里被吐槽操作差或运气背时甩锅自辩",
+        "被朋友开玩笑说丑或菜时用来自嘲回应"
+      ],
+      "avoid": [
+        "正经安慰情绪低落的对方",
+        "对陌生人进行外貌攻击或嘲讽"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_8e6c14357318",
+      "file": "memes/money/image_emoticon41.png",
+      "sha256": "8e6c143573189490e6c28e98ea06dd60533482243d27bd1b55ee5817e7222798",
+      "category": "money",
+      "meaning": "以人民币硬币图标表达与钱相关的话题或诉求，可带调侃、羡慕、自嘲“缺钱/想搞钱”或“这事得花钱”的复合语气",
+      "visibleText": "¥",
+      "speaker": "表达与金钱相关的自嘲、感慨或调侃立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中有人提到工资、红包、付款、消费或赚钱时回复",
+        "自嘲最近手头紧或想发财时使用",
+        "回应对方晒收入、晒消费时表示羡慕或调侃"
+      ],
+      "avoid": [
+        "正式财务讨论或严肃求助场景",
+        "需要明确安慰对方情绪的场景",
+        "与金钱无关的日常闲聊"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_8ef3c1860228",
+      "file": "memes/surprised/image_emoticon99.png",
+      "sha256": "8ef3c1860228d148b887cb463bbeb2d0a5a4480d969ed982cd15f68edd525ea1",
+      "category": "surprised",
+      "meaning": "夸张瞪眼、厚红唇的呆萌/震惊表情，常用于表达惊讶、错愕、无语或故意装傻；语气偏搞笑和轻微夸张，可能带自嘲，也可能带敷衍式回应，本身不必然是安慰。",
+      "visibleText": "",
+      "speaker": "发送者表现出惊讶、错愕、无语或装傻搞怪的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "对方说了离谱或出乎意料的话时，用来表示震惊/无语",
+        "自己遇到尴尬或意外时，用来搞怪自嘲",
+        "群聊里用夸张表情接话，活跃气氛"
+      ],
+      "avoid": [
+        "需要认真安慰对方的场景",
+        "严肃讨论或正式沟通",
+        "对方明显委屈时用此表情回应，容易显得敷衍"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_8f2f380f4f21",
+      "file": "memes/affection/image_emoticon116.png",
+      "sha256": "8f2f380f4f2156dfba371f44bf7952ab0eaa838ad62884a06c9a8f5f381daf33",
+      "category": "affection",
+      "meaning": "以委屈巴巴、可怜弱小的姿态表现撒娇/求助/认怂，常带'我弱我有理'或'别欺负我'的复合语气",
+      "visibleText": "无",
+      "speaker": "发送者扮演弱小无助的一方，表达'我好惨/求放过'的立场",
+      "target": "针对自己，但语气指向对话对方",
+      "scenes": [
+        "群友互相调侃后接一句自嘲示弱",
+        "请求帮忙或求原谅时卖萌",
+        "被怼后假装委屈回应"
+      ],
+      "avoid": [
+        "需要严肃道歉的正式场合",
+        "对方明显在认真倾诉痛苦时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_91ddb97af1d5",
+      "file": "memes/shy/image_emoticon122.png",
+      "sha256": "91ddb97af1d52d98558654a7af5cf86962a03b6ae2b23436443a2b88f1b5c80e",
+      "category": "shy",
+      "meaning": "以睁大眼睛、微张嘴巴、脸颊泛红的呆萌形象表达无辜、疑惑或轻微惊讶，语气偏软萌和试探，不含攻击性。",
+      "visibleText": "",
+      "speaker": "发送者表达自己懵懂、无辜或轻微疑惑的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "对方说了让人没反应过来或有点意外的话时",
+        "想装无辜、弱弱地表示自己不明白时",
+        "群聊中轻轻接话但不想把气氛弄僵时"
+      ],
+      "avoid": [
+        "需要明确安慰对方情绪低落时",
+        "需要表达强烈嘲讽或反击时",
+        "需要严肃表态或下结论时"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_93cb997fc6c5",
+      "file": "memes/confused/image_emoticon105.png",
+      "sha256": "93cb997fc6c5bacab131bd04e5c45e9ade43ff207ac18dbb1d6c5dc518373f2f",
+      "category": "confused",
+      "meaning": "带着一点无辜和卖萌感的回应，常用于表示自己在听、在吃瓜或有点懵，整体语气偏软萌调侃，不带有真正的委屈情绪。",
+      "visibleText": "",
+      "speaker": "发送者表现轻松、围观或轻微无奈的立场",
+      "target": "无特定对象或面向聊天氛围",
+      "scenes": [
+        "群友在聊天时自己插不上话，发一个表示在围观",
+        "对方说了让人有点无语或惊讶的话，用卖萌方式回应",
+        "自己刚说完一句自嘲的话后补发，软化语气"
+      ],
+      "avoid": [
+        "对方正在认真倾诉负面情绪需要严肃安慰时",
+        "需要明确表达反对或严肃立场的争论场景"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_94e8d06ec5ac",
+      "file": "memes/angry/image_emoticon33.png",
+      "sha256": "94e8d06ec5ac4a2a7b00e6186749e19bda4d314ea7373ec3477a7f4f30c42293",
+      "category": "angry",
+      "meaning": "表达强烈的不满或怒气，带有憋气、吐出一口怨气或冷气的动作，语气为愤怒、炸毛、气鼓鼓，也可能用于夸张的傲娇式生气。",
+      "visibleText": "",
+      "speaker": "表达自己愤怒、不满或气鼓鼓的情绪",
+      "target": "针对对方或第三方",
+      "scenes": [
+        "对方说了让人生气或无语的话时",
+        "表达自己正在气头上或对某事强烈不满",
+        "朋友间玩笑式地表达傲娇生气"
+      ],
+      "avoid": [
+        "需要安慰对方或表达温柔关心时",
+        "正式严肃讨论问题的场合"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_987028a07d08",
+      "file": "memes/sad/image_emoticon112.png",
+      "sha256": "987028a07d087df98d5a7849ff54140841248be1818652c865a8f49efcef0721",
+      "category": "sad",
+      "meaning": "委屈巴巴、快哭出来的可怜相，带一点撒娇和无奈；不是安慰别人，而是表达自己受委屈或示弱",
+      "visibleText": "无",
+      "speaker": "表达自己委屈、无奈、求安慰的立场",
+      "target": "针对自己",
+      "scenes": [
+        "自己被开涮或遇到小挫折后撒娇",
+        "对方语气稍重时用来示弱缓和",
+        "群聊里表达委屈求安慰"
+      ],
+      "avoid": [
+        "对方真的很难过需要正经安慰时",
+        "严肃冲突或道歉场合",
+        "嘲讽第三方时装可怜会显得阴阳"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_9c5dbd853818",
+      "file": "memes/affection/image_emoticon81.png",
+      "sha256": "9c5dbd85381852fa4c75df39751e7ca8fb202d49a16fd241daaf040f417373a9",
+      "category": "affection",
+      "meaning": "以红黄胶囊药丸图标表达'吃药/需要吃药'的调侃语气，常用来暗示对方或自己'该吃药了'（网络语境中多指说话离谱、需要冷静），带轻微戏谑和玩笑感。",
+      "visibleText": "",
+      "speaker": "发送者以调侃方式表达'需要吃药/该冷静了'",
+      "target": "多针对对方，也可自指",
+      "scenes": [
+        "群友发言过于离谱时，用来调侃'该吃药了'",
+        "自嘲脑子不清醒、需要冷静一下",
+        "回应对方胡言乱语时轻松打趣"
+      ],
+      "avoid": [
+        "对方真正生病需要关怀时使用",
+        "严肃讨论心理健康话题时使用",
+        "正式工作群中直接使用"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_9d87dc9ef006",
+      "file": "memes/teasing/image_emoticon111.png",
+      "sha256": "9d87dc9ef0061e860a08afd15706700cdc12ea4ba8669b4feac16319f33f738b",
+      "category": "teasing",
+      "meaning": "核心含义是欠揍、嘚瑟、装傻或摆烂式挑衅；半睁眼、吐舌、摊手配合脸部印记形成得意又无赖的复合语气。",
+      "visibleText": "",
+      "speaker": "发送者以欠揍、装傻的得意姿态表达自己无所谓或故意气人",
+      "target": "对方",
+      "scenes": [
+        "群聊里接梗后故意摆烂挑衅",
+        "被调侃时发送以贱萌方式回怼",
+        "对方说正事时用来打岔逗乐"
+      ],
+      "avoid": [
+        "严肃安慰或道歉场景",
+        "需要表达真诚委屈的场景",
+        "正式工作沟通场景"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_9e348da5463f",
+      "file": "memes/entertainment/image_emoticon106.png",
+      "sha256": "9e348da5463fedb16f3d0de2f9641456297e9552ece94d3cd99696c0fead2771",
+      "category": "entertainment",
+      "meaning": "以翻白眼、鼓腮、抱西瓜坐着的动作表达不屑、无语、看戏或摆烂式旁观，整体是轻蔑中带卖萌的复合语气",
+      "visibleText": "",
+      "speaker": "表达自己不屑争辩、旁观吃瓜或轻微嫌弃的立场",
+      "target": "针对对方或群聊中的第三方言论",
+      "scenes": [
+        "群聊里有人说了离谱或尴尬的话，用来表示无语和看戏",
+        "朋友互相调侃时，作为不接茬、我就看看的回复",
+        "面对争论不想参与，用吃瓜旁观的态度回应"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈需要安慰时",
+        "正式道歉或严肃沟通的场合",
+        "需要明确表态支持对方的场景"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_9f16a5ee3036",
+      "file": "memes/affection/image_emoticon37.png",
+      "sha256": "9f16a5ee3036bbbdbf7664b98003e8a8d18442e0cedcee9401ac51e30bb121de",
+      "category": "affection",
+      "meaning": "一个红丝带蓝底条纹的礼物盒表情，通常表示“送礼物/惊喜/祝福”或“给你一个礼物”的友好互动语气，无人物动作和文字。",
+      "visibleText": "",
+      "speaker": "发送者表达友好、祝福或送礼意向",
+      "target": "对方或群聊中的特定成员",
+      "scenes": [
+        "群聊中祝贺生日、节日或庆祝好消息时",
+        "别人帮忙后表达感谢或回礼时",
+        "想制造惊喜、发福利或开启轻松话题时"
+      ],
+      "avoid": [
+        "严肃讨论或争吵场景中",
+        "需要明确表达负面情绪或嘲讽时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_a04909834861",
+      "file": "memes/food/image_emoticon43.png",
+      "sha256": "a04909834861c2b5c94ac9827282402c496290b02dccfe7b51fb256616401db2",
+      "category": "food",
+      "meaning": "以冒热气的咖啡杯表示“喝口茶/咖啡看看、围观吃瓜、冷静旁观或悠闲等待”，语气偏中性、轻松，常带看戏或暂不介入的意味",
+      "visibleText": "",
+      "speaker": "发送者表达旁观、淡定或吃瓜的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中出现争议或八卦时表示围观",
+        "对方长篇输出后表示先看看再说",
+        "自嘲式表示自己淡定喝茶不参与"
+      ],
+      "avoid": [
+        "需要明确安慰对方的场景",
+        "需要表达强烈愤怒或严肃声讨时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_a1ca7ff0c2ae",
+      "file": "memes/teasing/image_emoticon119.png",
+      "sha256": "a1ca7ff0c2aebe5b321017a4c635af6720a7c4a018bd6934e3861e0433915d71",
+      "category": "teasing",
+      "meaning": "表现为黄色表情包瘫软倒地、眼神涣散并带有一丝被\"插刀\"的意味，整体为\"累趴/摆烂/被击中\"的复合情绪，也可以用来回应对方的话语，表达\"被戳中\"或无语躺平。",
+      "visibleText": "无",
+      "speaker": "发送者表达自己力竭、摆烂或被戳中的状态",
+      "target": "针对自己",
+      "scenes": [
+        "群聊中自己疲惫、不想动、想摆烂时自述",
+        "对方说了扎心或让人无言以对的话时回应",
+        "被分配任务或遇到麻烦时表示无力瘫倒"
+      ],
+      "avoid": [
+        " genuinely 安慰情绪低落的对方",
+        "严肃表达关心或鼓励",
+        "需要展现积极态度的场合"
+      ],
+      "confidence": 0.7,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_a8c51ab879e5",
+      "file": "memes/affection/image_emoticon36.png",
+      "sha256": "a8c51ab879e532e3d9ef513833b9bc4e726ced8587c99ef770d624e68dc89e05",
+      "category": "affection",
+      "meaning": "一朵红玫瑰的静态表情，核心含义是送花/示好/表达善意，语气友好、温和，常带轻微调侃或感谢意味；画面无人物表情和文字，不涉及自嘲或委屈。",
+      "visibleText": "无",
+      "speaker": "表达友好、感谢或善意的发送者",
+      "target": "对方或群内特定对象",
+      "scenes": [
+        "感谢群友帮忙后礼貌回应",
+        "对友好发言表示赞许或送花示好",
+        "群聊中轻松打招呼或缓和气氛"
+      ],
+      "avoid": [
+        "严肃争论中用来嘲讽对方",
+        "表达委屈或自嘲时使用",
+        "需要强烈情绪对抗的场景"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_a9da3e1096bf",
+      "file": "memes/reply/image_emoticon50.png",
+      "sha256": "a9da3e1096bf6a7dc000c54ef94f3fc56533b74bf1e2159f2fbf58e069737e03",
+      "category": "reply",
+      "meaning": "表示OK、同意或许可，语气轻松确认；用作群聊回复时通常是对上一句的认可或应允，也可能带一点俏皮敷衍。",
+      "visibleText": "",
+      "speaker": "表达自己认可、应允的立场",
+      "target": "对方或对方提出的内容",
+      "scenes": [
+        "对方提出请求或安排，回复表示同意",
+        "对方说完观点，回复表示认可",
+        "群聊中轻松应答、表示没问题"
+      ],
+      "avoid": [
+        "需要严肃拒绝或强烈反对时",
+        "对方在表达委屈难过需要安慰时",
+        "正式书面通知或公告场合"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_aac7c1da55ee",
+      "file": "memes/shy/image_emoticon66.png",
+      "sha256": "aac7c1da55ee40e06bafca03c0677dc38f0347287b9b5b7d78c993eac039db3b",
+      "category": "shy",
+      "meaning": "以委屈、无奈、尴尬的微笑表达自嘲或勉强的应和，语气温和但带有轻微苦涩和示弱感，不是安慰别人。",
+      "visibleText": "",
+      "speaker": "表达自己委屈、无奈或尴尬的立场",
+      "target": "针对自己",
+      "scenes": [
+        "自己遇到小挫折或尴尬时自嘲",
+        "被对方调侃后勉强回应、示弱",
+        "对无奈状况表示苦笑附和"
+      ],
+      "avoid": [
+        "认真安慰对方情绪低落",
+        "明确嘲讽或攻击第三方",
+        "表达强烈愤怒或指责"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_af3e2fdf6473",
+      "file": "memes/affection/image_emoticon20.png",
+      "sha256": "af3e2fdf64734a7a508bdd3ead4a86f92a56480a146146c662e4ae236a35b0d8",
+      "category": "affection",
+      "meaning": "夸张示爱、飞吻或索吻式撩人，带有花痴、调皮和暧昧夸张语气；若回复冷淡内容也可用于反讽调侃",
+      "visibleText": "",
+      "speaker": "主动示好或调侃的一方",
+      "target": "对方",
+      "scenes": [
+        "表达强烈喜欢或心动时",
+        "群聊中调皮撩人、活跃气氛时",
+        "对方说了可爱或肉麻的话，用夸张亲吻回应"
+      ],
+      "avoid": [
+        "严肃安慰对方情绪低落时",
+        "正式工作沟通或陌生不熟场景",
+        "表达委屈或自嘲难过时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_b1c060299675",
+      "file": "memes/angry/image_emoticon98.png",
+      "sha256": "b1c0602996752ccc7c99bff992ca4a15fb70d41036a2c2ab0600dbf52cce7ee0",
+      "category": "angry",
+      "meaning": "以愤怒瞪视和脸颊红晕表现憋屈、又气又窘的复杂情绪，含委屈和不服气；并非安慰语气",
+      "visibleText": "",
+      "speaker": "发送者表达自己憋屈、生气又窘迫的立场",
+      "target": "针对对方或当前情境",
+      "scenes": [
+        "被对方调侃或冤枉后回怼",
+        "遇到尴尬又让人生气的事时自嘲式表达",
+        "对不合理安排表示憋屈抗议"
+      ],
+      "avoid": [
+        "真心安慰难过的人",
+        "正式严肃道歉",
+        "单纯表达开心"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_b4892999d9ef",
+      "file": "memes/angry/image_emoticon31.png",
+      "sha256": "b4892999d9ef4c9dde35512061d34561177ae90feea4210c65cce08b5967d754",
+      "category": "angry",
+      "meaning": "气鼓鼓、委屈又倔强，带一点撒娇式赌气或故作生气；像是被惹到后用戳脸颊表达不满，并非真正安慰或强硬嘲讽。",
+      "visibleText": "",
+      "speaker": "发送者表达自己有点气、有点委屈的小情绪",
+      "target": "针对对方",
+      "scenes": [
+        "对方开玩笑逗你、把你惹毛后的回怼",
+        "朋友间轻微拌嘴或撒娇式闹脾气",
+        "表达自己吃醋、不情愿、被冷落的小情绪"
+      ],
+      "avoid": [
+        "需要正式道歉或严肃安抚的场合",
+        "对方真的受到伤害、需要安慰时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_b56fcf392025",
+      "file": "memes/angry/image_emoticon74.png",
+      "sha256": "b56fcf3920259323fc8c48fa756c0a17c13dce711afc8bb01e52985773f9c9bc",
+      "category": "angry",
+      "meaning": "不服气地斜眼审视，带傲娇、怀疑和轻微挑衅的复合语气",
+      "visibleText": "",
+      "speaker": "发送者表达不服、怀疑或傲娇审视的立场",
+      "target": "对方",
+      "scenes": [
+        "对方说了让人不服或怀疑的话时",
+        "朋友间互怼、调侃时",
+        "表达“我就静静看着你装”时"
+      ],
+      "avoid": [
+        "真诚道歉或安慰他人的场景",
+        "严肃悲伤的对话",
+        "需要表达委屈或示弱的场合"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_b67a246017d3",
+      "file": "memes/sleep/image_emoticon39.png",
+      "sha256": "b67a246017d3b0ba8b13bb6afc98d581ff6df67ed73f736e7d0f4b37296b6bc3",
+      "category": "sleep",
+      "meaning": "表示晚安、睡觉、休息或结束当前对话，语气平静温和，也可带轻松收尾意味",
+      "visibleText": "",
+      "speaker": "表达结束聊天或准备休息的一方",
+      "target": "对方或无特定对象",
+      "scenes": [
+        "群聊较晚时互道晚安",
+        "结束一段闲聊准备休息",
+        "提醒对方早点睡"
+      ],
+      "avoid": [
+        "对方刚表达委屈难过需要安慰时单独使用",
+        "严肃讨论中需要继续回应时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_b6c032f851e0",
+      "file": "memes/shy/image_emoticon10.png",
+      "sha256": "b6c032f851e046100ff39b29b88f3f0117db4fc4700df76e53ea65e5be1895fe",
+      "category": "shy",
+      "meaning": "尴尬、心虚或无语的强颜欢笑，带一点害羞和自嘲；也可用于回应对方时表示不知道怎么接话。",
+      "visibleText": "",
+      "speaker": "发送者表达自己尴尬、心虚、无语或强撑笑容的立场",
+      "target": "针对自己，也可轻微回应对方",
+      "scenes": [
+        "被对方戳穿或调侃后，用来化解尴尬",
+        "自己说了冷场的话或做了糗事后自嘲",
+        "对方发来离谱内容时表示无语又不好直说"
+      ],
+      "avoid": [
+        "真心安慰对方时使用",
+        "表达强烈愤怒或严肃指责时使用"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c340b5197810",
+      "file": "memes/affection/image_emoticon123.png",
+      "sha256": "c340b5197810525e97ce9120425877a8b5fdc81fcc3d306ca79bb0008a065776",
+      "category": "affection",
+      "meaning": "带点得意、卖萌和轻微无奈的复合语气：小黄团子斜眼摊手、胸前红心，像在说“我也没办法/就这样吧/看我多可爱”，整体轻松调侃，并非认真安慰或委屈",
+      "visibleText": "",
+      "speaker": "发送者以可爱姿态表达轻微无奈或得意，带自嘲和卖萌",
+      "target": "多针对发送者自己或泛指向聊天氛围，不特定针对第三方",
+      "scenes": [
+        "群聊中回应对方调侃时轻松卖萌",
+        "自嘲式摊手表示无奈",
+        "朋友间玩笑互动活跃气氛"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈时使用",
+        "需要严肃道歉或正式答复的场合"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c4d36ee49725",
+      "file": "memes/teasing/image_emoticon86.png",
+      "sha256": "c4d36ee49725acd603173cb26f841c80ed594749d4f91d3edd9fe69bfbee130b",
+      "category": "teasing",
+      "meaning": "以吃瓜看戏为核心，带得意、挑眼旁观和轻微嘲讽/审视的复合语气",
+      "visibleText": "",
+      "speaker": "发送者站在旁观吃瓜、看热闹的位置，略带得意或审视",
+      "target": "多针对对方或群内第三方事件",
+      "scenes": [
+        "群聊里有人争论或爆八卦时，发送者表示自己在看戏",
+        "回应对方发言时，表达“我就静静看你表演”的调侃",
+        "对某件事保持旁观、不急着站队时的轻松回应"
+      ],
+      "avoid": [
+        "对方明显难过需要安慰时",
+        "正式严肃讨论需要共情时",
+        "自己需要表达委屈或示弱时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c63fd68a2276",
+      "file": "memes/happy/image_emoticon38.png",
+      "sha256": "c63fd68a2276207d22c4d06c0ede843bd91861a7af6b4a1e30b6fd1257b53d14",
+      "category": "happy",
+      "meaning": "以彩虹符号传递轻松、明亮、积极的情绪，常带敷衍或简短的善意附和；无人物表情与配文，语气偏中性可爱，复合情绪力度弱。",
+      "visibleText": "",
+      "speaker": "表达简短正面态度，立场中性偏友善",
+      "target": "无特定对象",
+      "scenes": [
+        "对方分享好消息时表达简单祝贺",
+        "群聊中缓和气氛或接话",
+        "回应天气、心情类轻松话题"
+      ],
+      "avoid": [
+        "需要严肃安慰或深度共情的场合",
+        "嘲讽或阴阳怪气语境"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c6d9fe5428eb",
+      "file": "memes/teasing/image_emoticon121.png",
+      "sha256": "c6d9fe5428eb22755f3846c1da1c97aea7ecc91a2fb5bf475955b2cd9f0b9cbc",
+      "category": "teasing",
+      "meaning": "悠闲自得地弹琴，带一点得意、无所谓或调侃的复合语气，常用于轻松回应或轻微嘲讽。",
+      "visibleText": "",
+      "speaker": "发送者表现出从容、看戏或轻微得意的立场",
+      "target": "对方或无特定对象",
+      "scenes": [
+        "对方说了离谱的话时，用来表达'我就静静看你表演'",
+        "群聊中轻松接话、展示悠闲状态",
+        "以调侃方式回应熟人的吹嘘"
+      ],
+      "avoid": [
+        "需要严肃安慰对方的场景",
+        "对方正在表达委屈或难过时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c8aa15151ffa",
+      "file": "memes/sad/image_emoticon9.png",
+      "sha256": "c8aa15151ffa82198c5d200521c41da1fac74e07087437724dafcbb80843eb17",
+      "category": "sad",
+      "meaning": "号啕大哭、极度崩溃或委屈，带有夸张情绪表达",
+      "visibleText": "",
+      "speaker": "表达自己强烈的负面情绪或夸张卖惨",
+      "target": "针对自己",
+      "scenes": [
+        "遇到极度倒霉或难过的事自嘲",
+        "回应对方令人崩溃的发言",
+        "夸张表达被欺负或受委屈"
+      ],
+      "avoid": [
+        "真心安慰对方时使用",
+        "严肃讨论严肃话题时使用",
+        "表达开心或嘲讽别人时使用"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_c92c31396eec",
+      "file": "memes/teasing/image_emoticon124.png",
+      "sha256": "c92c31396eec93cc335cc9a5eb1255e535dc4de53ea96b2b4a006ba82415d164",
+      "category": "teasing",
+      "meaning": "侧目撇嘴、带点不服和嫌弃的傲娇式回应，语气偏戏谑或轻微嘲讽，也可靠卖萌化解尴尬",
+      "visibleText": "胜",
+      "speaker": "表达自己轻微不满、不服或调侃的立场",
+      "target": "对方",
+      "scenes": [
+        "对方说了不太靠谱或略离谱的话时回敬",
+        "朋友间玩笑互怼、表达不服",
+        "以嘲讽式萌态回应熟人的炫耀"
+      ],
+      "avoid": [
+        "安慰对方低落情绪时使用",
+        "正式沟通或严肃讨论中使用",
+        "对上级或陌生人直接发送"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_ca025c938748",
+      "file": "memes/greeting/image_emoticon82.png",
+      "sha256": "ca025c938748b5edb68339466932d7eb85ea0c13d4e52811f2431c4ae1c49ec9",
+      "category": "greeting",
+      "meaning": "核心含义是红领巾（少先队员标志），在群聊中常被用作感叹号式的情绪强化或角色标签，语气偏夸张、调侃或怀旧，缺乏明确面部表情，不能确定是安慰或自嘲。",
+      "visibleText": "",
+      "speaker": "发送者表达与红领巾相关的角色或情绪符号，而非稳定情绪立场",
+      "target": "无特定对象",
+      "scenes": [
+        "群聊中围绕学生时代、少先队员、红领巾等话题时作为话题符号",
+        "表达热血、正义、宣誓、认真地搞笑时作为情绪夸张"
+      ],
+      "avoid": [
+        "需要明确安慰对方委屈的场景",
+        "需要自嘲或个人自述委屈的场景",
+        "嘲讽第三方时强行赋予其负面含义"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_cc1ec0eca220",
+      "file": "memes/teasing/image_emoticon88.png",
+      "sha256": "cc1ec0eca220144ccda2b55749800f71d4d56ab1116521c68ff47edbf71ff837",
+      "category": "teasing",
+      "meaning": "装可爱地指指点点，带害羞或卖萌的俏皮感，常用来提示对方看某处或软性回应",
+      "visibleText": "",
+      "speaker": "发送者在俏皮地指向自己或示意对方看某处，带害羞卖萌的立场",
+      "target": "对方或自己动作所指的内容",
+      "scenes": [
+        "对方问起你刚做的事时，用来指自己卖萌回应",
+        "提醒对方看聊天记录或某处内容时",
+        "轻松群聊里撒娇式参与话题"
+      ],
+      "avoid": [
+        "严肃道歉或正式沟通时",
+        "对方明显生气需要认真回应时",
+        "表达真实委屈或安慰对方时"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_cc6598283425",
+      "file": "memes/teasing/image_emoticon67.png",
+      "sha256": "cc6598283425f33456b770f3d4fdac92416b9cbb6cedefe1808c7ad895ebcf8b",
+      "category": "teasing",
+      "meaning": "捂嘴偷笑、憋笑或看热闹的俏皮表情，带轻微调侃和赧然意味",
+      "visibleText": "",
+      "speaker": "发送者处于旁观、憋笑或轻微不好意思的立场",
+      "target": "无特定对象",
+      "scenes": [
+        "看到好笑或尴尬的事但不想明笑时",
+        "群聊里接调侃、看热闹的回复"
+      ],
+      "avoid": [
+        "需要严肃安慰对方时",
+        "正式道歉或郑重表态时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_d418580e5d9c",
+      "file": "memes/affection/image_emoticon115.png",
+      "sha256": "d418580e5d9c93d701cd0e4a2daa43f93dd87e9bde7de7d79c3e82fe3e071d08",
+      "category": "affection",
+      "meaning": "小人手持一束红花/玫瑰，表情睁大眼睛、微张嘴，带一点期待和讨好；作为群聊回复多表示“送花/示好/求关注”，语气轻松善意，也可能带一点憨憨的撒娇感",
+      "visibleText": "",
+      "speaker": "表达善意、示好或卖萌的发送者",
+      "target": "对方",
+      "scenes": [
+        "回应别人帮忙或分享好消息时送花示好",
+        "群聊里轻松打招呼、表达感谢",
+        "想活跃气氛、卖萌求关注"
+      ],
+      "avoid": [
+        "严肃道歉或正式表态",
+        "讽刺或嘲讽别人时使用",
+        "对方明显在倾诉委屈需要安慰时单独使用"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_d5271c6b3752",
+      "file": "memes/angry/image_emoticon96.png",
+      "sha256": "d5271c6b375240206122819f4d2c75b077e6347bbcecfe60023994a37f50164c",
+      "category": "angry",
+      "meaning": "用“拿炮仗/雷管”的危险动作配合斜眼、皱眉和不耐烦的表情，表达“别惹我”“我要炸了”或“忍无可忍”的威胁、烦躁与警告语气；也可带一点夸张自嘲的急躁感。",
+      "visibleText": "",
+      "speaker": "表达不耐烦、警告或夸张急躁的发送者",
+      "target": "对方",
+      "scenes": [
+        "对方反复挑衅或开玩笑过头时，回击警告",
+        "吐槽自己快被某事逼疯、想爆炸",
+        "群聊里对离谱发言表达无语加威胁式回应"
+      ],
+      "avoid": [
+        "真正安慰对方情绪低落",
+        "需要严肃道歉或正式沟通的场合",
+        "对方在认真倾诉委屈时"
+      ],
+      "confidence": 0.88,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_d5506ce7af09",
+      "file": "memes/affection/image_emoticon34.png",
+      "sha256": "d5506ce7af09afda53f464880b04be8262e2328fc9f77420bb796ab4d67cf31d",
+      "category": "affection",
+      "meaning": "用夸张的大红心表达夸张、直白的好感、感谢或亲密回应，常带调侃、撒娇或“土味热情”的复合语气",
+      "visibleText": "",
+      "speaker": "发送者主动表达热烈好感或感谢，态度偏夸张玩笑",
+      "target": "对方",
+      "scenes": [
+        "对方帮忙后表达感谢",
+        "群聊里熟人之间互相调侃式表白",
+        "回应别人夸赞或关心时表达好感"
+      ],
+      "avoid": [
+        "正式严肃的道歉或安慰场景",
+        "需要表达委屈或委屈自述时",
+        "对陌生人表达强烈亲密以免误会"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_d7522cc84f76",
+      "file": "memes/teasing/image_emoticon91.png",
+      "sha256": "d7522cc84f767374bbc30aaeac269f1f35181a2c7b458f143e3c21df762e42c0",
+      "category": "teasing",
+      "meaning": "尴尬而不失礼貌的微笑，带轻微脸红和斜视感，常表示无语、窘迫、强撑镇定、看破不说破，复合语气为尴尬、无奈、轻微回避或含蓄嘲讽",
+      "visibleText": "",
+      "speaker": "发送者表达自己的尴尬、无奈或含蓄态度",
+      "target": "对方或当前对话情境",
+      "scenes": [
+        "对方说了让人尴尬或离谱的话，发送者用此表情表示无语又不好直说",
+        "自己遇到小窘迫时自嘲式回应",
+        "被调侃后勉强礼貌微笑，带一点看破不说破的意味"
+      ],
+      "avoid": [
+        "真诚安慰对方时使用",
+        "严肃道歉或表达深切委屈时使用",
+        "需要明确愤怒或强烈反对的场合"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_d96d9526c9f8",
+      "file": "memes/angry/image_emoticon17.png",
+      "sha256": "d96d9526c9f883536a57650f8e4250f85375b74be7f97c039a30f012863368d8",
+      "category": "angry",
+      "meaning": "以夸张的呕吐动作表达强烈嫌弃、恶心或无语，复合无奈、被“雷”到的情绪；常带调侃语气，偶尔也可自嘲。",
+      "visibleText": "",
+      "speaker": "发送者表达嫌弃、无语或反胃",
+      "target": "上一句话或相关内容/第三方",
+      "scenes": [
+        "对方说了离谱或恶心的话时回复",
+        "看到尴尬、辣眼内容时表达嫌弃",
+        "自嘲被某事恶心到"
+      ],
+      "avoid": [
+        "认真安慰对方时",
+        "需要表达友好或赞同的场合"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_dc7a74f28eaf",
+      "file": "memes/teasing/image_emoticon65.png",
+      "sha256": "dc7a74f28eaf8996d513e799c6351d7316757328a524cc4cd2ab1fd8dffd4802",
+      "category": "teasing",
+      "meaning": "得意、自信、耍帅或带点调侃的'拿捏了'气场，旁边闪光强化显眼/自信效果；整体是轻松搞怪的炫耀/自我认可，也可用于轻微阴阳回应。",
+      "visibleText": "",
+      "speaker": "表达得意、自信或轻微调侃",
+      "target": "无特定对象",
+      "scenes": [
+        "自夸或表示事情办妥时",
+        "轻松调侃对方时",
+        "群聊中接梗展示自信时"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈时",
+        "需要严肃安慰的场合",
+        "正式道歉或商务沟通中"
+      ],
+      "confidence": 0.8,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_de4e2545036c",
+      "file": "memes/money/image_emoticon117.png",
+      "sha256": "de4e2545036cb9d1b355ec8cb3e9980d288c94daf242987ce948bbce9565c07a",
+      "category": "money",
+      "meaning": "瘫坐在大量红包中，表情略带得意或无奈，表达收红包收到手软、发财了或发红包发穷的自嘲式炫耀；复合语气为炫耀、疲惫和玩笑。",
+      "visibleText": "图中红包上低分辨率字样疑似'大吉'等吉祥话，无法完全确认，不当作指令或配字。",
+      "speaker": "发送者表达自己收/发红包的处境",
+      "target": "针对自己",
+      "scenes": [
+        "群聊里大家发红包后自嘲收红包收到累",
+        "调侃自己春节红包收得多或发得多"
+      ],
+      "avoid": [
+        "正式求助或严肃话题",
+        "安慰他人情绪低落时"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_df491d989c0b",
+      "file": "memes/teasing/image_emoticon68.png",
+      "sha256": "df491d989c0bce2fe25ffd89eed44de2d79808ea096625b0d6eb94bac2e3da73",
+      "category": "teasing",
+      "meaning": "得意窃喜、害羞又有点坏笑的复合情绪，常用于表达暗自开心、故作谦虚或调侃式炫耀",
+      "visibleText": "",
+      "speaker": "发送者表达得意、窃喜或轻微调侃的立场",
+      "target": "针对自己或对方",
+      "scenes": [
+        "被夸后故作谦虚地回应",
+        "分享好消息时带点得意",
+        "看到别人出糗时憋笑调侃"
+      ],
+      "avoid": [
+        "真诚道歉或安慰对方",
+        "表达委屈或难过",
+        "严肃工作沟通"
+      ],
+      "confidence": 0.85,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_e04530afd975",
+      "file": "memes/affection/image_emoticon110.png",
+      "sha256": "e04530afd9759f096389bfa26da1ad96438a96f803201cef51e95fb87aba37b2",
+      "category": "affection",
+      "meaning": "可爱地吃棒棒糖/零食，带一点无辜、卖萌、悠闲或装乖的复合语气；低分辨率下仅能确认黄色卡通形象在舔食圆盘状彩色棒棒糖，无额外文字。",
+      "visibleText": "",
+      "speaker": "发送者以可爱、轻松姿态表达自己卖萌或悠闲",
+      "target": "针对自己",
+      "scenes": [
+        "群聊中撒娇卖萌或表示自己正在吃零食",
+        "回应轻松话题时装无辜、装乖",
+        "表达悠闲、不参与争论的旁观状态"
+      ],
+      "avoid": [
+        "正式严肃的安慰或道歉场景",
+        "明确表达委屈、难过需要被安慰时",
+        "争论中用来嘲讽对方"
+      ],
+      "confidence": 0.72,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_e12086156394",
+      "file": "memes/surprised/image_emoticon32.png",
+      "sha256": "e12086156394412d0d5b708d4ea9c208de42ca51a1cfc4ff5719894f48f89594",
+      "category": "surprised",
+      "meaning": "表达震惊、惊讶或难以置信，常带一点夸张的围观感或懵住感",
+      "visibleText": "",
+      "speaker": "发送者本人感到吃惊、错愕，语气偏轻松夸张",
+      "target": "针对对方或群聊中的第三方消息",
+      "scenes": [
+        "群聊中听到离谱或意外的消息时回复",
+        "看到夸张发言或神操作后表示吃惊",
+        "对方提出让人意外的请求或说法时"
+      ],
+      "avoid": [
+        "对方正经倾诉委屈需要安慰时",
+        "严肃道歉或讨论重要事务时"
+      ],
+      "confidence": 0.9,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_e41319389509",
+      "file": "memes/shy/image_emoticon7.png",
+      "sha256": "e4131938950975aed70017015cc17e50d6cf37f4c2b68f17045049882e2485dc",
+      "category": "shy",
+      "meaning": "经典微笑表情的变体，因脸颊红晕显得更腼腆，但眼神斜视、嘴角上扬仍带微妙意味；可表示礼貌性微笑、轻微害羞或故作镇定，在群聊中也常被用来含蓄表达无语、尴尬或看破不说破的敷衍，语气偏克制。",
+      "visibleText": "无",
+      "speaker": "发送者以腼腆或克制的微笑表达礼貌、轻微尴尬或含蓄态度",
+      "target": "对方",
+      "scenes": [
+        "回应对方略微尴尬或离谱的话时，表示礼貌性微笑或看破不说破",
+        "自嘲或害羞地接下一句夸奖或玩笑"
+      ],
+      "avoid": [
+        "真心安慰对方伤心事时使用，容易显得敷衍",
+        "严肃争吵中表达强烈愤怒或攻击"
+      ],
+      "confidence": 0.78,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_e89199e5bc50",
+      "file": "memes/sad/image_emoticon35.png",
+      "sha256": "e89199e5bc50eb7196024beb70a316eb35c6e2ca4c873bd87544691ee546aaba",
+      "category": "sad",
+      "meaning": "心碎、受伤、失望或感情受挫",
+      "visibleText": "",
+      "speaker": "表达自己心碎或受伤的感受",
+      "target": "针对自己",
+      "scenes": [
+        "表达自己受到打击或难过",
+        "回应令人失望的消息",
+        "表示感情破裂或受伤"
+      ],
+      "avoid": [
+        "真正安慰对方时",
+        "轻松调侃无关话题时"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_e90a54d851d9",
+      "file": "memes/confused/image_emoticon108.png",
+      "sha256": "e90a54d851d9e0251a66703354c1449267acd0b726dc5571682a8a09481ac527",
+      "category": "confused",
+      "meaning": "以瞪眼、撇嘴、穿纸尿裤的呆萌造型表达无语、嫌弃或装无辜的复合情绪，带轻微嘲讽和不想接话的意味",
+      "visibleText": "",
+      "speaker": "发送者表达无语、轻微嫌弃或装无辜自嘲",
+      "target": "主要针对对方",
+      "scenes": [
+        "群聊里对方说了离谱或冷场的话时",
+        "想表达无语但不想把气氛弄僵时",
+        "被调侃后装无辜或故作委屈时"
+      ],
+      "avoid": [
+        "需要认真安慰对方时",
+        "正式严肃讨论或工作沟通时",
+        "对方明显情绪低落需要共情时"
+      ],
+      "confidence": 0.78,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_f1fafd6c0e63",
+      "file": "memes/happy/image_emoticon.png",
+      "sha256": "f1fafd6c0e63e248402e7836bc134c640baa7cb10b636c5c083e7c85de89d8b7",
+      "category": "happy",
+      "meaning": "表面微笑害羞、乖巧无害，常在群聊中作为礼貌性回应或善意示好；也可带轻微自嘲/装傻卖萌，实际可能隐含无语、尴尬或敷衍，复合语气需看上下文。",
+      "visibleText": "",
+      "speaker": "发送者表现礼貌、乖巧或装傻卖萌",
+      "target": "无特定对象",
+      "scenes": [
+        "被调侃后礼貌回应或装傻",
+        "表示友好、乖巧地接话",
+        "回应别人的小夸奖或小玩笑"
+      ],
+      "avoid": [
+        "需要严肃安慰对方的场合",
+        "表达强烈愤怒或正式道歉时"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_f4b338abe37b",
+      "file": "memes/angry/image_emoticon49.png",
+      "sha256": "f4b338abe37b04e8615b08a4da0bbdd18c575b1b7d4dd1d90670a3e8296ddb61",
+      "category": "angry",
+      "meaning": "表示不赞同、否定或拒绝，语气直接但带有表情符号的轻松感，可兼有调侃式嘲讽。",
+      "visibleText": "",
+      "speaker": "表达否定评价或拒绝态度",
+      "target": "对方或第三方观点/内容",
+      "scenes": [
+        "群聊中回应不认同的观点或方案",
+        "朋友间开玩笑式否定对方提议",
+        "对离谱或搞笑内容表达嫌弃"
+      ],
+      "avoid": [
+        "需要委婉安慰对方的场景",
+        "正式严肃的工作沟通中表达否定"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_f4df9702c4ba",
+      "file": "memes/happy/image_emoticon48.png",
+      "sha256": "f4df9702c4ba2f8df3a09ec88c26b7bc9b40dac9279de764d8ac7122f502f479",
+      "category": "happy",
+      "meaning": "经典点赞手势，表达认可、赞同、鼓励或收到/OK；语气通常积极、简洁，也可能在敷衍或礼貌性回应时显得中性。",
+      "visibleText": "",
+      "speaker": "表达认可、赞同或收到",
+      "target": "对方",
+      "scenes": [
+        "对方提出建议或安排后表示同意",
+        "夸赞对方内容时发送",
+        "群聊中礼貌性回应收到/了解"
+      ],
+      "avoid": [
+        "需要认真安慰对方情绪时",
+        "严肃争吵或表达强烈不满时"
+      ],
+      "confidence": 0.95,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_fd9bff8168f3",
+      "file": "memes/teasing/image_emoticon16.png",
+      "sha256": "fd9bff8168f3a4e2fb93da6a53edfbd7bf8f7e96291eace1126e6b723e4d5a15",
+      "category": "teasing",
+      "meaning": "以斜眼瞥视、挑眉和歪嘴笑构成的得意或心照不宣的坏笑，带轻微调侃和看戏意味，可用于自嘲式炫耀、回应对方、轻微嘲讽或玩笑互动，整体偏轻松但带一点不正经。",
+      "visibleText": "",
+      "speaker": "发送者表现出得意、心照不宣或轻微使坏的立场",
+      "target": "对方或第三方，偶尔也可自指",
+      "scenes": [
+        "群聊中有人吹牛或说大话时拿来调侃",
+        "回应熟人的玩笑或互损",
+        "自己搞了点小聪明后得意地接话"
+      ],
+      "avoid": [
+        "对方正在认真倾诉委屈需要安慰时",
+        "正式通知或严肃讨论场合",
+        "对陌生人使用以免被误解为嘲讽"
+      ],
+      "confidence": 0.82,
+      "semanticVersion": 1
+    },
+    {
+      "id": "tb_ff72385246fa",
+      "file": "memes/teasing/image_emoticon3.png",
+      "sha256": "ff72385246facb387ddac40fd89d4ac6d24183181e2e4b8dd71ce88a3ce9e3aa",
+      "category": "teasing",
+      "meaning": "吐舌坏笑、俏皮卖萌，核心是轻松调侃或装傻逗趣，带亲昵感，不是安慰或委屈。",
+      "visibleText": "",
+      "speaker": "发送者以俏皮姿态自处或轻调侃",
+      "target": "多针对对方或群聊氛围，轻微自涉",
+      "scenes": [
+        "接玩笑后自嘲或装傻",
+        "轻松调侃对方但不带恶意",
+        "卖萌缓和群聊气氛"
+      ],
+      "avoid": [
+        "对方认真倾诉委屈时",
+        "需要严肃道歉或安慰时",
+        "严肃工作讨论中"
+      ],
+      "confidence": 0.86,
+      "semanticVersion": 1
+    }
+  ]
+}

@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "napcat": "tsx --env-file-if-exists=.env src/napcat.ts",
     "test": "tsx --test src/*.test.ts",
-    "replay": "node --import tsx src/replay.ts"
+    "replay": "node --import tsx src/replay.ts",
+    "memes:index": "node --import tsx --env-file-if-exists=.env src/meme-index.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

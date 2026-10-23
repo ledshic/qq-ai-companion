@@ -1,3 +1,4 @@
+import type { MemeSendContext } from './memes.js';
 import { GroupContext, modelContext, renderContext, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
 import { abortReason, isAbort } from './abort.js';
 import type { GroupMessage } from './message.js';
@@ -36,7 +37,7 @@ export interface ConversationOptions {
   memory: ConversationMemory;
   unified?: boolean;
   recordsDelivery?: boolean;
-  send: (groupId: string, content: string, guard: SendGuard, target?: DeliveryTarget) => Promise<string | undefined>;
+  send: (groupId: string, content: string, guard: SendGuard, target?: DeliveryTarget, media?: MemeSendContext) => Promise<string | undefined>;
   vision?: VisionHandler;
   imageRequest?: ImageRequestJudge;
   resolveImage?: ImageResolver;
@@ -241,6 +242,10 @@ export class Conversation {
         topicKey: decision.topicKey, basisIds: decision.basisIds }) : undefined });
   }
 
+  private memeContext(item: Inbound, context: ReplyContext, answer: string, signal: AbortSignal): MemeSendContext {
+    return { context, signal, approve: note => this.sendApproval(item, context, answer + '\n' + note.replace('[已发送表情 ', '[拟配表情 '), signal, item.candidate) };
+  }
+
   private senderCurrent(item: Inbound): boolean {
     return !this.options.unified || item.senderVersion === this.discussion.senderVersion(item.message.groupId, item.message.senderId);
   }
@@ -388,7 +393,7 @@ export class Conversation {
       const answer = await this.options.generate!(item.text, history, signal, false, generationContext);
       const guard = await this.sendApproval(item, generationContext, answer, signal);
       if (!guard || !budget()) return;
-      const delivered = await this.options.send(message.groupId, answer, async () => await guard() && budget(), { senderId: message.senderId, replyTo: message.messageId });
+      const delivered = await this.options.send(message.groupId, answer, async () => await guard() && budget(), { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
       if (!delivered) return;
       this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
       this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
@@ -495,7 +500,7 @@ export class Conversation {
     }
     const guard = await this.sendApproval(item, generationContext, answer, signal, candidate);
     if (!guard) return;
-    const delivered = await this.options.send(message.groupId, answer, guard, { senderId: message.senderId, replyTo: message.messageId });
+    const delivered = await this.options.send(message.groupId, answer, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
     if (!delivered) return;
     this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
     this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
@@ -514,7 +519,7 @@ export class Conversation {
     if (!context) return;
     const content = `最近群里的聊天：\n${context}\n\n（你可以自然地插一句，符合你的人设；一两句话，不复述、不解释、不点评谁说了什么。）`;
     const answer = await this.options.generate!(content, [], signal, false, replyContext);
-    const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted, { senderId: item.message.senderId, replyTo: item.message.messageId });
+    const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted, { senderId: item.message.senderId, replyTo: item.message.messageId }, this.memeContext(item, replyContext, answer, signal));
     if (!delivered) return;
     this.delivered(item.message.groupId, delivered, { senderId: item.message.senderId, replyTo: item.message.messageId });
     // An interjection is a normal reply: it enters memory and opens a window.
@@ -666,7 +671,7 @@ export class Conversation {
       ? () => !signal.aborted && this.senderCurrent(item)
       : await this.sendApproval(item, context, reply.content, signal);
     if (!guard) return;
-    const delivered = await this.options.send(message.groupId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId });
+    const delivered = await this.options.send(message.groupId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, reply.content, signal));
     if (!delivered) return;
     this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
     if (awaitingContent) this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));

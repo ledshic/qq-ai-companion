@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "tieba-emoticons",
+  "name": "百度贴吧表情",
+  "version": "1.1.0",
+  "description": "113 张贴吧移动端经典表情，已用视觉模型按情绪分类",
+  "tags": [
+    "tieba",
+    "emoji"
+  ],
+  "categories": {
+    "affection": {
+      "description": "亲昵、抱抱、比心、撒娇"
+    },
+    "angry": {
+      "description": "生气、骂人、不爽、发火"
+    },
+    "confused": {
+      "description": "疑惑、无语、问号、懵"
+    },
+    "entertainment": {
+      "description": "游戏、看戏、乐子"
+    },
+    "food": {
+      "description": "吃饭、干饭、馋"
+    },
+    "greeting": {
+      "description": "打招呼、你好、在吗"
+    },
+    "happy": {
+      "description": "开心、庆祝、笑、得意"
+    },
+    "money": {
+      "description": "要钱、穷、工资、打钱"
+    },
+    "reply": {
+      "description": "通用回应、接话"
+    },
+    "sad": {
+      "description": "难过、委屈、哭"
+    },
+    "shy": {
+      "description": "害羞、脸红、不好意思"
+    },
+    "sleep": {
+      "description": "困、睡觉、摆烂"
+    },
+    "surprised": {
+      "description": "惊讶、震惊、意外"
+    },
+    "teasing": {
+      "description": "调侃、嘲讽、滑稽、阴阳"
+    }
+  }
+}

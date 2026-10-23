@@ -1,0 +1,683 @@
+{
+  "source": "Existing AstrBot tieba-emoticons pack v1.1.0; Baidu Tieba artwork; original creators retain rights. Local reuse only.",
+  "images": [
+    {
+      "id": "tb_27e7877076cb",
+      "file": "memes/affection/image_emoticon102.png",
+      "sha256": "27e7877076cb7cddd8b0119c3284c5234a3f2a5148b85861a6dbe9148f1ba801",
+      "category": "affection"
+    },
+    {
+      "id": "tb_46b06269680e",
+      "file": "memes/affection/image_emoticon103.png",
+      "sha256": "46b06269680eaf4a3925ae607b26773b8d1fda5da25f6500088b6267b2014ffb",
+      "category": "affection"
+    },
+    {
+      "id": "tb_e04530afd975",
+      "file": "memes/affection/image_emoticon110.png",
+      "sha256": "e04530afd9759f096389bfa26da1ad96438a96f803201cef51e95fb87aba37b2",
+      "category": "affection"
+    },
+    {
+      "id": "tb_d418580e5d9c",
+      "file": "memes/affection/image_emoticon115.png",
+      "sha256": "d418580e5d9c93d701cd0e4a2daa43f93dd87e9bde7de7d79c3e82fe3e071d08",
+      "category": "affection"
+    },
+    {
+      "id": "tb_8f2f380f4f21",
+      "file": "memes/affection/image_emoticon116.png",
+      "sha256": "8f2f380f4f2156dfba371f44bf7952ab0eaa838ad62884a06c9a8f5f381daf33",
+      "category": "affection"
+    },
+    {
+      "id": "tb_09a28924b42c",
+      "file": "memes/affection/image_emoticon118.png",
+      "sha256": "09a28924b42c8fd1d21dba740991f0892e0dc408b812f3fdbb023c7a95a1df0b",
+      "category": "affection"
+    },
+    {
+      "id": "tb_c340b5197810",
+      "file": "memes/affection/image_emoticon123.png",
+      "sha256": "c340b5197810525e97ce9120425877a8b5fdc81fcc3d306ca79bb0008a065776",
+      "category": "affection"
+    },
+    {
+      "id": "tb_2f3bc59c2119",
+      "file": "memes/affection/image_emoticon2.png",
+      "sha256": "2f3bc59c21193db491deab9bb3100b7d869742f8992f95ae649dabc02999f9c6",
+      "category": "affection"
+    },
+    {
+      "id": "tb_af3e2fdf6473",
+      "file": "memes/affection/image_emoticon20.png",
+      "sha256": "af3e2fdf64734a7a508bdd3ead4a86f92a56480a146146c662e4ae236a35b0d8",
+      "category": "affection"
+    },
+    {
+      "id": "tb_3fea8cf2ea63",
+      "file": "memes/affection/image_emoticon28.png",
+      "sha256": "3fea8cf2ea63278433e4bdc454ace48551c6abebc536828b4100fa65658d11bc",
+      "category": "affection"
+    },
+    {
+      "id": "tb_d5506ce7af09",
+      "file": "memes/affection/image_emoticon34.png",
+      "sha256": "d5506ce7af09afda53f464880b04be8262e2328fc9f77420bb796ab4d67cf31d",
+      "category": "affection"
+    },
+    {
+      "id": "tb_a8c51ab879e5",
+      "file": "memes/affection/image_emoticon36.png",
+      "sha256": "a8c51ab879e532e3d9ef513833b9bc4e726ced8587c99ef770d624e68dc89e05",
+      "category": "affection"
+    },
+    {
+      "id": "tb_9f16a5ee3036",
+      "file": "memes/affection/image_emoticon37.png",
+      "sha256": "9f16a5ee3036bbbdbf7664b98003e8a8d18442e0cedcee9401ac51e30bb121de",
+      "category": "affection"
+    },
+    {
+      "id": "tb_6cf2beb7329b",
+      "file": "memes/affection/image_emoticon46.png",
+      "sha256": "6cf2beb7329b09f92fcfdbe59d7de0c8dad942ddc9de2fab7f99d620ff024050",
+      "category": "affection"
+    },
+    {
+      "id": "tb_9c5dbd853818",
+      "file": "memes/affection/image_emoticon81.png",
+      "sha256": "9c5dbd85381852fa4c75df39751e7ca8fb202d49a16fd241daaf040f417373a9",
+      "category": "affection"
+    },
+    {
+      "id": "tb_6371bd653cc2",
+      "file": "memes/affection/image_emoticon83.png",
+      "sha256": "6371bd653cc2ee9d0a42eb3f7753c9dd46afba054de6ddbf85b235e0c5c51d78",
+      "category": "affection"
+    },
+    {
+      "id": "tb_22150521fa64",
+      "file": "memes/affection/image_emoticon93.png",
+      "sha256": "22150521fa64bd019eb1c024125aed81120c3cb70d8d94309d2ef486098b517e",
+      "category": "affection"
+    },
+    {
+      "id": "tb_60bf1fc7d7e0",
+      "file": "memes/angry/image_emoticon13.png",
+      "sha256": "60bf1fc7d7e0b5952f64dbc0a2576a7e705090294f7073fa190cddbef3c119ef",
+      "category": "angry"
+    },
+    {
+      "id": "tb_d96d9526c9f8",
+      "file": "memes/angry/image_emoticon17.png",
+      "sha256": "d96d9526c9f883536a57650f8e4250f85375b74be7f97c039a30f012863368d8",
+      "category": "angry"
+    },
+    {
+      "id": "tb_b4892999d9ef",
+      "file": "memes/angry/image_emoticon31.png",
+      "sha256": "b4892999d9ef4c9dde35512061d34561177ae90feea4210c65cce08b5967d754",
+      "category": "angry"
+    },
+    {
+      "id": "tb_94e8d06ec5ac",
+      "file": "memes/angry/image_emoticon33.png",
+      "sha256": "94e8d06ec5ac4a2a7b00e6186749e19bda4d314ea7373ec3477a7f4f30c42293",
+      "category": "angry"
+    },
+    {
+      "id": "tb_f4b338abe37b",
+      "file": "memes/angry/image_emoticon49.png",
+      "sha256": "f4b338abe37b04e8615b08a4da0bbdd18c575b1b7d4dd1d90670a3e8296ddb61",
+      "category": "angry"
+    },
+    {
+      "id": "tb_45c895fb359d",
+      "file": "memes/angry/image_emoticon6.png",
+      "sha256": "45c895fb359d0acfac805722c0921f74a2987d00b09463becf1a83bad8fdf224",
+      "category": "angry"
+    },
+    {
+      "id": "tb_17ea254e7c47",
+      "file": "memes/angry/image_emoticon69.png",
+      "sha256": "17ea254e7c47d70dbc877c854e76d8ba0094f97414e565806d753728846c473f",
+      "category": "angry"
+    },
+    {
+      "id": "tb_b56fcf392025",
+      "file": "memes/angry/image_emoticon74.png",
+      "sha256": "b56fcf3920259323fc8c48fa756c0a17c13dce711afc8bb01e52985773f9c9bc",
+      "category": "angry"
+    },
+    {
+      "id": "tb_81f82df031f3",
+      "file": "memes/angry/image_emoticon87.png",
+      "sha256": "81f82df031f34a5fe5d87dc62521ea9024a54237a995784f6781b9a9d1a5988f",
+      "category": "angry"
+    },
+    {
+      "id": "tb_0a6f7917b242",
+      "file": "memes/angry/image_emoticon94.png",
+      "sha256": "0a6f7917b242c0e1db6589ee0b9ce3da252cc69879a2ea43c97574ca73163673",
+      "category": "angry"
+    },
+    {
+      "id": "tb_d5271c6b3752",
+      "file": "memes/angry/image_emoticon96.png",
+      "sha256": "d5271c6b375240206122819f4d2c75b077e6347bbcecfe60023994a37f50164c",
+      "category": "angry"
+    },
+    {
+      "id": "tb_b1c060299675",
+      "file": "memes/angry/image_emoticon98.png",
+      "sha256": "b1c0602996752ccc7c99bff992ca4a15fb70d41036a2c2ab0600dbf52cce7ee0",
+      "category": "angry"
+    },
+    {
+      "id": "tb_93cb997fc6c5",
+      "file": "memes/confused/image_emoticon105.png",
+      "sha256": "93cb997fc6c5bacab131bd04e5c45e9ade43ff207ac18dbb1d6c5dc518373f2f",
+      "category": "confused"
+    },
+    {
+      "id": "tb_e90a54d851d9",
+      "file": "memes/confused/image_emoticon108.png",
+      "sha256": "e90a54d851d9e0251a66703354c1449267acd0b726dc5571682a8a09481ac527",
+      "category": "confused"
+    },
+    {
+      "id": "tb_0bedd9fa4efd",
+      "file": "memes/confused/image_emoticon15.png",
+      "sha256": "0bedd9fa4efd0de2cb3dc069d199dc7efd8e05671362c9092be35a182720881b",
+      "category": "confused"
+    },
+    {
+      "id": "tb_19d2c43a2321",
+      "file": "memes/confused/image_emoticon18.png",
+      "sha256": "19d2c43a2321759431dba383b39de20054f2ab769f8a68d610a2307bcb7ad512",
+      "category": "confused"
+    },
+    {
+      "id": "tb_805f8bbbd40f",
+      "file": "memes/confused/image_emoticon27.png",
+      "sha256": "805f8bbbd40ff06e28cf749fc009bf8ad0cceb5edbcc6cfe273c14ba82fdd3a9",
+      "category": "confused"
+    },
+    {
+      "id": "tb_409f5dfb09a5",
+      "file": "memes/confused/image_emoticon84.png",
+      "sha256": "409f5dfb09a5bf0831de21dc52668598b64b2a6ade3823824390751a011ab25b",
+      "category": "confused"
+    },
+    {
+      "id": "tb_9e348da5463f",
+      "file": "memes/entertainment/image_emoticon106.png",
+      "sha256": "9e348da5463fedb16f3d0de2f9641456297e9552ece94d3cd99696c0fead2771",
+      "category": "entertainment"
+    },
+    {
+      "id": "tb_5635bde48c37",
+      "file": "memes/entertainment/image_emoticon42.png",
+      "sha256": "5635bde48c37f1855bc2928fa6413b57e514297e206714f046d4c7562f82b1b4",
+      "category": "entertainment"
+    },
+    {
+      "id": "tb_44d1a2aa85b0",
+      "file": "memes/entertainment/image_emoticon45.png",
+      "sha256": "44d1a2aa85b0d20963ab1fa67cc200d14751e2a02a2d3311600094db46dbba2d",
+      "category": "entertainment"
+    },
+    {
+      "id": "tb_2312aa68f69a",
+      "file": "memes/entertainment/image_emoticon77.png",
+      "sha256": "2312aa68f69a6808070194e0feea65206837a7c88f3bf548008d587d1b29b9ef",
+      "category": "entertainment"
+    },
+    {
+      "id": "tb_1d9be6ad394d",
+      "file": "memes/entertainment/image_emoticon78.png",
+      "sha256": "1d9be6ad394d27a8a578c4c1460083c0fc36a276573189e6562d7e048afd0c21",
+      "category": "entertainment"
+    },
+    {
+      "id": "tb_a04909834861",
+      "file": "memes/food/image_emoticon43.png",
+      "sha256": "a04909834861c2b5c94ac9827282402c496290b02dccfe7b51fb256616401db2",
+      "category": "food"
+    },
+    {
+      "id": "tb_2335543f9d36",
+      "file": "memes/food/image_emoticon44.png",
+      "sha256": "2335543f9d36c59df0f71cc803ccadff7df2566671bd4b6f14eeaeb386dc0e1a",
+      "category": "food"
+    },
+    {
+      "id": "tb_4729a34330a9",
+      "file": "memes/greeting/image_emoticon47.png",
+      "sha256": "4729a34330a98ab7430fd0784f293b9cbcf69183ae813d21f01f11cfe50cf22f",
+      "category": "greeting"
+    },
+    {
+      "id": "tb_ca025c938748",
+      "file": "memes/greeting/image_emoticon82.png",
+      "sha256": "ca025c938748b5edb68339466932d7eb85ea0c13d4e52811f2431c4ae1c49ec9",
+      "category": "greeting"
+    },
+    {
+      "id": "tb_f1fafd6c0e63",
+      "file": "memes/happy/image_emoticon.png",
+      "sha256": "f1fafd6c0e63e248402e7836bc134c640baa7cb10b636c5c083e7c85de89d8b7",
+      "category": "happy"
+    },
+    {
+      "id": "tb_807902a181a7",
+      "file": "memes/happy/image_emoticon22.png",
+      "sha256": "807902a181a76175d533a41c2fcef11cc3bfa786ebec7e4dda2d227ec8002244",
+      "category": "happy"
+    },
+    {
+      "id": "tb_15ca488ce697",
+      "file": "memes/happy/image_emoticon24.png",
+      "sha256": "15ca488ce697afedd37a2303fc2bdf97b7c8d54ee87bf0b804846411c3d157b0",
+      "category": "happy"
+    },
+    {
+      "id": "tb_c63fd68a2276",
+      "file": "memes/happy/image_emoticon38.png",
+      "sha256": "c63fd68a2276207d22c4d06c0ede843bd91861a7af6b4a1e30b6fd1257b53d14",
+      "category": "happy"
+    },
+    {
+      "id": "tb_5ffa351f8fd3",
+      "file": "memes/happy/image_emoticon40.png",
+      "sha256": "5ffa351f8fd3c175db725a294cee7c0c57f4528e5afc54c74618a2fad5313a01",
+      "category": "happy"
+    },
+    {
+      "id": "tb_f4df9702c4ba",
+      "file": "memes/happy/image_emoticon48.png",
+      "sha256": "f4df9702c4ba2f8df3a09ec88c26b7bc9b40dac9279de764d8ac7122f502f479",
+      "category": "happy"
+    },
+    {
+      "id": "tb_3070e9a12107",
+      "file": "memes/happy/image_emoticon72.png",
+      "sha256": "3070e9a12107ea93527594f382d2d098c686190d49aaa483435f859a399779d2",
+      "category": "happy"
+    },
+    {
+      "id": "tb_2be41c43b3a6",
+      "file": "memes/happy/image_emoticon95.png",
+      "sha256": "2be41c43b3a6e43aa0b19e84e9ed41c44a7a592418d6516e33d93deaf20355ad",
+      "category": "happy"
+    },
+    {
+      "id": "tb_694941c33be7",
+      "file": "memes/happy/image_emoticon97.png",
+      "sha256": "694941c33be720ec988070f9b28724f3ef4be662ce7e312a50609bf3d84ec45a",
+      "category": "happy"
+    },
+    {
+      "id": "tb_de4e2545036c",
+      "file": "memes/money/image_emoticon117.png",
+      "sha256": "de4e2545036cb9d1b355ec8cb3e9980d288c94daf242987ce948bbce9565c07a",
+      "category": "money"
+    },
+    {
+      "id": "tb_3d5932e8e849",
+      "file": "memes/money/image_emoticon14.png",
+      "sha256": "3d5932e8e8495ece84b0a0afc4e0711c99c36ae2b2b25f037c5d4449523033fd",
+      "category": "money"
+    },
+    {
+      "id": "tb_8e6c14357318",
+      "file": "memes/money/image_emoticon41.png",
+      "sha256": "8e6c143573189490e6c28e98ea06dd60533482243d27bd1b55ee5817e7222798",
+      "category": "money"
+    },
+    {
+      "id": "tb_a9da3e1096bf",
+      "file": "memes/reply/image_emoticon50.png",
+      "sha256": "a9da3e1096bf6a7dc000c54ef94f3fc56533b74bf1e2159f2fbf58e069737e03",
+      "category": "reply"
+    },
+    {
+      "id": "tb_987028a07d08",
+      "file": "memes/sad/image_emoticon112.png",
+      "sha256": "987028a07d087df98d5a7849ff54140841248be1818652c865a8f49efcef0721",
+      "category": "sad"
+    },
+    {
+      "id": "tb_e89199e5bc50",
+      "file": "memes/sad/image_emoticon35.png",
+      "sha256": "e89199e5bc50eb7196024beb70a316eb35c6e2ca4c873bd87544691ee546aaba",
+      "category": "sad"
+    },
+    {
+      "id": "tb_710b7e35813f",
+      "file": "memes/sad/image_emoticon89.png",
+      "sha256": "710b7e35813f1c1e07c66e909373faf5c589c6595a7c0adb4454a359e820e1aa",
+      "category": "sad"
+    },
+    {
+      "id": "tb_c8aa15151ffa",
+      "file": "memes/sad/image_emoticon9.png",
+      "sha256": "c8aa15151ffa82198c5d200521c41da1fac74e07087437724dafcbb80843eb17",
+      "category": "sad"
+    },
+    {
+      "id": "tb_b6c032f851e0",
+      "file": "memes/shy/image_emoticon10.png",
+      "sha256": "b6c032f851e046100ff39b29b88f3f0117db4fc4700df76e53ea65e5be1895fe",
+      "category": "shy"
+    },
+    {
+      "id": "tb_4ccaad9a1309",
+      "file": "memes/shy/image_emoticon11.png",
+      "sha256": "4ccaad9a1309aefe695eb7689177d7baee30e86cf249019837055f516b3c2090",
+      "category": "shy"
+    },
+    {
+      "id": "tb_1a46c6c0f397",
+      "file": "memes/shy/image_emoticon114.png",
+      "sha256": "1a46c6c0f397c09e365960f39d96df6d2d9aeaef36e2469eeeb02313330451e6",
+      "category": "shy"
+    },
+    {
+      "id": "tb_91ddb97af1d5",
+      "file": "memes/shy/image_emoticon122.png",
+      "sha256": "91ddb97af1d52d98558654a7af5cf86962a03b6ae2b23436443a2b88f1b5c80e",
+      "category": "shy"
+    },
+    {
+      "id": "tb_701ff97e4411",
+      "file": "memes/shy/image_emoticon19.png",
+      "sha256": "701ff97e441187618de53de9304b2a8ef127e0b338939fd689b0e1e9801ce191",
+      "category": "shy"
+    },
+    {
+      "id": "tb_aac7c1da55ee",
+      "file": "memes/shy/image_emoticon66.png",
+      "sha256": "aac7c1da55ee40e06bafca03c0677dc38f0347287b9b5b7d78c993eac039db3b",
+      "category": "shy"
+    },
+    {
+      "id": "tb_e41319389509",
+      "file": "memes/shy/image_emoticon7.png",
+      "sha256": "e4131938950975aed70017015cc17e50d6cf37f4c2b68f17045049882e2485dc",
+      "category": "shy"
+    },
+    {
+      "id": "tb_29edaa191d6d",
+      "file": "memes/shy/image_emoticon73.png",
+      "sha256": "29edaa191d6ddc138656ad5baa80db745240feb6bfd7d44323101afeb3ff2331",
+      "category": "shy"
+    },
+    {
+      "id": "tb_3a6c6e753202",
+      "file": "memes/shy/image_emoticon75.png",
+      "sha256": "3a6c6e75320279d7609bf8541242ddeb47d3028e572adf82bdde2d15ddc44561",
+      "category": "shy"
+    },
+    {
+      "id": "tb_6ab7c1cf5baf",
+      "file": "memes/shy/image_emoticon8.png",
+      "sha256": "6ab7c1cf5baf70e18bc006a84463c91fbf06e10374d91ce4c4135776de526f4a",
+      "category": "shy"
+    },
+    {
+      "id": "tb_6f8dfc3c2fed",
+      "file": "memes/shy/image_emoticon85.png",
+      "sha256": "6f8dfc3c2fede1df3032615b434224df8f426639f9082a68d5737d09493980eb",
+      "category": "shy"
+    },
+    {
+      "id": "tb_8acdbc1579f7",
+      "file": "memes/shy/image_emoticon92.png",
+      "sha256": "8acdbc1579f7c239ba61e993825d5aa7e0baf7d425ef0672ea9c29261208153f",
+      "category": "shy"
+    },
+    {
+      "id": "tb_7511fc3d8e8f",
+      "file": "memes/sleep/image_emoticon29.png",
+      "sha256": "7511fc3d8e8f49907ad43e0536b3752f448bee11952a567de53f31b2ccea03e7",
+      "category": "sleep"
+    },
+    {
+      "id": "tb_b67a246017d3",
+      "file": "memes/sleep/image_emoticon39.png",
+      "sha256": "b67a246017d3b0ba8b13bb6afc98d581ff6df67ed73f736e7d0f4b37296b6bc3",
+      "category": "sleep"
+    },
+    {
+      "id": "tb_50fca028b8aa",
+      "file": "memes/sleep/image_emoticon64.png",
+      "sha256": "50fca028b8aade53cff09fb966b3a2cffd4e6a986475dce4e70160e42e999870",
+      "category": "sleep"
+    },
+    {
+      "id": "tb_1e688270d68b",
+      "file": "memes/sleep/image_emoticon71.png",
+      "sha256": "1e688270d68b019acf2766dae1aa1de60fbb413d376395354354fe72106644f7",
+      "category": "sleep"
+    },
+    {
+      "id": "tb_02cf3923b01a",
+      "file": "memes/surprised/image_emoticon109.png",
+      "sha256": "02cf3923b01a1fc5e95b97c70b36fba576598063821e148d1e1ae6480315452d",
+      "category": "surprised"
+    },
+    {
+      "id": "tb_409990bf56b7",
+      "file": "memes/surprised/image_emoticon30.png",
+      "sha256": "409990bf56b7c817e5d88ffb9716f811e12a2c0aaa6a38a08b858f4d1f4ae9e7",
+      "category": "surprised"
+    },
+    {
+      "id": "tb_e12086156394",
+      "file": "memes/surprised/image_emoticon32.png",
+      "sha256": "e12086156394412d0d5b708d4ea9c208de42ca51a1cfc4ff5719894f48f89594",
+      "category": "surprised"
+    },
+    {
+      "id": "tb_0d2f8a5417fb",
+      "file": "memes/surprised/image_emoticon4.png",
+      "sha256": "0d2f8a5417fb1599b6a458ce27525e9864192437d8221bf5ff7be5212006c999",
+      "category": "surprised"
+    },
+    {
+      "id": "tb_8ef3c1860228",
+      "file": "memes/surprised/image_emoticon99.png",
+      "sha256": "8ef3c1860228d148b887cb463bbeb2d0a5a4480d969ed982cd15f68edd525ea1",
+      "category": "surprised"
+    },
+    {
+      "id": "tb_65292b687c83",
+      "file": "memes/teasing/image_emoticon100.png",
+      "sha256": "65292b687c834010823dcbd15aa2a903f5efa03950ec6991afe3bba37ea2e5ac",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_8ae06de0f93e",
+      "file": "memes/teasing/image_emoticon101.png",
+      "sha256": "8ae06de0f93e562eb306e586e557eddcf157d9670820f3796acda24dcecb0f4e",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_656bf81235ee",
+      "file": "memes/teasing/image_emoticon104.png",
+      "sha256": "656bf81235ee6e44ae5db821f0fd8c9b1cde2fdbeb6fca85561ddf60299e1c13",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_5a3c80ed4cc0",
+      "file": "memes/teasing/image_emoticon107.png",
+      "sha256": "5a3c80ed4cc09bb8a19b407dbd8f364dfd0b80a7ebb38b7309717e20bf5cb449",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_9d87dc9ef006",
+      "file": "memes/teasing/image_emoticon111.png",
+      "sha256": "9d87dc9ef0061e860a08afd15706700cdc12ea4ba8669b4feac16319f33f738b",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_3f7785892be4",
+      "file": "memes/teasing/image_emoticon113.png",
+      "sha256": "3f7785892be46743bc95ce4ae9fb067579343c531257e30089cab7abfbdbc281",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_a1ca7ff0c2ae",
+      "file": "memes/teasing/image_emoticon119.png",
+      "sha256": "a1ca7ff0c2aebe5b321017a4c635af6720a7c4a018bd6934e3861e0433915d71",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_567b553551b5",
+      "file": "memes/teasing/image_emoticon12.png",
+      "sha256": "567b553551b54b9bfc834514b64cf6eed377ac6644f1c1484710bead54f341a6",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_5929007193cf",
+      "file": "memes/teasing/image_emoticon120.png",
+      "sha256": "5929007193cf02b0755c922597ef18bb8bf2300e2b8721e6e0cdcda47530eb7f",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_c6d9fe5428eb",
+      "file": "memes/teasing/image_emoticon121.png",
+      "sha256": "c6d9fe5428eb22755f3846c1da1c97aea7ecc91a2fb5bf475955b2cd9f0b9cbc",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_c92c31396eec",
+      "file": "memes/teasing/image_emoticon124.png",
+      "sha256": "c92c31396eec93cc335cc9a5eb1255e535dc4de53ea96b2b4a006ba82415d164",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_fd9bff8168f3",
+      "file": "memes/teasing/image_emoticon16.png",
+      "sha256": "fd9bff8168f3a4e2fb93da6a53edfbd7bf8f7e96291eace1126e6b723e4d5a15",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_88d7a1f9f400",
+      "file": "memes/teasing/image_emoticon21.png",
+      "sha256": "88d7a1f9f40048cf79ef7eb9a06ef74bd59a7ba78849b7a664491ea15f312dac",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_5c9f79d76e3f",
+      "file": "memes/teasing/image_emoticon23.png",
+      "sha256": "5c9f79d76e3f12cf11bf93b214caf8f240f87dcfca0df95571a83d5a441b80d6",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_348552ff74a9",
+      "file": "memes/teasing/image_emoticon25.png",
+      "sha256": "348552ff74a9d8603c811ae45eb7bc74e56898eb5d2739a1cd4ba01027dfc845",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_2bdbaeb6b7d7",
+      "file": "memes/teasing/image_emoticon26.png",
+      "sha256": "2bdbaeb6b7d7e587d54ea200110b092c551b319d8a4e26a4714c16739464b69c",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_ff72385246fa",
+      "file": "memes/teasing/image_emoticon3.png",
+      "sha256": "ff72385246facb387ddac40fd89d4ac6d24183181e2e4b8dd71ce88a3ce9e3aa",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_28adefce214b",
+      "file": "memes/teasing/image_emoticon5.png",
+      "sha256": "28adefce214b3dbb5f7b6e41cf2938ebce6f4c134a5f23b934bfe690f0698d79",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_1f540820a9ae",
+      "file": "memes/teasing/image_emoticon62.png",
+      "sha256": "1f540820a9aedd6cb07eb91826cdf2d150adde734cb021d6bd92b7a59d6e7fd4",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_4642da1c5183",
+      "file": "memes/teasing/image_emoticon63.png",
+      "sha256": "4642da1c5183f6f7d379b6a9309e4a9bb5289dd83980f5a103c0f36e11c82677",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_dc7a74f28eaf",
+      "file": "memes/teasing/image_emoticon65.png",
+      "sha256": "dc7a74f28eaf8996d513e799c6351d7316757328a524cc4cd2ab1fd8dffd4802",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_cc6598283425",
+      "file": "memes/teasing/image_emoticon67.png",
+      "sha256": "cc6598283425f33456b770f3d4fdac92416b9cbb6cedefe1808c7ad895ebcf8b",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_df491d989c0b",
+      "file": "memes/teasing/image_emoticon68.png",
+      "sha256": "df491d989c0bce2fe25ffd89eed44de2d79808ea096625b0d6eb94bac2e3da73",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_15c18d2661d3",
+      "file": "memes/teasing/image_emoticon70.png",
+      "sha256": "15c18d2661d3515977e0ff8360bbb3795cdaff52f709d45869cab69850cf664b",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_429cdc9eb09d",
+      "file": "memes/teasing/image_emoticon76.png",
+      "sha256": "429cdc9eb09d07231ded7610cc47f4da26b98f6f99d575e74d93b140355cd389",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_53eea127848f",
+      "file": "memes/teasing/image_emoticon79.png",
+      "sha256": "53eea127848f76a9b61d3d1f9992487577587b94470ae5e851152399a6951665",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_80fecacbe4c4",
+      "file": "memes/teasing/image_emoticon80.png",
+      "sha256": "80fecacbe4c43fb3747af11c66706fcd77232ae6ccef1d02f7ba319101a6cf52",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_c4d36ee49725",
+      "file": "memes/teasing/image_emoticon86.png",
+      "sha256": "c4d36ee49725acd603173cb26f841c80ed594749d4f91d3edd9fe69bfbee130b",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_cc1ec0eca220",
+      "file": "memes/teasing/image_emoticon88.png",
+      "sha256": "cc1ec0eca220144ccda2b55749800f71d4d56ab1116521c68ff47edbf71ff837",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_1d865b1a29ac",
+      "file": "memes/teasing/image_emoticon90.png",
+      "sha256": "1d865b1a29acc9af47e01102f708485e17d7d2dfc7160a7fb23d170ba9e1d1a5",
+      "category": "teasing"
+    },
+    {
+      "id": "tb_d7522cc84f76",
+      "file": "memes/teasing/image_emoticon91.png",
+      "sha256": "d7522cc84f767374bbc30aaeac269f1f35181a2c7b458f143e3c21df762e42c0",
+      "category": "teasing"
+    }
+  ]
+}
