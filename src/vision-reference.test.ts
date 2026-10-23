@@ -17,7 +17,7 @@ function setup(t: { after: (fn: () => void) => void }) {
     vision: async (_text: string, image: { url?: string }) => { assert.match(image.url!, /qpic.cn/); return '看到了图片内容'; },
   };
   const conversation = new Conversation({ unified: true, memory, now: () => now, log: () => {},
-    imageRequest: async (_text, context, id) => { h.judged++; assert.doesNotMatch(JSON.stringify(context), /SECRET|rkey/); assert.equal(id, 'pic'); return h.judge(); },
+    imageRequest: async (_text, context, id) => { h.judged++; assert.doesNotMatch(JSON.stringify(context), /SECRET|rkey/); return h.judge(); },
     lookup: async id => { h.lookups++; return h.lookup(id); },
     vision: async (text, image) => { h.viewed++; return h.vision(text, image); },
     generate: async () => { h.generated++; return '文字回答'; },
@@ -46,12 +46,10 @@ test('a normal question after an image remains text-only when semantic intent re
   assert.equal(h.judged, 1); assert.equal(h.lookups, 0); assert.equal(h.viewed, 0); assert.deepEqual(h.sent, ['文字回答']);
 });
 
-for (const scope of ['expired', 'other-author', 'other-group', 'newer-other-image', 'unmentioned'] as const) {
+for (const scope of ['other-author', 'other-group', 'unmentioned'] as const) {
   test(`recent image lookup does not widen scope: ${scope}`, async t => {
     const h = setup(t);
     await h.picture(scope === 'other-author' ? { senderId: 'b' } : scope === 'other-group' ? { groupId: 'other' } : {});
-    if (scope === 'expired') h.advance(90_001);
-    if (scope === 'newer-other-image') await h.picture({ messageId: 'other-pic', senderId: 'b' });
     await h.input(scope === 'unmentioned' ? { isMentioned: false } : {});
     assert.equal(h.judged, 0); assert.equal(h.lookups, 0); assert.equal(h.viewed, 0);
   });
@@ -97,7 +95,10 @@ test('image intent request uses aliased metadata and validates the response inst
   const judge = createImageRequestJudge('key', undefined, async (_url, init) => {
     const body = JSON.parse(String(init?.body)); assert.equal(body.tools, undefined);
     assert.doesNotMatch(String(init?.body), /12345678|99999999|87654321/);
-    assert.equal(JSON.parse(body.messages[1].content).candidate.imageCount, 1);
+    const payload = JSON.parse(body.messages[1].content);
+    assert.equal(payload.candidate.imageCount, 1);
+    assert.equal(payload.candidate.at, undefined); assert.equal(payload.discussionContext.snapshot.capturedAt, undefined);
+    assert.ok(payload.discussionContext.snapshot.messages.every((m: any) => m.at === undefined));
     return Response.json({ choices: [{ message: { content: '{"inspect":true}' } }] });
   });
   assert.equal(await judge('看看这是什么', context, '99999999', new AbortController().signal), true);
@@ -106,3 +107,30 @@ test('image intent request uses aliased metadata and validates the response inst
     await assert.rejects(bad('看看', context, '99999999', new AbortController().signal));
   }
 });
+
+
+for (const gap of [90_001, 24 * 60 * 60_000]) {
+  test(`a nearby same-author image survives an idle gap of ${gap}ms without a time cutoff`, async t => {
+    const h = setup(t); await h.picture(); h.advance(gap); await h.input({});
+    assert.equal(h.lookups, 1); assert.equal(h.viewed, 1); assert.equal(h.generated, 0);
+  });
+}
+
+test('another person posting a newer picture does not hide the current authors picture', async t => {
+  const h = setup(t); await h.picture(); await h.picture({ messageId: 'other-pic', senderId: 'b' });
+  await h.input({}); assert.equal(h.lookups, 1); assert.equal(h.viewed, 1);
+});
+
+test('the latest nearby picture from this author takes precedence over their earlier picture', async t => {
+  const h = setup(t); await h.picture(); await h.picture({ messageId: 'pic2' });
+  const original = h.lookup; h.lookup = async id => { assert.equal(id, 'pic2'); return original(id); };
+  await h.input({}); assert.equal(h.lookups, 1); assert.equal(h.viewed, 1);
+});
+
+for (const intervening of [19, 20]) {
+  test(`picture resolution is bounded by the twenty preceding messages: ${intervening} intervening`, async t => {
+    const h = setup(t); await h.picture();
+    for (let i = 0; i < intervening; i++) await h.input({ messageId: `noise-${i}`, senderId: 'b', content: 'ordinary chat', isMentioned: false });
+    await h.input({}); assert.equal(h.viewed, intervening === 19 ? 1 : 0);
+  });
+}

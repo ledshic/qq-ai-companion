@@ -50,6 +50,7 @@ interface GroupState {
   incomingVersion: number;
   lastResponseVersion: number;
   messages: ContextMessage[];
+  nearby: ContextMessage[];
   seen: Map<string, number>;
   selfId: string;
   participation?: Participation;
@@ -65,7 +66,7 @@ export class GroupContext {
 
   private state(group: string): GroupState {
     let state = this.groups.get(group);
-    if (!state) state = { version: 0, incomingVersion: 0, lastResponseVersion: 0, messages: [], seen: new Map(), selfId: 'bot' };
+    if (!state) state = { version: 0, incomingVersion: 0, lastResponseVersion: 0, messages: [], nearby: [], seen: new Map(), selfId: 'bot' };
     this.groups.delete(group);
     this.groups.set(group, state);
     while (this.groups.size > this.maxGroups) this.groups.delete(this.groups.keys().next().value!);
@@ -77,6 +78,12 @@ export class GroupContext {
     state.messages = state.messages.filter(m => m.at >= cutoff).slice(-this.maxMessages);
     let chars = state.messages.reduce((sum, m) => sum + m.text.length + (m.replyToText?.length ?? 0), 0);
     while (chars > this.maxChars && state.messages.length > 1) { const removed = state.messages.shift()!; chars -= removed.text.length + (removed.replyToText?.length ?? 0); }
+    // A separate count-bounded neighborhood supports cross-message references even in slow chats.
+    state.nearby = state.nearby.slice(-21);
+    let nearbyChars = state.nearby.reduce((sum, m) => sum + m.text.length + (m.replyToText?.length ?? 0), 0);
+    while (nearbyChars > this.maxChars && state.nearby.length > 1) {
+      const removed = state.nearby.shift()!; nearbyChars -= removed.text.length + (removed.replyToText?.length ?? 0);
+    }
     for (const [id, at] of state.seen) if (at < this.now() - 30 * 60_000) state.seen.delete(id);
     while (state.seen.size > 512) state.seen.delete(state.seen.keys().next().value!);
     if (state.participation && state.participation.at < cutoff) state.participation = undefined;
@@ -90,11 +97,12 @@ export class GroupContext {
     state.version++;
     state.incomingVersion++;
     message.messageId = id;
-    state.messages.push({ id, senderId: message.senderId, senderName: message.senderName,
+    const entry: ContextMessage = { id, senderId: message.senderId, senderName: message.senderName,
       role: 'user', text: message.content.slice(0, 4000), at: message.timestamp ?? this.now(),
       revision: state.incomingVersion, replyTo: message.replyMessageId,
       ...(message.attachments?.imageCount ? { imageCount: Math.min(message.attachments.imageCount, 2) } : {}),
-      replyToSenderId: message.replyToSenderId, mentions: [...(message.mentionedIds ?? [])].slice(0, 32), media: !!message.hasMedia, addressedToBot: !!(message.isMentioned || message.isCalledByName || message.isReplyToBot) });
+      replyToSenderId: message.replyToSenderId, mentions: [...(message.mentionedIds ?? [])].slice(0, 32), media: !!message.hasMedia, addressedToBot: !!(message.isMentioned || message.isCalledByName || message.isReplyToBot) };
+    state.messages.push(entry); state.nearby.push(entry);
     if (message.isMentioned || message.isCalledByName || message.isReplyToBot) this.responded(message.groupId);
     this.prune(state);
     return true;
@@ -102,14 +110,17 @@ export class GroupContext {
   resolveReference(group: string, id: string, senderId: string, text?: string): void {
     const state = this.state(group);
     state.messages = state.messages.map(m => m.id === id ? { ...m, replyToSenderId: senderId, replyToText: text?.slice(0, 2000) } : m);
+    state.nearby = state.nearby.map(m => m.id === id ? { ...m, replyToSenderId: senderId, replyToText: text?.slice(0, 2000) } : m);
+    this.prune(state);
     state.version++;
     if (senderId === state.selfId) this.responded(group);
   }
   delivered(group: string, text: string, id?: string, targetSenderId?: string, replyTo?: string): void {
     const state = this.state(group);
-    state.messages.push({ id: id ?? `local-bot:${++this.sequence}`, senderId: state.selfId,
+    const entry: ContextMessage = { id: id ?? `local-bot:${++this.sequence}`, senderId: state.selfId,
       senderName: '机器人', role: 'assistant', text: text.slice(0, 4000), at: this.now(),
-      revision: ++state.version, replyTo, mentions: targetSenderId ? [targetSenderId] : [], media: false });
+      revision: ++state.version, replyTo, mentions: targetSenderId ? [targetSenderId] : [], media: false };
+    state.messages.push(entry); state.nearby.push(entry);
     this.prune(state);
   }
   senderVersion(group: string, sender: string): number {
@@ -123,6 +134,11 @@ export class GroupContext {
     const state = this.state(group);
     state.lastResponseVersion = state.incomingVersion;
     if (state.participation) state.participation = { ...state.participation, responded: true };
+  }
+  referenceSnapshot(group: string): GroupSnapshot {
+    const base = this.snapshot(group);
+    return Object.freeze({ ...base, messages: Object.freeze(this.state(group).nearby.map(m => Object.freeze({ ...m,
+      mentions: Object.freeze([...m.mentions]) }))) });
   }
   snapshot(group: string): GroupSnapshot {
     const state = this.state(group);

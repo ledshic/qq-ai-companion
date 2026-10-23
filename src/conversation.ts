@@ -571,13 +571,16 @@ export class Conversation {
     // Keep only its ID/count in discussion context; resolve bytes only after intent is confirmed.
     if (this.options.vision && this.options.imageRequest && content && content.length <= MAX_TEXT && content !== '/清空记忆' &&
         !message.replyMessageId && !message.attachments?.imageCount) {
-      const recent = [...context.snapshot.messages].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.id !== message.messageId);
-      if (recent && recent.senderId === message.senderId && this.now() - recent.at >= 0 && this.now() - recent.at <= 90_000) {
+      const referenceContext = { ...context, snapshot: this.discussion.referenceSnapshot(message.groupId) };
+      const currentIndex = referenceContext.snapshot.messages.findIndex(entry => entry.id === message.messageId);
+      const above = currentIndex < 0 ? [] : referenceContext.snapshot.messages.slice(Math.max(0, currentIndex - 20), currentIndex);
+      const recent = [...above].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.senderId === message.senderId);
+      if (recent) {
         let inspect = false;
-        try { inspect = await this.options.imageRequest(content, context, recent.id, signal); }
+        try { inspect = await this.options.imageRequest(content, referenceContext, recent.id, signal); }
         catch { signal.throwIfAborted(); this.log('[识图] 图片指向判断失败，不自动读取先前图片。'); }
         if (inspect && !signal.aborted && this.senderCurrent(item)) {
-          this.log('[识图] 明确请求指向近期同用户图片，查询原消息。');
+          this.log('[识图] 明确请求指向附近同用户图片，查询原消息。');
           let data: unknown;
           try { data = await this.options.lookup?.(recent.id, signal); }
           catch { signal.throwIfAborted(); }
