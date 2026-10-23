@@ -1,4 +1,4 @@
-import type { VisionHandler } from './vision.js';
+import type { VisionHandler, ImageRequestJudge } from './vision.js';
 import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
 import { deliverPersonaReply } from './delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
@@ -11,6 +11,7 @@ import { isRecord, parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
   vision?: VisionHandler;
+  imageRequest?: ImageRequestJudge;
   autoReply?: boolean;
   unified?: boolean;
   memory?: ConversationMemory;
@@ -113,6 +114,7 @@ export const connectNapCat = (url: string, token: string,
     lookup: (messageId, signal) => actionLookup('get_msg', { message_id: messageId }, signal),
     resolveImage: (file, signal) => actionLookup('get_image', { file }, signal),
     vision: options.vision,
+    imageRequest: options.imageRequest,
     judge: judgeFollowUp,
     generate: generateReply,
     maxInflight: options.maxInflight,

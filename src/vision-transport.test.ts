@@ -84,3 +84,33 @@ test('disabled image understanding returns an honest response without invoking t
     peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0, data: { message_id: 2 } }));
   } finally { stop(); for (const socket of server.clients) socket.terminate(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test('WS preserves an ordinary image ID for a later explicit visual request without a quote', { timeout: 3000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 }); await once(server, 'listening');
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const connected = once(server, 'connection'); let views = 0; let textCalls = 0;
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}`, '', async () => { textCalls++; return 'wrong text-only path'; }, undefined,
+    { unified: true, log: () => {}, imageRequest: async (question, context, id) => {
+      assert.equal(question, '看看这是什么'); assert.equal(id, '10');
+      assert.equal(context.snapshot.messages.find(m => m.id === id)?.imageCount, 1); return true;
+    }, vision: async (_text, image) => { views++; assert.equal(image.url, 'https://gchat.qpic.cn/a'); return 'recognized picture'; } });
+  try {
+    const [peer] = await connected;
+    const delivered = new Promise<void>(resolve => peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString());
+      if (action.action === 'get_msg') {
+        assert.equal(action.params.message_id, '10');
+        peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0, data: { message_type: 'group',
+          group_id: 3, message_id: 10, sender: { user_id: 2 }, message: [{ type: 'image', data: { url: 'https://gchat.qpic.cn/a' } }] } }));
+      } else {
+        assert.equal(action.action, 'send_group_msg'); assert.equal(action.params.message[0].data.text, 'recognized picture');
+        peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0, data: { message_id: 12 } })); resolve();
+      }
+    }));
+    const input = (id: number, message: unknown[]) => peer.send(JSON.stringify({ post_type: 'message', message_type: 'group',
+      self_id: 1, group_id: 3, user_id: 2, message_id: id, message }));
+    input(10, [{ type: 'image', data: { url: 'https://gchat.qpic.cn/a' } }]);
+    input(11, [{ type: 'at', data: { qq: 1 } }, { type: 'text', data: { text: '看看这是什么' } }]);
+    await delivered; assert.equal(views, 1); assert.equal(textCalls, 0);
+  } finally { stop(); for (const socket of server.clients) socket.terminate(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

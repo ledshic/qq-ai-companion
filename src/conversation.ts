@@ -3,7 +3,7 @@ import { abortReason, isAbort } from './abort.js';
 import type { GroupMessage } from './message.js';
 import { handleGroupMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
-import type { VisionHandler, ImageResolver } from './vision.js';
+import type { VisionHandler, ImageResolver, ImageRequestJudge } from './vision.js';
 import { isBotGroupReply, isRecord, imageAttachments } from './onebot.js';
 import type { GroupJudge, GroupJudgment } from './group-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
@@ -38,6 +38,7 @@ export interface ConversationOptions {
   recordsDelivery?: boolean;
   send: (groupId: string, content: string, guard: SendGuard, target?: DeliveryTarget) => Promise<string | undefined>;
   vision?: VisionHandler;
+  imageRequest?: ImageRequestJudge;
   resolveImage?: ImageResolver;
   lookup?: (messageId: string, signal: AbortSignal) => Promise<unknown>;
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
@@ -566,6 +567,33 @@ export class Conversation {
     if (!reply) return;
     const content = message.content.trim();
     const context = this.replyContext(item, 'explicit');
+    // The user may send a picture first and explicitly ask about it in a later message.
+    // Keep only its ID/count in discussion context; resolve bytes only after intent is confirmed.
+    if (this.options.vision && this.options.imageRequest && content && content.length <= MAX_TEXT && content !== '/清空记忆' &&
+        !message.replyMessageId && !message.attachments?.imageCount) {
+      const recent = [...context.snapshot.messages].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.id !== message.messageId);
+      if (recent && recent.senderId === message.senderId && this.now() - recent.at >= 0 && this.now() - recent.at <= 90_000) {
+        let inspect = false;
+        try { inspect = await this.options.imageRequest(content, context, recent.id, signal); }
+        catch { signal.throwIfAborted(); this.log('[识图] 图片指向判断失败，不自动读取先前图片。'); }
+        if (inspect && !signal.aborted && this.senderCurrent(item)) {
+          this.log('[识图] 明确请求指向近期同用户图片，查询原消息。');
+          let data: unknown;
+          try { data = await this.options.lookup?.(recent.id, signal); }
+          catch { signal.throwIfAborted(); }
+          signal.throwIfAborted();
+          if (!this.senderCurrent(item)) return;
+          // Do not accept a different group, author or event even if get_msg returned an image.
+          message.quotedAttachments = isRecord(data) && data.message_type === 'group' &&
+            String(data.group_id) === message.groupId && String(data.message_id) === recent.id &&
+            isRecord(data.sender) && String(data.sender.user_id) === message.senderId
+            ? imageAttachments(data.message) : { imageCount: 1, images: [{}] };
+          if (!message.quotedAttachments.imageCount) message.quotedAttachments = { imageCount: 1, images: [{}] };
+        }
+      }
+    }
+    signal.throwIfAborted();
+    if (!this.senderCurrent(item)) return;
     let commit: ((delivered: string) => void) | undefined;
     const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia && !(message.quotedAttachments?.imageCount);
     if (this.options.generate) {
@@ -583,7 +611,7 @@ export class Conversation {
         else {
           const image = message.attachments?.images[0] ?? message.quotedAttachments!.images[0];
           reply.content = await this.options.vision(content, image, signal, context, this.options.resolveImage);
-          commit = delivered => this.options.memory.add(message.groupId, message.senderId, content + '\n[本次附带或引用了一张图片；历史只保留文字回答，未保留原图。]', delivered);
+          commit = delivered => this.options.memory.add(message.groupId, message.senderId, content + '\n[本次附带、引用或明确指向了一张图片；历史只保留文字回答，未保留原图。]', delivered);
         }
       } else if (message.replyMessageId && /图片|照片|截图|图里|图中|图上|这张图/.test(content)) {
         reply.content = '没能从这条引用中取得可验证的图片，请重新发图或引用一条单图消息。';

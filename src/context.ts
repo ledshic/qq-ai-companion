@@ -18,6 +18,7 @@ export interface ContextMessage {
   readonly replyToText?: string;
   readonly mentions: readonly string[];
   readonly media: boolean;
+  readonly imageCount?: number;
   readonly addressedToBot?: boolean;
 }
 export interface Participation {
@@ -92,6 +93,7 @@ export class GroupContext {
     state.messages.push({ id, senderId: message.senderId, senderName: message.senderName,
       role: 'user', text: message.content.slice(0, 4000), at: message.timestamp ?? this.now(),
       revision: state.incomingVersion, replyTo: message.replyMessageId,
+      ...(message.attachments?.imageCount ? { imageCount: Math.min(message.attachments.imageCount, 2) } : {}),
       replyToSenderId: message.replyToSenderId, mentions: [...(message.mentionedIds ?? [])].slice(0, 32), media: !!message.hasMedia, addressedToBot: !!(message.isMentioned || message.isCalledByName || message.isReplyToBot) });
     if (message.isMentioned || message.isCalledByName || message.isReplyToBot) this.responded(message.groupId);
     this.prune(state);

@@ -1,4 +1,4 @@
-import { createVisionReply } from './vision.js';
+import { createVisionReply, createImageRequestJudge } from './vision.js';
 import { dirname, join } from 'node:path';
 import { createFollowUpJudge } from './follow-up.js';
 import { createGroupJudge } from './group-judge.js';
@@ -130,6 +130,7 @@ console.log(warmup
 
 const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, {
   vision,
+  imageRequest: visionEnabled ? createImageRequestJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash') : undefined,
   autoReply: autoReplyEnabled,
   unified: followUpMode === 'unified',
   memory,
