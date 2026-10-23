@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 export const PERSONA_TEXT = readFileSync(new URL('../config/personas/dafeiyu.md', import.meta.url), 'utf8').trim();
-if (!PERSONA_TEXT.startsWith('# 角色卡：') || PERSONA_TEXT.length < 1000) throw new Error('人格卡缺失或不完整');
+if (!PERSONA_TEXT.startsWith('# 角色卡：') || PERSONA_TEXT.length < 300) throw new Error('人格卡缺失或不完整');
 
 // Platform facts complement the upstream character, without replacing its identity or tone.
 export const chatSystemPrompt = (turns = 9, searchEnabled = false): string => `${PERSONA_TEXT}

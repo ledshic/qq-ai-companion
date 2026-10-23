@@ -571,7 +571,13 @@ export class Conversation {
         reply.content = '已清空你在本群与我的聊天记忆。';
         this.log('[记忆] 已清空当前会话。');
       } else if (awaitingContent) {
-        reply.content = '在，咋了？';
+        try {
+          reply.content = await this.options.generate('', this.options.memory.get(message.groupId, message.senderId), signal, false, context);
+        } catch (error) {
+          if (signal.aborted || isAbort(error)) throw error;
+          this.log('[LLM] 空 @ 应声生成失败，使用简短备用回复。');
+          reply.content = '在，咋了？';
+        }
       } else if (!content || content.length > MAX_TEXT) {
         reply.content = '请在 @、引用或称呼后发送 1 至 4000 个字符的文字。';
       } else {

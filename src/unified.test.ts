@@ -448,14 +448,15 @@ test('legacy interjection and warmup prompt text also uses identifier aliases', 
 
 
 for (const text of ['', ' \n\t ']) {
-  test(`bare mention ${JSON.stringify(text)} acknowledges without model/memory and accepts the next question`, async t => {
+  test(`bare mention ${JSON.stringify(text)} acknowledges through model without personal memory writes and accepts the next question`, async t => {
     const h = harness(t);
     await h.input(text, 'a', true);
-    assert.deepEqual(h.sent, ['在，咋了？']);
-    assert.equal(h.generated.length, 0); assert.equal(h.decisions.length, 0);
+    assert.deepEqual(h.sent, ['answer:']);
+    assert.equal(h.toolPermissions.at(-1), false);
+    assert.equal(h.generated.length, 1); assert.equal(h.decisions.length, 0);
     assert.deepEqual(h.memory.get('g', 'a'), []);
     await h.input('actual question');
-    assert.deepEqual(h.sent, ['在，咋了？', 'answer:actual question']);
+    assert.deepEqual(h.sent, ['answer:', 'answer:actual question']);
     assert.equal(h.followDecisions.length, 1); assert.equal(h.followDecisions[0].awaitingReply, true);
     assert.deepEqual(h.memory.get('g', 'a').map(turn => turn.content), ['actual question', 'answer:actual question']);
   });
@@ -473,4 +474,27 @@ test('search tools are allowed for explicit calls and follow-ups including after
   await h.input('', 'c', true);
   await h.input('search public facts', 'c');
   assert.equal(h.toolPermissions.at(-1), true);
+});
+
+
+test('bare mention model failure retains acknowledgement and next-question state', async t => {
+  const h = harness(t);
+  h.generate = async () => { throw new Error('provider failure'); };
+  await h.input('', 'a', true);
+  assert.deepEqual(h.sent, ['在，咋了？']);
+  assert.deepEqual(h.memory.get('g', 'a'), []);
+  h.generate = async text => `answer:${text}`;
+  await h.input('actual question');
+  assert.equal(h.sent.at(-1), 'answer:actual question');
+  assert.equal(h.followDecisions.at(-1)?.awaitingReply, true);
+});
+
+test('a slow bare mention acknowledgement is discarded when the real question arrives', async t => {
+  const h = harness(t); const pending = deferred<string>();
+  h.generate = async text => text ? `answer:${text}` : pending.promise;
+  await h.input('', 'a', true);
+  await h.input('real question', 'a');
+  pending.resolve('late acknowledgement'); await flush(); await flush();
+  assert.deepEqual(h.sent, ['answer:real question']);
+  assert.deepEqual(h.memory.get('g', 'a').map(turn => turn.content), ['real question', 'answer:real question']);
 });

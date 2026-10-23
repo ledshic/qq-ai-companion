@@ -88,3 +88,32 @@ test('a model that keeps calling tools is cut off after three rounds', async () 
   assert.equal(bodies.length, 4);
   assert.ok(bodies[3].tools === undefined);
 });
+
+
+test('bare mention asks for a short contextual acknowledgement without tools or invented user content', async () => {
+  const reply = createDeepSeekReply('key', undefined, async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.tools, undefined);
+    assert.match(body.messages.at(-1).content, /只有 @/);
+    assert.match(body.messages.at(-1).content, /避免重复/);
+    assert.equal(body.messages.at(-2).content, '之前已经应声过');
+    return Response.json({ choices: [{ message: { content: '叫我干嘛' } }] });
+  }, { searchEnabled: true });
+  const context = { kind: 'explicit' as const, targetSenderId: 'a', triggerIds: ['m1'],
+    snapshot: { groupId: 'g', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
+  assert.equal(await reply('', [{ role: 'assistant', content: '之前已经应声过' }], undefined, false, context), '叫我干嘛');
+});
+
+
+test('a repeated short reply gets one model rephrase, never an unbounded retry', async () => {
+  for (const replacement of ['换个自然说法', '嗯，什么事']) {
+    let calls = 0;
+    const reply = createDeepSeekReply('key', undefined, async (_url, init) => {
+      const body = JSON.parse(String(init?.body)); calls++;
+      if (calls === 2) assert.match(body.messages.at(-1).content, /近期回复重复/);
+      return Response.json({ choices: [{ message: { content: calls === 1 ? '嗯？什么事' : replacement } }] });
+    });
+    assert.equal(await reply('你好', [{ role: 'assistant', content: '嗯，什么事' }], undefined, false), replacement);
+    assert.equal(calls, 2);
+  }
+});

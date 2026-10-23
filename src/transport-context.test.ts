@@ -53,7 +53,7 @@ test('bare OneBot mentions, whitespace and a following unmentioned question work
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 }); await once(server, 'listening');
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const connected = once(server, 'connection'); let generated = 0; let judged = 0; const sent: string[] = [];
-  const stop = connectNapCat(`ws://127.0.0.1:${address.port}`, '', async () => { generated++; return 'actual answer'; },
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}`, '', async text => { generated++; return text ? 'actual answer' : `ack ${generated}`; },
     async () => ({ intent: 'continue', shouldRespond: true, reason: 'question after calling the bot' }),
     { unified: true, autoReply: true, memory, log: () => {}, judgeEvery: { cooldownMs: 0, hourlyCap: 10,
       judge: async () => { judged++; return { respond: false, reason: 'not addressed' }; } } });
@@ -70,12 +70,12 @@ test('bare OneBot mentions, whitespace and a following unmentioned question work
       ] }));
     const settle = () => new Promise(resolve => setTimeout(resolve, 30));
     input(1, 1); await settle();
-    assert.deepEqual(sent, ['在，咋了？']); assert.equal(generated, 0); assert.deepEqual(memory.get('3', '2'), []);
+    assert.deepEqual(sent, ['ack 1']); assert.equal(generated, 1); assert.deepEqual(memory.get('3', '2'), []);
     input(1, 1); await settle(); assert.equal(sent.length, 1, 'duplicate mention must not acknowledge twice');
-    input(2, 1, ' \n\t '); await settle(); assert.equal(sent.length, 2); assert.equal(generated, 0);
+    input(2, 1, ' \n\t '); await settle(); assert.equal(sent.length, 2); assert.equal(generated, 2);
     input(3, undefined, 'actual question'); await settle();
-    assert.deepEqual(sent, ['在，咋了？', '在，咋了？', 'actual answer']);
-    assert.equal(generated, 1); assert.equal(judged, 0);
+    assert.deepEqual(sent, ['ack 1', 'ack 2', 'actual answer']);
+    assert.equal(generated, 3); assert.equal(judged, 0);
     assert.deepEqual(memory.get('3', '2').map(t => t.content), ['actual question', 'actual answer']);
     input(4, 99); await settle(); assert.equal(sent.length, 3, 'mentioning someone else stays silent');
   } finally {
