@@ -1,3 +1,4 @@
+import type { ContextMessage } from './context.js';
 import type { ImageAttachments } from './vision.js';
 import { stripBotName } from './addressing.js';
 import type { GroupMessage } from './message.js';
@@ -60,3 +61,31 @@ export const isBotGroupReply = (data: unknown, message: GroupMessage): boolean =
   String(data.group_id) === message.groupId &&
   String(data.message_id) === message.replyMessageId &&
   isRecord(data.sender) && String(data.sender.user_id) === message.selfId;
+
+
+// Metadata only: never dispatch history as events or retain attachment URLs.
+export const imageReferenceHistory = (data: unknown, current: GroupMessage): readonly ContextMessage[] | undefined => {
+  if (!isRecord(data) || !Array.isArray(data.messages) || data.messages.length > 100) return;
+  const rows = data.messages;
+  const anchor = rows.findIndex(row => isRecord(row) && String(row.message_id) === current.messageId &&
+    String(row.group_id) === current.groupId && String(row.user_id ?? (isRecord(row.sender) ? row.sender.user_id : '')) === current.senderId);
+  if (anchor < 0) return;
+  // Slice before validating entries, so malformed entries cannot expand the twenty-floor scope.
+  const selected = rows.slice(Math.max(0, anchor - 20), anchor + 1);
+  const messages: ContextMessage[] = [];
+  for (const row of selected) {
+    if (!isRecord(row) || row.message_type !== 'group' || String(row.group_id) !== current.groupId ||
+      !Array.isArray(row.message) || !/^-?\d+$/.test(String(row.message_id))) return;
+    const sender = String(row.user_id ?? (isRecord(row.sender) ? row.sender.user_id : ''));
+    if (!/^\d+$/.test(sender) || isRecord(row.sender) && row.sender.user_id !== undefined && String(row.sender.user_id) !== sender) return;
+    const segments = row.message.filter(isRecord);
+    const count = segments.filter(segment => segment.type === 'image').length;
+    const text = segments.filter(segment => segment.type === 'text' && isRecord(segment.data))
+      .map(segment => (segment.data as Record<string, unknown>).text).filter(value => typeof value === 'string').join('').slice(0, 1000);
+    messages.push({ id: String(row.message_id), senderId: sender, role: sender === current.selfId ? 'assistant' : 'user',
+      text, at: 0, revision: messages.length + 1, mentions: [], media: count > 0,
+      ...(count ? { imageCount: Math.min(count, 2) } : {}) });
+  }
+  if (new Set(messages.map(message => message.id)).size !== messages.length) return;
+  return messages;
+};

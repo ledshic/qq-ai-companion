@@ -134,3 +134,21 @@ for (const intervening of [19, 20]) {
     await h.input({}); assert.equal(h.viewed, intervening === 19 ? 1 : 0);
   });
 }
+
+test('a fresh process resolves an explicitly requested picture from bounded history without replaying old messages', async t => {
+  const memory = new ConversationMemory(new SqliteSessionStore(':memory:')); const sent: string[] = []; let historyCalls = 0; let viewed = 0; let generated = 0;
+  const row = (id: number, image = false) => ({ message_type: 'group', group_id: 3, user_id: 2, message_id: id,
+    sender: { user_id: 2 }, message: image ? [{ type: 'image', data: { url: 'https://gchat.qpic.cn/signed?PRIVATE' } }] : [{ type: 'text', data: { text: '大肥鱼，我前面发的图片现在能看到了吗' } }] });
+  const conversation = new Conversation({ unified: true, memory, log: () => {},
+    referenceHistory: async group => { historyCalls++; assert.equal(group, '3'); return { messages: [row(10, true), row(11)] }; },
+    imageRequest: async (_text, context, id) => { assert.equal(id, '10'); assert.doesNotMatch(JSON.stringify(context), /PRIVATE|qpic.cn/); return true; },
+    lookup: async id => { assert.equal(id, '10'); return row(10, true); },
+    vision: async () => { viewed++; return '看见图片了'; }, generate: async () => { generated++; return 'text'; },
+    send: async (_group, content, guard) => { if (await guard()) { sent.push(content); return content; } },
+  });
+  t.after(() => { conversation.disconnect(); memory.close(); });
+  conversation.handle({ groupId: '3', senderId: '2', selfId: '1', messageId: '11', content: '我前面发的图片现在能看到了吗', isMentioned: true });
+  await flush(); await flush();
+  assert.equal(historyCalls, 1); assert.equal(viewed, 1); assert.equal(generated, 0); assert.deepEqual(sent, ['看见图片了']);
+  assert.equal(memory.get('3', '2').length, 2, 'history inspection must not dispatch historical questions');
+});

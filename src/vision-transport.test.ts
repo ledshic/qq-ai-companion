@@ -114,3 +114,30 @@ test('WS preserves an ordinary image ID for a later explicit visual request with
     await delivered; assert.equal(views, 1); assert.equal(textCalls, 0);
   } finally { stop(); for (const socket of server.clients) socket.terminate(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test('WS cold start queries history anchored to the new request and reads the earlier image without replaying it', { timeout: 3000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 }); await once(server, 'listening');
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const connected = once(server, 'connection'); let views = 0; let textCalls = 0; const actions: string[] = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}`, '', async () => { textCalls++; return 'wrong'; }, undefined,
+    { unified: true, log: () => {}, imageRequest: async (_question, _context, id) => { assert.equal(id, '10'); return true; },
+      vision: async (_question, image) => { views++; assert.equal(image.url, 'https://gchat.qpic.cn/a'); return 'image reply'; } });
+  try {
+    const [peer] = await connected;
+    const pic = { message_type: 'group', group_id: 3, message_id: 10, user_id: 2, sender: { user_id: 2 },
+      message: [{ type: 'image', data: { url: 'https://gchat.qpic.cn/a' } }] };
+    const ask = { post_type: 'message', message_type: 'group', self_id: 1, group_id: 3, user_id: 2, message_id: 11,
+      message: [{ type: 'at', data: { qq: 1 } }, { type: 'text', data: { text: '看看前面的图' } }] };
+    const finished = new Promise<void>(resolve => peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString()); actions.push(action.action); let data: unknown;
+      if (action.action === 'get_group_msg_history') { assert.equal(action.params.count, 21); data = { messages: [pic, ask] }; }
+      else if (action.action === 'get_msg') { assert.equal(action.params.message_id, '10'); data = pic; }
+      else { assert.equal(action.action, 'send_group_msg'); assert.equal(action.params.message[0].data.text, 'image reply'); data = { message_id: 12 }; }
+      peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0, data }));
+      if (action.action === 'send_group_msg') resolve();
+    }));
+    peer.send(JSON.stringify(ask)); await finished;
+    assert.deepEqual(actions, ['get_group_msg_history', 'get_msg', 'send_group_msg']); assert.equal(views, 1); assert.equal(textCalls, 0);
+    await new Promise(setImmediate);
+  } finally { stop(); for (const socket of server.clients) socket.terminate(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});

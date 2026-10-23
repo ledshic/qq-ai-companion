@@ -72,7 +72,7 @@ console.log(llmEnabled
   ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
   : '[LLM] 未启用，使用固定回复。');
 if (llmEnabled) console.log(`[工具] 时间、骰子已启用；联网搜索${process.env.WEB_SEARCH_ENABLED === 'true' ? '已启用' : '未启用'}，仅呼叫与连续对话可用。`);
-console.log(`[识图] ${visionEnabled ? '已启用，仅明确呼叫时的单图或可验证引用图片。' : '未启用。'}`);
+console.log(`[识图] ${visionEnabled ? '已启用，明确呼叫时关联同条、引用或楼上本人单图；本地不足时按需查历史。' : '未启用。'}`);
 const followUpMode = (process.env.FOLLOW_UP_MODE || 'window').trim().toLowerCase();
 if (!['window', 'always', 'unified'].includes(followUpMode)) fail('FOLLOW_UP_MODE 只能是 window、always 或 unified。');
 const observationEnabled = llmEnabled && followUpMode !== 'always' && process.env.FOLLOW_UP_OBSERVE === 'true';

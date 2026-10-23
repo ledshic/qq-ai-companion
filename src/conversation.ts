@@ -4,7 +4,7 @@ import type { GroupMessage } from './message.js';
 import { handleGroupMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import type { VisionHandler, ImageResolver, ImageRequestJudge } from './vision.js';
-import { isBotGroupReply, isRecord, imageAttachments } from './onebot.js';
+import { isBotGroupReply, isRecord, imageAttachments, imageReferenceHistory } from './onebot.js';
 import type { GroupJudge, GroupJudgment } from './group-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
@@ -40,6 +40,7 @@ export interface ConversationOptions {
   vision?: VisionHandler;
   imageRequest?: ImageRequestJudge;
   resolveImage?: ImageResolver;
+  referenceHistory?: (groupId: string, signal: AbortSignal) => Promise<unknown>;
   lookup?: (messageId: string, signal: AbortSignal) => Promise<unknown>;
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
   generate?: (text: string, history: ChatTurn[], signal: AbortSignal, allowTools?: boolean, context?: ReplyContext) => Promise<string>;
@@ -571,14 +572,30 @@ export class Conversation {
     // Keep only its ID/count in discussion context; resolve bytes only after intent is confirmed.
     if (this.options.vision && this.options.imageRequest && content && content.length <= MAX_TEXT && content !== '/清空记忆' &&
         !message.replyMessageId && !message.attachments?.imageCount) {
-      const referenceContext = { ...context, snapshot: this.discussion.referenceSnapshot(message.groupId) };
+      let referenceContext = { ...context, snapshot: this.discussion.referenceSnapshot(message.groupId) };
       const currentIndex = referenceContext.snapshot.messages.findIndex(entry => entry.id === message.messageId);
       const above = currentIndex < 0 ? [] : referenceContext.snapshot.messages.slice(Math.max(0, currentIndex - 20), currentIndex);
-      const recent = [...above].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.senderId === message.senderId);
+      let recent = [...above].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.senderId === message.senderId);
+      if (!recent && above.length < 20 && this.options.referenceHistory) {
+        this.log('[识图] 本地附近记录不足，按楼层查询群历史。');
+        try {
+          const data = await this.options.referenceHistory(message.groupId, signal);
+          signal.throwIfAborted();
+          if (!this.senderCurrent(item)) return;
+          const history = imageReferenceHistory(data, message);
+          if (history) {
+            referenceContext = { ...context, snapshot: { ...context.snapshot, messages: history } };
+            recent = [...history].reverse().find(entry => entry.id !== message.messageId && entry.role === 'user' &&
+              entry.imageCount && entry.senderId === message.senderId);
+          }
+        } catch { signal.throwIfAborted(); this.log('[识图] 群历史查询失败，未读取历史图片。'); }
+      }
+      this.log(`[识图] 附近本人图片候选${recent ? '已找到' : '不存在'}。`);
       if (recent) {
         let inspect = false;
         try { inspect = await this.options.imageRequest(content, referenceContext, recent.id, signal); }
         catch { signal.throwIfAborted(); this.log('[识图] 图片指向判断失败，不自动读取先前图片。'); }
+        this.log(`[识图] 图片指向${inspect ? '已确认' : '未确认'}。`);
         if (inspect && !signal.aborted && this.senderCurrent(item)) {
           this.log('[识图] 明确请求指向附近同用户图片，查询原消息。');
           let data: unknown;
