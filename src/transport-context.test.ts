@@ -46,3 +46,40 @@ test('real WS acknowledgements retain the target and trigger; an addressed quote
     await new Promise<void>(resolve => server.close(() => resolve())); memory.close();
   }
 });
+
+
+test('bare OneBot mentions, whitespace and a following unmentioned question work end to end', { timeout: 5000 }, async () => {
+  const memory = new ConversationMemory(new SqliteSessionStore(':memory:'));
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 }); await once(server, 'listening');
+  const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const connected = once(server, 'connection'); let generated = 0; let judged = 0; const sent: string[] = [];
+  const stop = connectNapCat(`ws://127.0.0.1:${address.port}`, '', async () => { generated++; return 'actual answer'; },
+    async () => ({ intent: 'continue', shouldRespond: true, reason: 'question after calling the bot' }),
+    { unified: true, autoReply: true, memory, log: () => {}, judgeEvery: { cooldownMs: 0, hourlyCap: 10,
+      judge: async () => { judged++; return { respond: false, reason: 'not addressed' }; } } });
+  try {
+    const [peer] = await connected;
+    peer.on('message', (raw: RawData) => {
+      const action = JSON.parse(raw.toString()); assert.equal(action.action, 'send_group_msg');
+      sent.push(action.params.message[0].data.text);
+      peer.send(JSON.stringify({ echo: action.echo, status: 'ok', retcode: 0, data: { message_id: 100 + sent.length } }));
+    });
+    const input = (id: number, mention?: number, text?: string) => peer.send(JSON.stringify({ post_type: 'message', message_type: 'group',
+      self_id: 1, group_id: 3, user_id: 2, message_id: id, message: [
+        ...(mention ? [{ type: 'at', data: { qq: mention } }] : []), ...(text !== undefined ? [{ type: 'text', data: { text } }] : []),
+      ] }));
+    const settle = () => new Promise(resolve => setTimeout(resolve, 30));
+    input(1, 1); await settle();
+    assert.deepEqual(sent, ['在，咋了？']); assert.equal(generated, 0); assert.deepEqual(memory.get('3', '2'), []);
+    input(1, 1); await settle(); assert.equal(sent.length, 1, 'duplicate mention must not acknowledge twice');
+    input(2, 1, ' \n\t '); await settle(); assert.equal(sent.length, 2); assert.equal(generated, 0);
+    input(3, undefined, 'actual question'); await settle();
+    assert.deepEqual(sent, ['在，咋了？', '在，咋了？', 'actual answer']);
+    assert.equal(generated, 1); assert.equal(judged, 0);
+    assert.deepEqual(memory.get('3', '2').map(t => t.content), ['actual question', 'actual answer']);
+    input(4, 99); await settle(); assert.equal(sent.length, 3, 'mentioning someone else stays silent');
+  } finally {
+    stop(); for (const socket of server.clients) socket.terminate();
+    await new Promise<void>(resolve => server.close(() => resolve())); memory.close();
+  }
+});

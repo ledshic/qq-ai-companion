@@ -563,12 +563,15 @@ export class Conversation {
     const content = message.content.trim();
     const context = this.replyContext(item, 'explicit');
     let commit: ((delivered: string) => void) | undefined;
+    const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia;
     if (this.options.generate) {
       if (content === '/清空记忆') {
         this.options.memory.clear(message.groupId, message.senderId);
         this.windows.close(message.groupId, message.senderId);
         reply.content = '已清空你在本群与我的聊天记忆。';
         this.log('[记忆] 已清空当前会话。');
+      } else if (awaitingContent) {
+        reply.content = '在，咋了？';
       } else if (!content || content.length > MAX_TEXT) {
         reply.content = '请在 @、引用或称呼后发送 1 至 4000 个字符的文字。';
       } else {
@@ -588,14 +591,17 @@ export class Conversation {
       this.log('[取消] 生成完成前已被取代，不发送。');
       return;
     }
-    const guard = await this.sendApproval(item, context, reply.content, signal);
+    const guard = awaitingContent
+      ? () => !signal.aborted && this.senderCurrent(item)
+      : await this.sendApproval(item, context, reply.content, signal);
     if (!guard) return;
     const delivered = await this.options.send(message.groupId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId });
     if (!delivered) return;
     this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
-    this.awaitingInitial.delete(this.key(message));
+    if (awaitingContent) this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));
+    else this.awaitingInitial.delete(this.key(message));
     if (commit) commit(delivered);
-    if (this.options.judge && !signal.aborted) {
+    if (!awaitingContent && this.options.judge && !signal.aborted) {
       this.windows.open(this.windows.incoming(message.groupId, message.senderId));
       this.log(this.options.unified ? '[接续] 明确呼叫回复成功，开启可续期对话窗口。' : '[接续] 明确呼叫回复成功，开启固定接续窗口。');
     }

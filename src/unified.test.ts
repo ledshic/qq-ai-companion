@@ -445,3 +445,18 @@ test('legacy interjection and warmup prompt text also uses identifier aliases', 
   assert.equal(prompts.length, 2);
   for (const text of prompts) for (const id of ['11111111','22222222','33333333','99999999']) assert.equal(text.includes(id), false);
 });
+
+
+for (const text of ['', ' \n\t ']) {
+  test(`bare mention ${JSON.stringify(text)} acknowledges without model/memory and accepts the next question`, async t => {
+    const h = harness(t);
+    await h.input(text, 'a', true);
+    assert.deepEqual(h.sent, ['在，咋了？']);
+    assert.equal(h.generated.length, 0); assert.equal(h.decisions.length, 0);
+    assert.deepEqual(h.memory.get('g', 'a'), []);
+    await h.input('actual question');
+    assert.deepEqual(h.sent, ['在，咋了？', 'answer:actual question']);
+    assert.equal(h.followDecisions.length, 1); assert.equal(h.followDecisions[0].awaitingReply, true);
+    assert.deepEqual(h.memory.get('g', 'a').map(turn => turn.content), ['actual question', 'answer:actual question']);
+  });
+}
