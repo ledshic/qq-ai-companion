@@ -2,7 +2,7 @@
 
 开发主线为 qq-ai-companion。AstrBot v0.1.1 停止运行，保留为能力参考。第一目标是稳定连续交流和有理由的主动插话，其后补搜索、图片和表情包。
 
-配套说明见《QQ 群友机器人设计说明》。A–C 已完成代码实现与测试，运行配置切换为 unified。D 中的联网搜索已完成，图片、表情包及 E 仍待实施；实现边界与验证记录见 [A–C 实施记录](AC-IMPLEMENTATION.md)。
+配套说明见《QQ 群友机器人设计说明》。A–C 已完成代码实现与测试，运行配置切换为 unified。D 中的联网搜索和明确请求的单图理解已完成，表情包及 E 仍待实施；实现边界与验证记录见 [A–C 实施记录](AC-IMPLEMENTATION.md)。
 
 ## 1. 按顺序完成的工作
 
@@ -75,3 +75,5 @@ AstrBot 人格、表情资源与 TS 原有角色卡可能存在风格和许可�
 运行日志保存在旧项目 data/runtime/tsbot.log，PID 保存在 data/runtime/tsbot.pid；进程由本次会话独立启动，尚未配置开机自动运行或进程异常后的系统级守护。旧项目本轮保持原有功能和策略配置，A–C 后续已实施，详见 AC-IMPLEMENTATION.md；其他设计任务仍待实施。
 
 2026-10-23：D 阶段搜索已完成，见 [联网搜索实施记录](SEARCH-IMPLEMENTATION.md)。
+
+2026-10-23：D 阶段单图理解已完成，见 [单图理解实施记录](VISION-IMPLEMENTATION.md)。

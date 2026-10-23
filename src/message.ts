@@ -1,3 +1,4 @@
+import type { ImageAttachments } from './vision.js';
 export interface GroupMessage {
   groupId: string;
   senderId: string;
@@ -11,6 +12,8 @@ export interface GroupMessage {
   timestamp?: number;
   mentionedIds?: string[];
   hasMedia?: boolean;
+  attachments?: ImageAttachments;
+  quotedAttachments?: ImageAttachments;
   replyToSenderId?: string;
   replyMessageId?: string;
   isReplyToBot?: boolean;

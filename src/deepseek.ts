@@ -12,6 +12,7 @@ const MAX_TOOL_RESULT = 2000;
 export interface ReplyOptions {
   turns?: number;
   searchEnabled?: boolean;
+  visionEnabled?: boolean;
   searchKey?: string;
   log?: (line: string) => void;
 }
@@ -21,7 +22,7 @@ export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash',
   if (!apiKey.trim()) throw new Error('请在 .env 中配置 DEEPSEEK_API_KEY。');
   const turns = options.turns ?? 9;
   const log = options.log ?? console.log;
-  const system = chatSystemPrompt(turns, options.searchEnabled);
+  const system = chatSystemPrompt(turns, options.searchEnabled, options.visionEnabled);
   return async (content: string, history: ChatTurn[] = [], signal?: AbortSignal, allowTools = true, context?: ReplyContext): Promise<string> => {
     const bareMention = !content.trim() && context?.kind === 'explicit';
     const normalize = (text: string) => text.replace(/[\s\p{P}\p{S}]/gu, '');

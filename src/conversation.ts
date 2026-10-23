@@ -3,7 +3,8 @@ import { abortReason, isAbort } from './abort.js';
 import type { GroupMessage } from './message.js';
 import { handleGroupMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
-import { isBotGroupReply, isRecord } from './onebot.js';
+import type { VisionHandler, ImageResolver } from './vision.js';
+import { isBotGroupReply, isRecord, imageAttachments } from './onebot.js';
 import type { GroupJudge, GroupJudgment } from './group-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
@@ -36,6 +37,8 @@ export interface ConversationOptions {
   unified?: boolean;
   recordsDelivery?: boolean;
   send: (groupId: string, content: string, guard: SendGuard, target?: DeliveryTarget) => Promise<string | undefined>;
+  vision?: VisionHandler;
+  resolveImage?: ImageResolver;
   lookup?: (messageId: string, signal: AbortSignal) => Promise<unknown>;
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
   generate?: (text: string, history: ChatTurn[], signal: AbortSignal, allowTools?: boolean, context?: ReplyContext) => Promise<string>;
@@ -145,6 +148,7 @@ export class Conversation {
       if (isRecord(data) && data.message_type === 'group' && String(data.group_id) === message.groupId &&
           String(data.message_id) === message.replyMessageId && isRecord(data.sender) && /^\d+$/.test(String(data.sender.user_id))) {
         message.replyToSenderId = String(data.sender.user_id);
+        message.quotedAttachments = imageAttachments(data.message);
         const quotedText = typeof data.message === 'string' ? data.message : Array.isArray(data.message)
           ? data.message.filter(isRecord).filter(s => s.type === 'text' && isRecord(s.data))
             .map(s => (s.data as Record<string, unknown>).text).filter(s => typeof s === 'string').join('') : undefined;
@@ -563,13 +567,26 @@ export class Conversation {
     const content = message.content.trim();
     const context = this.replyContext(item, 'explicit');
     let commit: ((delivered: string) => void) | undefined;
-    const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia;
+    const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia && !(message.quotedAttachments?.imageCount);
     if (this.options.generate) {
       if (content === '/清空记忆') {
         this.options.memory.clear(message.groupId, message.senderId);
         this.windows.close(message.groupId, message.senderId);
         reply.content = '已清空你在本群与我的聊天记忆。';
         this.log('[记忆] 已清空当前会话。');
+      } else if (content.length > MAX_TEXT) {
+        reply.content = '文字太长了，请缩短到 4000 个字符以内。';
+      } else if ((message.attachments?.imageCount ?? 0) + (message.quotedAttachments?.imageCount ?? 0) > 0) {
+        const count = (message.attachments?.imageCount ?? 0) + (message.quotedAttachments?.imageCount ?? 0);
+        if (count !== 1) reply.content = '目前一次只能看一张图，请单独发或引用一张。';
+        else if (!this.options.vision) reply.content = '当前没有启用图片理解，暂时看不了这张图。';
+        else {
+          const image = message.attachments?.images[0] ?? message.quotedAttachments!.images[0];
+          reply.content = await this.options.vision(content, image, signal, context, this.options.resolveImage);
+          commit = delivered => this.options.memory.add(message.groupId, message.senderId, content + '\n[本次附带或引用了一张图片；历史只保留文字回答，未保留原图。]', delivered);
+        }
+      } else if (message.replyMessageId && /图片|照片|截图|图里|图中|图上|这张图/.test(content)) {
+        reply.content = '没能从这条引用中取得可验证的图片，请重新发图或引用一条单图消息。';
       } else if (awaitingContent) {
         try {
           reply.content = await this.options.generate('', this.options.memory.get(message.groupId, message.senderId), signal, false, context);

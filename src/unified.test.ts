@@ -87,7 +87,9 @@ test('OneBot retains message ID, sender, timestamp, media and quote/mention meta
     ] })!;
   assert.equal(m.messageId, '-42'); assert.equal(m.senderName, 'A'); assert.equal(m.timestamp, 123000);
   assert.equal(m.replyMessageId, '-7'); assert.deepEqual(m.mentionedIds, ['9']); assert.equal(m.hasMedia, true);
-  assert.equal(JSON.stringify(m).includes('not-stored'), false);
+  assert.equal(m.attachments?.images[0].url, 'not-stored');
+  const discussion = new GroupContext(); discussion.add(m);
+  assert.equal(JSON.stringify(discussion.snapshot(m.groupId)).includes('not-stored'), false);
 });
 
 test('continuous follow-ups bypass proactive cooldown/cap and renew past two responses', async t => {

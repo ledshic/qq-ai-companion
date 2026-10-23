@@ -1,8 +1,18 @@
+import type { ImageAttachments } from './vision.js';
 import { stripBotName } from './addressing.js';
 import type { GroupMessage } from './message.js';
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const imageAttachments = (segments: unknown): ImageAttachments => {
+  const images = Array.isArray(segments) ? segments.filter(isRecord).filter(s => s.type === 'image') : [];
+  return { imageCount: images.length, images: images.slice(0, 2).map(s => {
+    const data = isRecord(s.data) ? s.data : {};
+    return { ...(typeof data.url === 'string' && data.url.length <= 8192 ? { url: data.url } : {}),
+      ...(typeof data.file === 'string' && data.file.length <= 512 ? { file: data.file } : {}) };
+  }) };
+};
 
 const isId = (value: unknown): value is string | number =>
   (typeof value === 'string' && /^\d+$/.test(value)) ||
@@ -31,6 +41,7 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
       ? String(event.sender.card || event.sender.nickname).slice(0, 80) : undefined,
     timestamp: typeof event.time === 'number' && Number.isFinite(event.time) ? event.time * 1000 : undefined,
     mentionedIds: segments.filter(s => s.type === 'at' && isRecord(s.data)).map(s => String((s.data as Record<string, unknown>).qq)),
+    attachments: imageAttachments(segments),
     hasMedia: segments.some(s => ['image', 'record', 'video', 'file'].includes(String(s.type))),
     replyMessageId: (typeof replyId === 'number' && Number.isSafeInteger(replyId)) ||
       (typeof replyId === 'string' && /^-?\d+$/.test(replyId)) ? String(replyId) : undefined,

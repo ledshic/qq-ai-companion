@@ -1,3 +1,4 @@
+import type { VisionHandler } from './vision.js';
 import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
 import { deliverPersonaReply } from './delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
@@ -9,6 +10,7 @@ import type { FollowUpJudge } from './observation.js';
 import { isRecord, parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
+  vision?: VisionHandler;
   autoReply?: boolean;
   unified?: boolean;
   memory?: ConversationMemory;
@@ -83,7 +85,7 @@ export const connectNapCat = (url: string, token: string,
     });
   };
 
-  const lookup = (messageId: string, signal: AbortSignal): Promise<unknown> => {
+  const actionLookup = (action: string, params: Record<string, unknown>, signal: AbortSignal): Promise<unknown> => {
     const target = activeSocket();
     if (!target || signal.aborted) return Promise.resolve(null);
     return new Promise(resolve => {
@@ -97,7 +99,7 @@ export const connectNapCat = (url: string, token: string,
       };
       lookups.set(echo, { resolve, timer: setTimeout(() => settle(null), 5000) });
       signal.addEventListener('abort', () => settle(null), { once: true });
-      target.send(JSON.stringify({ action: 'get_msg', params: { message_id: messageId }, echo }), error => {
+      target.send(JSON.stringify({ action, params, echo }), error => {
         if (error) settle(null);
       });
     });
@@ -108,7 +110,9 @@ export const connectNapCat = (url: string, token: string,
     unified: options.unified,
     recordsDelivery: true,
     send: deliver,
-    lookup,
+    lookup: (messageId, signal) => actionLookup('get_msg', { message_id: messageId }, signal),
+    resolveImage: (file, signal) => actionLookup('get_image', { file }, signal),
+    vision: options.vision,
     judge: judgeFollowUp,
     generate: generateReply,
     maxInflight: options.maxInflight,
