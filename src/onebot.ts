@@ -25,6 +25,13 @@ export const parseGroupMessage = (event: unknown): GroupMessage | null => {
   const addressedContent = first?.type === 'text' ? stripBotName(content) : undefined;
   return {
     selfId: String(event.self_id),
+    messageId: (typeof event.message_id === 'number' && Number.isSafeInteger(event.message_id)) ||
+      (typeof event.message_id === 'string' && /^-?\d+$/.test(event.message_id)) ? String(event.message_id) : undefined,
+    senderName: isRecord(event.sender) && typeof (event.sender.card || event.sender.nickname) === 'string'
+      ? String(event.sender.card || event.sender.nickname).slice(0, 80) : undefined,
+    timestamp: typeof event.time === 'number' && Number.isFinite(event.time) ? event.time * 1000 : undefined,
+    mentionedIds: segments.filter(s => s.type === 'at' && isRecord(s.data)).map(s => String((s.data as Record<string, unknown>).qq)),
+    hasMedia: segments.some(s => ['image', 'record', 'video', 'file'].includes(String(s.type))),
     replyMessageId: (typeof replyId === 'number' && Number.isSafeInteger(replyId)) ||
       (typeof replyId === 'string' && /^-?\d+$/.test(replyId)) ? String(replyId) : undefined,
     groupId: String(event.group_id),

@@ -6,6 +6,12 @@ export interface GroupMessage {
   hasAnyMention?: boolean;
   isCalledByName?: boolean;
   selfId?: string;
+  messageId?: string;
+  senderName?: string;
+  timestamp?: number;
+  mentionedIds?: string[];
+  hasMedia?: boolean;
+  replyToSenderId?: string;
   replyMessageId?: string;
   isReplyToBot?: boolean;
 }

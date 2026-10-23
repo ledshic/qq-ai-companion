@@ -1,3 +1,4 @@
+import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
 import { deliverPersonaReply } from './delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +10,7 @@ import { isRecord, parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
   autoReply?: boolean;
+  unified?: boolean;
   memory?: ConversationMemory;
   maxInflight?: number;
   maxWindows?: number;
@@ -25,7 +27,7 @@ export interface NapCatOptions {
 // Transport only: authenticate, route action echoes and hand parsed group
 // messages to the conversation scheduler.
 export const connectNapCat = (url: string, token: string,
-  generateReply?: (content: string, history: ChatTurn[], signal: AbortSignal) => Promise<string>,
+  generateReply?: (content: string, history: ChatTurn[], signal: AbortSignal, allowTools?: boolean, context?: ReplyContext) => Promise<string>,
   judgeFollowUp?: FollowUpJudge,
   options: NapCatOptions = {}) => {
   const log = options.log ?? console.log;
@@ -34,7 +36,7 @@ export const connectNapCat = (url: string, token: string,
   let socket: WebSocket;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
   const sendQueues = new Map<string, Promise<void>>();
-  const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void }>();
+  const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void; groupId: string; content: string; target?: DeliveryTarget }>();
   const lookups = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: (data: unknown) => void }>();
 
   const enqueueSend = <T,>(group: string, task: () => Promise<T>): Promise<T> => {
@@ -49,9 +51,9 @@ export const connectNapCat = (url: string, token: string,
   const activeSocket = (): WebSocket | undefined =>
     !stopped && socket?.readyState === WebSocket.OPEN ? socket : undefined;
 
-  const sendPart = (target: WebSocket, groupId: string, content: string, finish: (success: boolean) => void): void => {
+  const sendPart = (target: WebSocket, groupId: string, content: string, finish: (success: boolean) => void, targetInfo?: DeliveryTarget): void => {
     const echo = randomUUID();
-    pending.set(echo, { finish, timer: setTimeout(() => {
+    pending.set(echo, { finish, groupId, content, target: targetInfo, timer: setTimeout(() => {
       pending.delete(echo); finish(false);
       console.error('[NapCat] 回复确认超时，不自动重发。');
     }, 10_000) });
@@ -65,13 +67,17 @@ export const connectNapCat = (url: string, token: string,
     });
   };
 
-  const deliver = (groupId: string, content: string, guard: () => boolean): Promise<string | undefined> => {
+  const deliver = (groupId: string, content: string, guard: SendGuard, targetInfo?: DeliveryTarget): Promise<string | undefined> => {
     const target = activeSocket();
     if (!target) return Promise.resolve(undefined);
     return new Promise(resolve => {
       void enqueueSend(groupId, () => deliverPersonaReply(content,
-        part => new Promise<boolean>(partDone => sendPart(target, groupId, part, partDone)),
-        () => !stopped && socket === target && target.readyState === WebSocket.OPEN && guard()))
+        part => new Promise<boolean>(partDone => sendPart(target, groupId, part, partDone, targetInfo)),
+        async () => {
+          if (stopped || socket !== target || target.readyState !== WebSocket.OPEN) return false;
+          if (!await guard()) return false;
+          return !stopped && socket === target && target.readyState === WebSocket.OPEN;
+        }))
         .then(delivered => resolve(delivered || undefined))
         .catch(() => resolve(undefined));
     });
@@ -99,6 +105,8 @@ export const connectNapCat = (url: string, token: string,
 
   const conversation = new Conversation({
     memory,
+    unified: options.unified,
+    recordsDelivery: true,
     send: deliver,
     lookup,
     judge: judgeFollowUp,
@@ -157,6 +165,9 @@ export const connectNapCat = (url: string, token: string,
           clearTimeout(pendingEntry.timer);
           pending.delete(event.echo);
           const success = event.status === 'ok' && event.retcode === 0;
+          if (success) conversation.acknowledged(pendingEntry.groupId, pendingEntry.content,
+            isRecord(event.data) && (typeof event.data.message_id === 'string' || typeof event.data.message_id === 'number')
+              ? String(event.data.message_id) : undefined, pendingEntry.target);
           pendingEntry.finish(success);
           log(success ? '[NapCat] 回复发送成功。' : '[NapCat] 回复发送失败，请查看 NapCat 日志。');
           return;

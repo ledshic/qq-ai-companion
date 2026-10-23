@@ -20,3 +20,19 @@ test('interruptions and send failures keep only text actually delivered', async 
   let calls = 0;
   assert.equal(await deliverPersonaReply('一\n二', async () => ++calls === 1, () => true, async () => {}), '一');
 });
+
+
+test('asynchronous timing guards are awaited before each segment', async () => {
+  const sent: string[] = []; let checks = 0;
+  const delivered = await deliverPersonaReply('one\ntwo', async text => { sent.push(text); return true; },
+    async () => ++checks === 1, async () => {});
+  assert.deepEqual(sent, ['one']); assert.equal(delivered, 'one');
+});
+
+
+test('a failed asynchronous recheck preserves the already delivered prefix', async () => {
+  const sent: string[] = []; let checks = 0;
+  const delivered = await deliverPersonaReply('one\ntwo', async text => { sent.push(text); return true; },
+    async () => { if (++checks > 1) throw new Error('review unavailable'); return true; }, async () => {});
+  assert.deepEqual(sent, ['one']); assert.equal(delivered, 'one');
+});

@@ -1,8 +1,9 @@
+import type { ReplyContext } from './context.js';
 import type { ChatTurn } from './memory.js';
 
 export type FollowUpIntent = 'continue' | 'pause' | 'end' | 'uncertain';
 export interface FollowUpDecision { intent: FollowUpIntent; shouldRespond: boolean; reason: string }
-export type FollowUpJudge = (content: string, history: ChatTurn[], signal?: AbortSignal) => Promise<FollowUpDecision>;
+export type FollowUpJudge = (content: string, history: ChatTurn[], signal?: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
 export interface WindowState {
   group: string;
   sender: string;
@@ -17,7 +18,7 @@ export type FollowUpCandidate = (() => boolean) & { consume: () => boolean };
 // participant in one group. Another member speaking is not an interruption.
 export class ObservationWindows {
   private windows = new Map<string, WindowState>();
-  constructor(private now = Date.now, private duration = 60_000, private maxWindows = 100) {}
+  constructor(private now = Date.now, private duration = 60_000, private maxWindows = 100, private maxReplies = 2) {}
 
   private key(group: string, sender: string): string {
     return JSON.stringify([group, sender]);
@@ -79,18 +80,18 @@ export class ObservationWindows {
       return '窗口已关闭，等待明确呼叫';
     }
     if (state.until <= this.now()) return '窗口已到期（60秒）';
-    if (state.used >= 2) return '自动接话额度已用完（2次）';
+    if (state.used >= this.maxReplies) return '自动接话额度已用完（2次）';
     return undefined;
   }
 
   candidate(group: string, sender: string): FollowUpCandidate | undefined {
     const key = this.key(group, sender);
     const state = this.windows.get(key);
-    if (!state || state.until <= this.now() || state.used >= 2) return undefined;
+    if (!state || state.until <= this.now() || state.used >= this.maxReplies) return undefined;
     const deadline = state.until;
     const version = state.version;
     const valid = () => this.windows.get(key) === state && state.until === deadline &&
-      state.version === version && deadline > this.now() && state.used < 2;
+      state.version === version && deadline > this.now() && state.used < this.maxReplies;
     return Object.assign(valid, { consume: () => {
       if (!valid()) return false;
       state.used++;

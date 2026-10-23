@@ -1,5 +1,11 @@
 # QQ AI Companion
 
+## 当前开发方向
+
+A–C 已实施：`FOLLOW_UP_MODE=unified` 使用共享群上下文、独立接续与插话规则，并在每段发送前检查时机。实施与验证见 [A–C 实施记录](docs/AC-IMPLEMENTATION.md)。离线回放运行 `pnpm replay`，不连接 QQ 或模型。
+
+已恢复 TS bot 作为开发主线，AstrBot 项目暂停。设计依据见 [QQ 群友机器人设计](docs/QQBOT-DESIGN.md)，后续任务与验收见 [短期目标大纲](docs/SHORT-TERM-PLAN.md)。搜索、图片与表情包等后续目标尚未实现。
+
 A minimal Node.js and TypeScript foundation for a QQ AI companion.
 
 ## Requirements
@@ -168,7 +174,7 @@ replies keep working, and all three triggers share the same memory.
 
 Name calls, mentions and verified replies share the same group/user memory.
 
-## Follow-up observation mode
+## Legacy follow-up observation mode
 
 `FOLLOW_UP_OBSERVE=true` enables the explicitly authorized observation scope.
 After a successful generated reply is acknowledged by NapCat, a fixed 60-second
@@ -188,7 +194,7 @@ or conversation history. Late results that arrive after the window closed are
 discarded; errors default to no response. Restarting clears windows but keeps
 memory, which is persisted. Set `FOLLOW_UP_OBSERVE=false` to disable.
 
-## Limited automatic follow-ups
+## Legacy limited automatic follow-ups
 
 Set `FOLLOW_UP_AUTO=true` and `FOLLOW_UP_OBSERVE=false` to enable. Observation
 mode takes precedence if both are true, and setting both false disables follow-ups.
@@ -205,7 +211,7 @@ Judging and generation are serialized per participant; a candidate that arrives
 while that participant is busy waits instead of being skipped. No response is
 sent for a negative judgment or a window that expired or closed.
 
-## Judging every message
+## Legacy every-message mode
 
 `FOLLOW_UP_MODE=always` removes the window: every ordinary group message goes to
 a judge that decides whether the bot should answer it, using the recent group
@@ -216,7 +222,7 @@ group, and `AUTO_REPLY_HOURLY_CAP` (default 12) per group per hour.
 In this mode `MAX_WINDOWS` and `WINDOW_SECONDS` do not apply, and random
 interjection is skipped because the judge already covers it. Each message costs
 one extra model call of a few hundred tokens, so the mode trades money for
-naturalness; `FOLLOW_UP_MODE=window` (the default) stays cheaper.
+naturalness; `FOLLOW_UP_MODE=window` (the legacy window policy) stays cheaper.
 
 ## Follow-up judgment and diagnostics
 
@@ -257,9 +263,7 @@ decides synchronously, every await is a yield point, and the task owns one
 
 ## Proactive participation
 
-Two opt-in features let the bot speak without being addressed. Both read a short
-rolling buffer of recent group text (at most 12 messages, 5 minutes) and send it
-to the model with the request; message IDs and account IDs are never included.
+Two opt-in features let the bot speak without being addressed. They read the structured short-lived group context (by default 60 messages, 5 minutes, bounded text length). Account, group and message identifier fields are replaced with consistent aliases before model requests. The random interjection path below is a legacy option; unified mode uses semantic judgment and a separate proactive budget.
 
 `INTERJECT_PROBABILITY` (0-1, default 0) is the chance that an ordinary group
 message makes the bot chime in. It fires at most once per group per
@@ -281,13 +285,15 @@ explicit call, and neither starts while `MAX_INFLIGHT` slots are saturated.
 
 ## Privacy note
 
-With a proactive feature enabled, the recent group text is part of the model
-request. IDs are still excluded, and with both features off a request contains
-only the triggering message, that caller's history and the persona card.
+Participating requests can include the current group discussion even for explicit calls.
+Account, group and message identifier fields use snapshot-local aliases; nicknames and
+message text are still sent as discussion data and are not automatically redacted.
+The group buffer is in memory only. Per-person conversation memory remains isolated
+by group and sender in SQLite. See docs/AC-IMPLEMENTATION.md for limits and validation.
 
 ## Upstream whale persona
 
-`config/personas/dafeiyu.md` is the full upstream QQ group-friend character card
+`config/personas/dafeiyu.md` is an adaptation of the upstream QQ group-friend character card
 from mtshang/make-your-qq-ai-group-member, retained under its MIT license
 (`config/personas/LICENSE.mtshang`). `src/persona.ts` loads it from the project,
 independent of the shell's current directory. Restart the Node bot after edits.

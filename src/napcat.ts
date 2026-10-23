@@ -70,10 +70,10 @@ console.log(llmEnabled
   : '[LLM] 未启用，使用固定回复。');
 if (llmEnabled) console.log('[工具] 已启用 get_current_time、roll_dice，仅明确呼叫时可用。');
 const followUpMode = (process.env.FOLLOW_UP_MODE || 'window').trim().toLowerCase();
-if (!['window', 'always'].includes(followUpMode)) fail('FOLLOW_UP_MODE 只能是 window 或 always。');
-const observationEnabled = llmEnabled && followUpMode === 'window' && process.env.FOLLOW_UP_OBSERVE === 'true';
-const autoReplyEnabled = llmEnabled && followUpMode === 'window' && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
-const judgeEvery = (llmEnabled && followUpMode === 'always')
+if (!['window', 'always', 'unified'].includes(followUpMode)) fail('FOLLOW_UP_MODE 只能是 window、always 或 unified。');
+const observationEnabled = llmEnabled && followUpMode !== 'always' && process.env.FOLLOW_UP_OBSERVE === 'true';
+const autoReplyEnabled = llmEnabled && followUpMode !== 'always' && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
+const judgeEvery = (llmEnabled && (followUpMode === 'always' || followUpMode === 'unified'))
   ? {
     judge: createGroupJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash'),
     cooldownMs: readNumber('AUTO_REPLY_COOLDOWN_SECONDS', 45, 0, 3600) * 1000,
@@ -83,10 +83,14 @@ const judgeEvery = (llmEnabled && followUpMode === 'always')
 const judge = (observationEnabled || autoReplyEnabled)
   ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
   : undefined;
+const groupContextMessages = readNumber('GROUP_CONTEXT_MESSAGES', 60, 1, 120);
+const groupContextSeconds = readNumber('GROUP_CONTEXT_SECONDS', 300, 10, 3600);
 const maxInflight = readNumber('MAX_INFLIGHT', 3, 1, 16);
 const maxWindows = readNumber('MAX_WINDOWS', 12, 1, 1000);
 const windowSeconds = readNumber('WINDOW_SECONDS', 90, 10, 600);
-console.log(judgeEvery
+console.log(followUpMode === 'unified' && judgeEvery
+  ? `[接话] 统一调度：呼叫优先，接续窗口 ${windowSeconds} 秒且成功后续期；主动插话冷却 ${judgeEvery.cooldownMs / 1000} 秒，上限 ${judgeEvery.hourlyCap} 次/小时。`
+  : judgeEvery
   ? `[接话] 每句判断模式：每个普通群消息都过判断器，冷却 ${judgeEvery.cooldownMs / 1000} 秒，上限 ${judgeEvery.hourlyCap} 次/小时。`
   : observationEnabled ? '[观察] 仅判断不回复。' : autoReplyEnabled ? `[自动接话] 每个用户独立 ${windowSeconds} 秒窗口，最多2次。` : '[接续] 已关闭。');
 console.log(judgeEvery
@@ -122,6 +126,7 @@ console.log(warmup
 
 const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, {
   autoReply: autoReplyEnabled,
+  unified: followUpMode === 'unified',
   memory,
   maxInflight,
   maxWindows,
@@ -129,6 +134,7 @@ const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateRepl
   interject,
   warmup,
   judgeEvery,
+  context: { maxMessages: groupContextMessages, ttlMs: groupContextSeconds * 1000 },
 });
 
 const tickMs = readNumber('WARMUP_INTERVAL_MINUTES', 30, 1, 1440) * 60_000;
