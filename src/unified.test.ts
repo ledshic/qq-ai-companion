@@ -18,7 +18,7 @@ function harness(t: { after: (fn: () => void) => void }, cap = 10, cooldownMs = 
   let now = 1000, sequence = 0;
   const memory = new ConversationMemory(new SqliteSessionStore(':memory:'), () => now);
   const h = {
-    sent: [] as string[], logs: [] as string[], generated: [] as ReplyContext[], decisions: [] as ReplyContext[], followDecisions: [] as ReplyContext[],
+    toolPermissions: [] as (boolean | undefined)[], sent: [] as string[], logs: [] as string[], generated: [] as ReplyContext[], decisions: [] as ReplyContext[], followDecisions: [] as ReplyContext[],
     groupJudge: (async input => ({ respond: input.text !== 'noise', reason: 'test', topicKey: 'topic-a',
       targetSenderId: input.context?.targetSenderId, basisIds: [...(input.context?.triggerIds ?? [])] })) as GroupJudge,
     followJudge: (async text => ({ intent: text === 'pause' ? 'pause' : text === 'end' ? 'end' : text === 'other' ? 'uncertain' : 'continue',
@@ -39,7 +39,7 @@ function harness(t: { after: (fn: () => void) => void }, cap = 10, cooldownMs = 
       h.followDecisions.push(context!); return h.followJudge(text, history, signal, context);
     },
     generate: async (text, _history, signal, _tools, context) => {
-      h.generated.push(context!); return h.generate(text, context!, signal);
+      h.toolPermissions.push(_tools); h.generated.push(context!); return h.generate(text, context!, signal);
     },
     send: async (_group, text, guard) => {
       if (h.sendOverride) return h.sendOverride(text, guard);
@@ -460,3 +460,17 @@ for (const text of ['', ' \n\t ']) {
     assert.deepEqual(h.memory.get('g', 'a').map(turn => turn.content), ['actual question', 'answer:actual question']);
   });
 }
+
+
+test('search tools are allowed for explicit calls and follow-ups including after bare mention, never proactive', async t => {
+  const h = harness(t);
+  await h.input('question', 'a');
+  assert.equal(h.toolPermissions.at(-1), false);
+  await h.input('explicit', 'b', true);
+  assert.equal(h.toolPermissions.at(-1), true);
+  await h.input('followup', 'b');
+  assert.equal(h.toolPermissions.at(-1), true);
+  await h.input('', 'c', true);
+  await h.input('search public facts', 'c');
+  assert.equal(h.toolPermissions.at(-1), true);
+});

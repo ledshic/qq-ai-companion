@@ -63,12 +63,12 @@ try {
 const memoryTurns = readNumber('MEMORY_TURNS', 9, 1, 50);
 const memory = new ConversationMemory(new SqliteSessionStore(memoryPath), Date.now, 30 * 60_000, memoryTurns);
 const generateReply = llmEnabled
-  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns })
+  ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns, searchEnabled: process.env.WEB_SEARCH_ENABLED === 'true' })
   : undefined;
 console.log(llmEnabled
   ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
   : '[LLM] 未启用，使用固定回复。');
-if (llmEnabled) console.log('[工具] 已启用 get_current_time、roll_dice，仅明确呼叫时可用。');
+if (llmEnabled) console.log(`[工具] 时间、骰子已启用；联网搜索${process.env.WEB_SEARCH_ENABLED === 'true' ? '已启用' : '未启用'}，仅呼叫与连续对话可用。`);
 const followUpMode = (process.env.FOLLOW_UP_MODE || 'window').trim().toLowerCase();
 if (!['window', 'always', 'unified'].includes(followUpMode)) fail('FOLLOW_UP_MODE 只能是 window、always 或 unified。');
 const observationEnabled = llmEnabled && followUpMode !== 'always' && process.env.FOLLOW_UP_OBSERVE === 'true';

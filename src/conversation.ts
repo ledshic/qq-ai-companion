@@ -482,7 +482,7 @@ export class Conversation {
     }
     if (!this.options.autoReply || !decision.shouldRespond || !this.options.generate) return;
     const generationContext: ReplyContext = { ...context, decision: { reason: decision.reason } };
-    const answer = await this.options.generate(item.text, history, signal, false, generationContext);
+    const answer = await this.options.generate(item.text, history, signal, true, generationContext);
     if (candidate && !candidate()) {
       this.log('[自动接话] 发送前窗口失效，取消回复。');
       return;
