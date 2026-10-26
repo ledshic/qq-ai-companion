@@ -1,3 +1,7 @@
+import type { Inbound } from './participation-types.js';
+import { isExplicitCall, directedElsewhere, awaitingFollowUp, admitsWindowFollowUp, admitsEveryMessage,
+  canMergeFragment, mergedFragment, repeatsUnansweredTopic } from './participation-policy.js';
+import { ProactiveBudget } from './proactive-budget.js';
 import { generateExplicitReply } from './explicit-reply.js';
 import { handleConversationCommand } from './conversation-command.js';
 import { createReplyContextPreparer } from './reply-context.js';
@@ -66,19 +70,6 @@ export interface ConversationOptions {
   log?: (line: string) => void;
 }
 
-type Kind = 'explicit' | 'follow-up' | 'interject' | 'judge';
-
-interface Inbound {
-  kind: Kind;
-  message: GroupMessage;
-  text: string;
-  receivedAt: number;
-  candidate?: FollowUpCandidate;
-  senderVersion?: number;
-  awaitingReply?: boolean;
-  triggerIds?: string[];
-}
-
 // One cooperative task per (group, sender). Every await is a yield point, and
 // the controller is the single cancellation path for the task.
 interface Session {
@@ -88,7 +79,6 @@ interface Session {
   active?: Inbound;
 }
 
-const MERGE_MS = 3000;
 const MAX_TEXT = 4000;
 const DEFAULT_CONTEXT: ContextOptions = { maxMessages: 60, ttlMs: 5 * 60_000 };
 
@@ -108,11 +98,8 @@ export class Conversation {
   private readonly random: () => number;
   private readonly context: ContextOptions;
   private readonly discussion: GroupContext;
+  private readonly proactiveBudget: ProactiveBudget;
   private readonly proactiveInFlight = new Set<string>();
-  private readonly lastInterject = new Map<string, number>();
-  private readonly lastWarmup = new Map<string, number>();
-  private readonly lastAuto = new Map<string, number>();
-  private readonly hourly = new Map<string, { hour: number; count: number }>();
   private readonly warmups = new Set<AbortController>();
   private lifecycle = 0;
   private background?: AbortController;
@@ -121,6 +108,7 @@ export class Conversation {
   constructor(private readonly options: ConversationOptions) {
     this.prepareContext = createReplyContextPreparer(options);
     this.now = options.now ?? Date.now;
+    this.proactiveBudget = new ProactiveBudget(this.now);
     this.random = options.random ?? Math.random;
     this.log = options.log ?? console.log;
     this.context = options.context ?? DEFAULT_CONTEXT;
@@ -172,8 +160,7 @@ export class Conversation {
     const text = message.content.trim();
     const senderVersion = this.discussion.senderVersion(message.groupId, message.senderId);
     const base = { message, text, receivedAt: this.now(), senderVersion, triggerIds: [message.messageId!] };
-    const explicit = message.isMentioned || message.isCalledByName || message.isReplyToBot ||
-      (!this.options.unified && message.replyMessageId);
+    const explicit = isExplicitCall(message, !!this.options.unified);
     if (explicit) {
       this.background?.abort(new Error('foreground_priority'));
       if (this.options.unified) {
@@ -190,17 +177,16 @@ export class Conversation {
       // A later message from this participant invalidates their old draft, but
       // another participant never cancels an explicit or follow-up response.
       session.controller?.abort(new Error('同一用户已补充新消息'));
-      if (message.hasAnyMention || message.replyToSenderId && message.replyToSenderId !== message.selfId) {
+      if (directedElsewhere(message)) {
         session.pending = undefined;
         this.log('[跳过] 当前消息指向其他群友。'); return;
       }
       // Preserve an unanswered explicit request when its author adds a split
       // sentence. Judge the addition before regenerating; pause/end stays silent.
-      if (this.options.judge && (session.active?.kind === 'explicit' || session.active?.awaitingReply || session.pending?.awaitingReply || (this.awaitingInitial.get(this.key(message)) ?? 0) > this.now())) {
+      if (this.options.judge && (awaitingFollowUp(session.active, session.pending, this.awaitingInitial.get(this.key(message)) ?? 0, this.now()))) {
         const pending = session.pending;
-        if (pending?.awaitingReply && this.now() - pending.receivedAt < MERGE_MS && pending.text.length + text.length < MAX_TEXT) {
-          pending.text += `\n${text}`; pending.receivedAt = this.now(); pending.senderVersion = senderVersion;
-          pending.triggerIds = [...(pending.triggerIds ?? []), message.messageId!];
+        if (canMergeFragment(pending, text, this.now(), 'awaiting')) {
+          Object.assign(pending, mergedFragment(pending, text, this.now(), senderVersion, message.messageId!));
         } else session.pending = { ...base, kind: 'follow-up', awaitingReply: true };
         void this.run(session); return;
       }
@@ -210,16 +196,12 @@ export class Conversation {
     }
     const candidate = this.options.judge ? this.windows.candidate(message.groupId, message.senderId) : undefined;
     if (candidate) {
-      if (message.hasAnyMention || message.replyToSenderId && message.replyToSenderId !== message.selfId ||
-          !text || text.length > MAX_TEXT) {
+      if (!admitsWindowFollowUp(message, text)) {
         this.log('[跳过] 消息指向他人、无文本或文本超限。'); return;
       }
       const pending = session.pending;
-      if (pending && pending.kind === 'follow-up' && this.now() - pending.receivedAt < MERGE_MS &&
-          pending.text.length + text.length < MAX_TEXT) {
-        pending.text = `${pending.text}\n${text}`;
-        pending.receivedAt = this.now(); pending.senderVersion = senderVersion;
-        pending.triggerIds = [...(pending.triggerIds ?? []), message.messageId!];
+      if (canMergeFragment(pending, text, this.now(), 'follow-up')) {
+        Object.assign(pending, mergedFragment(pending, text, this.now(), senderVersion, message.messageId!));
         return;
       }
       session.pending = { ...base, kind: 'follow-up', candidate };
@@ -318,7 +300,7 @@ export class Conversation {
     this.sessions.clear();
     this.windows.clear();
     this.awaitingInitial.clear();
-    if (!this.options.unified) { this.lastAuto.clear(); this.hourly.clear(); }
+    this.proactiveBudget.disconnected(!!this.options.unified);
   }
 
   private key(message: GroupMessage): string {
@@ -334,17 +316,12 @@ export class Conversation {
     return session;
   }
 
-  private cooling(map: Map<string, number>, groupId: string, cooldownMs: number): boolean {
-    const last = map.get(groupId);
-    return last !== undefined && this.now() - last < cooldownMs;
-  }
-
   private maybeInterject(session: Session, message: GroupMessage, text: string): void {
     const interject = this.options.interject;
     if (!interject || !this.options.generate) return;
     if (session.pending) return;
     if (!text || text.length > MAX_TEXT) return;
-    if (this.cooling(this.lastInterject, message.groupId, interject.cooldownMs)) return;
+    if (this.proactiveBudget.cooling('interject', message.groupId, interject.cooldownMs)) return;
     if (this.random() >= interject.probability) return;
     session.pending = { kind: 'interject', message, text, receivedAt: this.now(),
       senderVersion: this.discussion.senderVersion(message.groupId, message.senderId), triggerIds: [message.messageId!] };
@@ -354,24 +331,21 @@ export class Conversation {
   // Window-free mode: every ordinary group message is judged, then rate limited.
   private handleEvery(session: Session, message: GroupMessage, text: string): void {
     const every = this.options.judgeEvery!;
-    if (message.hasAnyMention || !text || text.length > MAX_TEXT) {
+    if (!admitsEveryMessage(message, text)) {
       this.log('[跳过] 消息含其他@、无文本或文本超限。');
       return;
     }
     const pending = session.pending;
-    if (pending && pending.kind === 'judge' && this.now() - pending.receivedAt < MERGE_MS
-        && pending.text.length + text.length < MAX_TEXT) {
-      pending.text = `${pending.text}\n${text}`;
-      pending.receivedAt = this.now();
-      pending.senderVersion = this.discussion.senderVersion(message.groupId, message.senderId);
-      pending.triggerIds = [...(pending.triggerIds ?? []), message.messageId!];
+    if (canMergeFragment(pending, text, this.now(), 'judge')) {
+      Object.assign(pending, mergedFragment(pending, text, this.now(),
+        this.discussion.senderVersion(message.groupId, message.senderId), message.messageId!));
       return;
     }
-    if (this.cooling(this.lastAuto, message.groupId, every.cooldownMs)) {
+    if (this.proactiveBudget.cooling('judge', message.groupId, every.cooldownMs)) {
       this.log('[跳过] 刚接过话，冷却中。');
       return;
     }
-    if (this.overHourlyCap(message.groupId, every.hourlyCap)) {
+    if (this.proactiveBudget.overHourlyCap(message.groupId, every.hourlyCap)) {
       this.log('[跳过] 本小时接话已达上限。');
       return;
     }
@@ -394,11 +368,11 @@ export class Conversation {
       const decision = await every.judge({ text: item.text, recent: renderContext(context.snapshot), history, context }, signal);
       if (!decision.respond) { this.log(`[判断] 不接：${decision.reason}`); return; }
       const previous = context.snapshot.participation;
-      if (this.options.unified && previous && !previous.responded && decision.topicKey && previous.topicKey === decision.topicKey) {
+      if (repeatsUnansweredTopic(!!this.options.unified, previous, decision.topicKey)) {
         this.log('[跳过] 同一话题已主动参与且无人回应。'); return;
       }
-      const budget = () => !this.cooling(this.lastAuto, message.groupId, every.cooldownMs) &&
-        !this.overHourlyCap(message.groupId, every.hourlyCap);
+      const budget = () => !this.proactiveBudget.cooling('judge', message.groupId, every.cooldownMs) &&
+        !this.proactiveBudget.overHourlyCap(message.groupId, every.hourlyCap);
       if (!this.senderCurrent(item) || signal.aborted || !budget()) return;
       const generationContext = await this.prepareContext(this.replyContext(item, 'interject', context.snapshot, decision), item.text, history, signal, decision.observation);
       const answer = await this.options.generate!(item.text, history, signal, false, generationContext);
@@ -408,27 +382,13 @@ export class Conversation {
       if (!delivered) return;
       this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
       this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
-      this.lastAuto.set(message.groupId, this.now());
-      this.recordHourly(message.groupId);
+      this.proactiveBudget.record('judge', message.groupId);
       if (this.options.unified) {
         this.discussion.participated(message.groupId, decision.topicKey ?? item.message.messageId!, decision.basisIds ?? context.triggerIds, context.snapshot.incomingVersion);
         this.windows.open(this.windows.incoming(message.groupId, message.senderId));
       }
       this.log(`[接话] 已回复（${decision.reason}）。`);
     } finally { if (this.options.unified) this.proactiveInFlight.delete(message.groupId); }
-  }
-
-  private overHourlyCap(group: string, cap: number): boolean {
-    const entry = this.hourly.get(group);
-    if (!entry) return false;
-    return entry.hour === Math.floor(this.now() / 3_600_000) && entry.count >= cap;
-  }
-
-  private recordHourly(group: string): void {
-    const hour = Math.floor(this.now() / 3_600_000);
-    const entry = this.hourly.get(group);
-    if (!entry || entry.hour !== hour) this.hourly.set(group, { hour, count: 1 });
-    else entry.count++;
   }
 
   private pickWarmupGroup(warmup: WarmupOptions): string | undefined {
@@ -438,7 +398,7 @@ export class Conversation {
       const [group] = JSON.parse(key) as [string, string];
       const last = this.discussion.snapshot(group).messages.at(-1);
       if (!last || last.at < cutoff) continue;
-      if (this.cooling(this.lastWarmup, group, warmup.cooldownMs)) continue;
+      if (this.proactiveBudget.cooling('warmup', group, warmup.cooldownMs)) continue;
       if (!best || last.at > best.at) best = { group, at: last.at };
     }
     return best?.group;
@@ -537,7 +497,7 @@ export class Conversation {
     // An interjection is a normal reply: it enters memory and opens a window.
     this.options.memory.add(item.message.groupId, item.message.senderId, item.text, delivered);
     this.windows.open(this.windows.incoming(item.message.groupId, item.message.senderId));
-    this.lastInterject.set(item.message.groupId, this.now());
+    this.proactiveBudget.record('interject', item.message.groupId);
     this.log('[插话] 已主动参与当前话题，按普通回复开窗并写入记忆。');
   }
 
@@ -556,7 +516,7 @@ export class Conversation {
       const delivered = await this.options.send(group, answer, () => !controller.signal.aborted && (!this.options.unified || this.discussion.snapshot(group).incomingVersion === snapshot.incomingVersion));
       if (!delivered) return;
       this.delivered(group, delivered);
-      this.lastWarmup.set(group, this.now());
+      this.proactiveBudget.record('warmup', group);
       this.log('[暖场] 已主动开启话题。');
     } catch (error) {
       if (isAbort(error)) this.log(`[取消] ${abortReason(error)}，暖场放弃。`);
