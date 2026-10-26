@@ -1,5 +1,5 @@
+import { requestChatCompletion, completionMessage } from './model-request.js';
 import { modelContext, type ReplyContext } from './context.js';
-import { withTimeout } from './abort.js';
 import { chatSystemPrompt, recallInstructions } from './persona.js';
 import type { ChatTurn } from './memory.js';
 import { isRecord } from './onebot.js';
@@ -50,18 +50,8 @@ export const createDeepSeekReply = (apiKey: string, model = 'deepseek-flash',
         body.tools = [...toolSpecs(), ...(options.searchEnabled ? [searchSpec] : [])];
         body.tool_choice = 'auto';
       }
-      const response = await request('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        signal: withTimeout(signal, 30_000),
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) throw new Error(`DeepSeek HTTP ${response.status}`);
-      const data: unknown = await response.json();
-      if (!isRecord(data) || !Array.isArray(data.choices)) throw new Error('DeepSeek 返回格式异常');
-      const choice: unknown = data.choices[0];
-      if (!isRecord(choice) || !isRecord(choice.message)) throw new Error('DeepSeek 返回格式异常');
-      const message = choice.message;
+      const response = await requestChatCompletion(apiKey, body, { request, signal, timeoutMs: 30_000, httpError: status => `DeepSeek HTTP ${status}`, cancelErrorBody: false });
+      const message = completionMessage(response, 'DeepSeek 返回格式异常');
       const calls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
       if (calls.length === 0) {
         if (typeof message.content !== 'string' || !message.content.trim()) throw new Error('DeepSeek 返回空回复');

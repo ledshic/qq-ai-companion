@@ -1,5 +1,5 @@
+import { requestChatCompletion, completionText } from './model-request.js';
 import { createHash } from 'node:crypto';
-import { withTimeout } from './abort.js';
 import { modelContext, type ReplyContext } from './context.js';
 import type { ChatTurn } from './memory.js';
 import { isRecord } from './onebot.js';
@@ -58,21 +58,14 @@ export const createContextAnalyzer = (key: string, model: string, request: typeo
   timeoutMs = 3000): ContextAnalyzer => async (input, signal) => {
   signal?.throwIfAborted();
   try {
-    const response = await request('https://api.deepseek.com/chat/completions', {
-      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      signal: withTimeout(signal, timeoutMs), body: JSON.stringify({ model, thinking: { type: 'disabled' },
+    const response = await requestChatCompletion(key, { model, thinking: { type: 'disabled' },
         stream: false, max_tokens: 300, response_format: { type: 'json_object' }, messages: [
           { role: 'system', content: '只输出 JSON。只分析语境，不生成回复、不决定发送、不修改状态。' + OBSERVATION_PROMPT +
             '本次是独立分析，根对象只包含 observation 字段，例如 {"observation":{"intent":"unknown","seriousness":"unknown","requestedBanter":"unspecified","evidenceRefs":["current-request"]}}。' },
           { role: 'user', content: JSON.stringify(analysisData(input)) },
-        ] }),
-    });
-    if (!response.ok) { await response.body?.cancel(); throw Error('analysis_http'); }
-    const body = await response.json();
+        ] }, { request, signal, timeoutMs, httpError: 'analysis_http' });
     signal?.throwIfAborted();
-    const choice = isRecord(body) && Array.isArray(body.choices) ? body.choices[0] : undefined;
-    if (!isRecord(choice) || !isRecord(choice.message) || typeof choice.message.content !== 'string') throw Error('analysis_format');
-    const raw: unknown = JSON.parse(choice.message.content);
+    const raw: unknown = JSON.parse(completionText(response, 'analysis_format'));
     if (!isRecord(raw)) throw Error('analysis_format');
     // A standalone model may emit the observation itself instead of its envelope.
     // Both forms still pass exactly the same field and evidence validation.

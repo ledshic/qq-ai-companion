@@ -1,5 +1,5 @@
+import { requestChatCompletion, completionText } from '../model-request.js';
 import { readFileSync } from 'node:fs';
-import { withTimeout } from '../abort.js';
 import { modelContext, type ReplyContext } from '../context.js';
 import { parseObservation } from '../context-analysis.js';
 import { isRecord } from '../onebot.js';
@@ -15,16 +15,10 @@ export const createInitiativeObserver = (key:string,model:string,mode='modular',
   const rules=readFileSync(new URL('../../config/event-memory/initiative.md',import.meta.url),'utf8').trim();
   const references=loadEventReferences()+'\n'+readFileSync(new URL('../../config/event-memory/initiative-references.md',import.meta.url),'utf8').trim(),personality=parsePersonalityMode(mode);
   const complete=async(system:string,data:unknown,signal:AbortSignal,maxTokens:number):Promise<Record<string,unknown>>=>{
-    const response=await request('https://api.deepseek.com/chat/completions',{
-      method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:withTimeout(signal,5000),
-      body:JSON.stringify({model,thinking:{type:'disabled'},stream:false,max_tokens:maxTokens,response_format:{type:'json_object'},
-        messages:[{role:'system',content:system},{role:'user',content:JSON.stringify(data)}]}),
-    });
-    if(!response.ok){await response.body?.cancel();throw Error('initiative_http');}
-    const body:unknown=await response.json();signal.throwIfAborted();
-    const choice=isRecord(body)&&Array.isArray(body.choices)?body.choices[0]:undefined;
-    if(!isRecord(choice)||!isRecord(choice.message)||typeof choice.message.content!=='string')throw Error('initiative_format');
-    const raw:unknown=JSON.parse(choice.message.content);if(!isRecord(raw))throw Error('initiative_format');return raw;
+    const response = await requestChatCompletion(key, {model,thinking:{type:'disabled'},stream:false,max_tokens:maxTokens,response_format:{type:'json_object'},
+        messages:[{role:'system',content:system},{role:'user',content:JSON.stringify(data)}]}, { request, signal, timeoutMs: 5000, httpError: 'initiative_http' });
+    signal.throwIfAborted();
+    const raw: unknown = JSON.parse(completionText(response, 'initiative_format'));if(!isRecord(raw))throw Error('initiative_format');return raw;
   };
   return async(input,signal)=>{
     signal.throwIfAborted();

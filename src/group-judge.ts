@@ -1,6 +1,6 @@
+import { requestChatCompletion, completionText } from './model-request.js';
 import { OBSERVATION_PROMPT, analysisData, observationReceipt, type ObservationReceipt } from './context-analysis.js';
 import { modelContext, renderContext, type ReplyContext } from './context.js';
-import { withTimeout } from './abort.js';
 import { BOT_NAME } from './identity.js';
 import { isRecord } from './onebot.js';
 import type { ChatTurn } from './memory.js';
@@ -39,11 +39,7 @@ export const createGroupJudge = (apiKey: string, model = 'deepseek-flash',
     const includeObservation = analyzeExpression && context?.phase !== 'before_send';
     const analysis = includeObservation ? analysisData({ text, history, context }) : undefined;
     const view = context ? modelContext(context) : undefined;
-    const response = await request('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: withTimeout(signal, 10_000),
-      body: JSON.stringify({
+    const response = await requestChatCompletion(apiKey, {
         model,
         thinking: { type: 'disabled' },
         stream: false,
@@ -53,16 +49,8 @@ export const createGroupJudge = (apiKey: string, model = 'deepseek-flash',
           { role: 'system', content: SYSTEM + (includeObservation ? '\n' + OBSERVATION_PROMPT : '') },
           { role: 'user', content: JSON.stringify({ ...analysis, recent: view ? renderContext(view.context.snapshot) : recent, message: text, history: analysis?.history ?? history, ...(view ? { discussionContext: view.context } : {}) }) },
         ],
-      }),
-    });
-    if (!response.ok) throw new Error('判断服务请求失败');
-    const body: unknown = await response.json();
-    if (!isRecord(body) || !Array.isArray(body.choices)) throw new Error('判断响应格式异常');
-    const choice: unknown = body.choices[0];
-    if (!isRecord(choice) || !isRecord(choice.message) || typeof choice.message.content !== 'string') {
-      throw new Error('判断响应为空');
-    }
-    const result: unknown = JSON.parse(choice.message.content);
+      }, { request, signal, timeoutMs: 10_000, httpError: '判断服务请求失败', cancelErrorBody: false });
+    const result: unknown = JSON.parse(completionText(response, '判断响应为空', '判断响应格式异常'));
     if (!isRecord(result) || typeof result.respond !== 'boolean' || typeof result.reason !== 'string'
         || !result.reason.trim()) {
       throw new Error('判断结果字段无效');
