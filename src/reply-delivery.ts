@@ -1,12 +1,10 @@
+import type { DeliveryChannel } from './delivery-types.js';
 import type { MemeSendContext } from './meme-types.js';
 import type { DeliveryTarget, SendGuard } from './context.js';
 import { deliverPersonaReply, splitPersonaReply } from './delivery.js';
 import { memeNote, stripMemeRecords, type MemeManager } from './memes.js';
 
-export interface DeliveryChannel {
-  connected: () => boolean;
-  send: (content: string, target?: DeliveryTarget, image?: string) => Promise<boolean>;
-}
+export type { DeliveryChannel } from './delivery-types.js';
 
 // Capture the connection before queueing so a reconnect cannot send an old draft.
 export const createReplyDelivery = (capture: (groupId: string) => DeliveryChannel | undefined,
