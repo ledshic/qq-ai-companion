@@ -2,7 +2,7 @@ import { requestChatCompletion, completionText } from './model-request.js';
 import { OBSERVATION_PROMPT, analysisData, observationReceipt } from './context-analysis.js';
 import { modelContext } from './context.js';
 import { BOT_NAME } from './identity.js';
-import { isRecord } from './onebot.js';
+import { isRecord } from './value.js';
 import type { FollowUpJudge } from './observation.js';
 
 export const createFollowUpJudge = (apiKey: string, model = 'deepseek-flash', request: typeof fetch = fetch, analyzeExpression = false): FollowUpJudge => {

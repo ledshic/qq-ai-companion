@@ -1,5 +1,5 @@
 import { requestChatCompletion, completionText } from '../model-request.js';
-import { isRecord } from '../onebot.js';
+import { isRecord } from '../value.js';
 import type { Extractor } from './types.js';
 export const createEventExtractor = (key: string, model: string, request: typeof fetch = fetch): Extractor =>
   async (input, signal) => {

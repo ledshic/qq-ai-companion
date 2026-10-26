@@ -2,13 +2,11 @@ import { requestChatCompletion } from './model-request.js';
 import { readFileSync, realpathSync, writeFileSync, renameSync, mkdirSync, statSync } from 'node:fs';
 import { resolve, sep, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import { modelContext, type ReplyContext, type SendGuard } from './context.js';
-import { isRecord } from './onebot.js';
-import { parseMemeMeaning, memeModelObject, MEME_SEMANTIC_VERSION, type MemeEntry } from './meme-index.js';
-export interface MemeSendContext {
-  context: ReplyContext; signal: AbortSignal;
-  approve: (note: string) => Promise<SendGuard | undefined>;
-}
+import { modelContext, type ReplyContext } from './context.js';
+import { isRecord } from './value.js';
+import { parseMemeMeaning, memeModelObject } from './meme-schema.js';
+import { MEME_SEMANTIC_VERSION, type MemeEntry, type MemeSendContext } from './meme-types.js';
+export type { MemeSendContext } from './meme-types.js';
 export interface MemeState { replies: number; recent: string[] }
 export interface MemeStateStore { load(): Record<string, MemeState>; save(state: Record<string, MemeState>): void }
 export class JsonMemeState implements MemeStateStore {

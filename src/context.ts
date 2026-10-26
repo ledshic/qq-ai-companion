@@ -1,5 +1,5 @@
 import type { RecallView } from './events/recall-types.js';
-import type { ExpressionPlan } from './personality-policy.js';
+import type { ExpressionPlan } from './personality-types.js';
 import type { GroupMessage } from './message.js';
 
 export type SendGuard = () => boolean | Promise<boolean>;

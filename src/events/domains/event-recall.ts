@@ -1,5 +1,5 @@
-import { isRecord } from '../../onebot.js';
-import type { RecallPresenter } from '../recall.js';
+import { isRecord } from '../../value.js';
+import type { RecallPresenter } from '../recall-types.js';
 import type { EventPayload } from './event.js';
 // Presentation follows the generic event contract, never topic keywords.
 export const presentEventRecall: RecallPresenter = (record, evidence, alias) => {

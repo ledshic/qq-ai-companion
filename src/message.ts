@@ -1,4 +1,4 @@
-import type { ImageAttachments } from './vision.js';
+import type { ImageAttachments } from './vision-types.js';
 export interface GroupMessage {
   groupId: string;
   senderId: string;

@@ -1,3 +1,4 @@
+import { isRecord } from './value.js';
 import { withTimeout } from './abort.js';
 
 export interface ModelRequestOptions {
@@ -26,15 +27,12 @@ export const requestChatCompletion = async (key: string, body: Record<string, un
   return response.json();
 };
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 // Keep tool calls intact; only text consumers require string content.
 export const completionMessage = (data: unknown, messageError: string,
   envelopeError = messageError): Record<string, unknown> => {
-  if (!isObject(data) || !Array.isArray(data.choices)) throw new Error(envelopeError);
+  if (!isRecord(data) || !Array.isArray(data.choices)) throw new Error(envelopeError);
   const choice: unknown = data.choices[0];
-  if (!isObject(choice) || !isObject(choice.message)) throw new Error(messageError);
+  if (!isRecord(choice) || !isRecord(choice.message)) throw new Error(messageError);
   return choice.message;
 };
 

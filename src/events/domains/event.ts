@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { isRecord } from '../../onebot.js';
+import { isRecord } from '../../value.js';
 import { addDays, durationDays, midnight, resolveDate, ZONE } from '../time.js';
 import { loadEventReferences } from '../references.js';
 import type { EventDomain, Mutation, Source } from '../types.js';

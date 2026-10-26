@@ -1,8 +1,9 @@
 import { requestChatCompletion, completionText } from './model-request.js';
-import { OBSERVATION_PROMPT, analysisData, observationReceipt, type ObservationReceipt } from './context-analysis.js';
+import type { ObservationReceipt } from './observation-types.js';
+import { OBSERVATION_PROMPT, analysisData, observationReceipt } from './context-analysis.js';
 import { modelContext, renderContext, type ReplyContext } from './context.js';
 import { BOT_NAME } from './identity.js';
-import { isRecord } from './onebot.js';
+import { isRecord } from './value.js';
 import type { ChatTurn } from './memory.js';
 
 export interface GroupJudgment {

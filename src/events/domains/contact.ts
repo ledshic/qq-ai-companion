@@ -1,4 +1,4 @@
-import { isRecord } from '../../onebot.js';
+import { isRecord } from '../../value.js';
 import type { EventDomain } from '../types.js';
 export interface ContactPayload { proactive:'on_presence'|'off';banter:'default'|'off';nickname?:string }
 export const contactDomain:EventDomain={

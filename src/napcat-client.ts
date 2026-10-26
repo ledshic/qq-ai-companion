@@ -1,7 +1,7 @@
 import type { EventMemoryPort } from './events/types.js';
 import type { PersonalityRuntime } from './personality-runtime.js';
 import type { MemeManager } from './memes.js';
-import type { VisionHandler, ImageRequestJudge } from './vision.js';
+import type { VisionHandler, ImageRequestJudge } from './vision-types.js';
 import type { ReplyContext, DeliveryTarget } from './context.js';
 import { createReplyDelivery } from './reply-delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
@@ -10,7 +10,8 @@ import WebSocket from 'ws';
 import { ConversationMemory, type ChatTurn } from './memory.js';
 import { SqliteSessionStore } from './store.js';
 import type { FollowUpJudge } from './observation.js';
-import { isRecord, parseGroupMessage } from './onebot.js';
+import { isRecord } from './value.js';
+import { parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
   eventMemory?: EventMemoryPort;

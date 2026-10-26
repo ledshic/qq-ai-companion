@@ -1,12 +1,10 @@
 import { requestChatCompletion, completionText } from '../model-request.js';
 import { readFileSync } from 'node:fs';
-import { isRecord } from '../onebot.js';
+import { isRecord } from '../value.js';
 import { EventStore } from './store.js';
 import type { EventRecord } from './types.js';
-import type { RecallDocument, RecallProvider, RecallView } from './recall-types.js';
-export interface StoredRecallEvidence { id: string; sourceAt: number | null; excerpt: string }
-export type RecallPresenter = (record: EventRecord, evidence: StoredRecallEvidence[], alias: string) => RecallDocument | undefined;
-export type RecallSelector = (query: { text: string; history: import('../memory.js').ChatTurn[]; now: string; records: RecallDocument[] }, signal: AbortSignal) => Promise<string[]>;
+import type { RecallDocument, RecallProvider, RecallView, RecallPresenter, RecallSelector } from './recall-types.js';
+export type { StoredRecallEvidence, RecallPresenter, RecallSelector } from './recall-types.js';
 export const recallView = (status: RecallView['status'], now: number, records: RecallDocument[] = []): RecallView =>
   Object.freeze({ status, capturedAt: new Date(now).toISOString(), timezone: 'Asia/Shanghai', records: Object.freeze(records) });
 

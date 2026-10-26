@@ -99,7 +99,7 @@ export class EventStore {
     return this.db.prepare("SELECT body FROM event_memories WHERE group_id=? AND owner_id=? AND status='active' AND expires_at>? ORDER BY created_at,id")
       .all(...key(scope),now).map(r=>JSON.parse(String(r.body)) as EventRecord);
   }
-  recallEvidence(scope:Scope,ids:string[],now:number):import('./recall.js').StoredRecallEvidence[] {
+  recallEvidence(scope:Scope,ids:string[],now:number):import('./recall-types.js').StoredRecallEvidence[] {
     if(!ids.length)return [];
     return this.db.prepare(`SELECT id,source_at,excerpt FROM event_evidence WHERE group_id=? AND owner_id=? AND expires_at>? AND id IN (${ids.map(()=>'?').join(',')}) ORDER BY source_at,id`)
       .all(...key(scope),now,...ids).map(r=>({id:String(r.id),sourceAt:r.source_at===null?null:Number(r.source_at),excerpt:String(r.excerpt)}));

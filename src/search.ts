@@ -1,5 +1,5 @@
 import { withTimeout } from './abort.js';
-import { isRecord } from './onebot.js';
+import { isRecord } from './value.js';
 
 export interface SearchSource { title: string; url: string; summary: string; date?: string }
 export type SearchResult = { status: 'ok' | 'empty'; sources: SearchSource[]; retrievedAt: string }

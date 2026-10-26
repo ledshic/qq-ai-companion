@@ -1,5 +1,5 @@
 import type { ChatTurn } from '../memory.js';
-import type { Scope } from './types.js';
+import type { EventRecord, Scope } from './types.js';
 export interface RecallEvidence { readonly id: string; readonly at: string | null; readonly excerpt: string }
 export interface RecallDocument {
   readonly id: string;
@@ -21,3 +21,7 @@ export interface RecallResult {
 }
 export interface RecallQuery extends Scope { text: string; history: ChatTurn[] }
 export type RecallProvider = (query: RecallQuery, signal: AbortSignal) => Promise<RecallResult>;
+
+export interface StoredRecallEvidence { id: string; sourceAt: number | null; excerpt: string }
+export type RecallPresenter = (record: EventRecord, evidence: StoredRecallEvidence[], alias: string) => RecallDocument | undefined;
+export type RecallSelector = (query: { text: string; history: ChatTurn[]; now: string; records: RecallDocument[] }, signal: AbortSignal) => Promise<string[]>;

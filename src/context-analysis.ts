@@ -1,23 +1,11 @@
+import type { ContextObservation, ObservationReceipt, AnalysisInput, ContextAnalyzer } from './observation-types.js';
 import { requestChatCompletion, completionText } from './model-request.js';
 import { createHash } from 'node:crypto';
-import { modelContext, type ReplyContext } from './context.js';
-import type { ChatTurn } from './memory.js';
-import { isRecord } from './onebot.js';
+import { modelContext } from './context.js';
+import { isRecord } from './value.js';
 
 export const ANALYZER_VERSION = 'expression-v1';
-export interface ContextObservation {
-  readonly intent: 'question' | 'casual' | 'play' | 'support' | 'unknown';
-  readonly seriousness: 'explicit' | 'inferred' | 'unknown';
-  readonly requestedBanter: 'stop' | 'allow' | 'unspecified';
-  readonly evidenceRefs: readonly string[];
-}
-export interface ObservationReceipt {
-  readonly inputRevision: string;
-  readonly analyzerVersion: string;
-  readonly status: 'valid' | 'unknown' | 'unavailable';
-  readonly observation?: ContextObservation;
-}
-export interface AnalysisInput { text: string; history: ChatTurn[]; context?: ReplyContext }
+export type { ContextObservation, ObservationReceipt, AnalysisInput, ContextAnalyzer } from './observation-types.js';
 
 export const analysisData = ({ text, history, context }: AnalysisInput) => ({
   currentRequest: { id: 'current-request', text },
@@ -53,7 +41,6 @@ export const observationReceipt = (raw: unknown, input: AnalysisInput): Observat
     status: observation ? observation.intent === 'unknown' ? 'unknown' : 'valid' : 'unavailable', observation });
 };
 
-export type ContextAnalyzer = (input: AnalysisInput, signal?: AbortSignal) => Promise<ObservationReceipt>;
 export const createContextAnalyzer = (key: string, model: string, request: typeof fetch = fetch,
   timeoutMs = 3000): ContextAnalyzer => async (input, signal) => {
   signal?.throwIfAborted();

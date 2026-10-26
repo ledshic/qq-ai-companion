@@ -1,4 +1,4 @@
-import type { ObservationReceipt } from './context-analysis.js';
+import type { ObservationReceipt } from './observation-types.js';
 import type { ReplyContext } from './context.js';
 import type { ChatTurn } from './memory.js';
 

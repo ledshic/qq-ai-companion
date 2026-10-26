@@ -2,7 +2,7 @@ import { requestChatCompletion, completionText } from '../model-request.js';
 import { readFileSync } from 'node:fs';
 import { modelContext, type ReplyContext } from '../context.js';
 import { parseObservation } from '../context-analysis.js';
-import { isRecord } from '../onebot.js';
+import { isRecord } from '../value.js';
 import { chatSystemPrompt } from '../persona.js';
 import { parsePersonalityMode, resolveExpression } from '../personality-policy.js';
 import { presentEventRecall } from './domains/event-recall.js';

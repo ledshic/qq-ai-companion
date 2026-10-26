@@ -1,17 +1,11 @@
-import type { ContextObservation } from './context-analysis.js';
+import type { PersonalityMode, ExpressionPlan } from './personality-types.js';
+export type { PersonalityMode, ExpressionPlan } from './personality-types.js';
+import type { ContextObservation } from './observation-types.js';
 
-export type PersonalityMode = 'legacy' | 'modular';
 export const parsePersonalityMode = (value = 'legacy'): PersonalityMode => {
   if (value !== 'legacy' && value !== 'modular') throw Error('PERSONALITY_MODE 只能是 legacy 或 modular');
   return value;
 };
-export interface ExpressionPlan {
-  readonly mode: 'neutral' | 'explain' | 'casual' | 'play' | 'support';
-  readonly banter: 'off' | 'light' | 'normal';
-  readonly automaticMeme: 'eligible' | 'suppress';
-  readonly reasonCode: string;
-  readonly policyVersion: 'expression-policy-v1';
-}
 export const resolveExpression = (observation?: ContextObservation, local?: 'bare' | 'warmup' | 'image'): ExpressionPlan => {
   let mode: ExpressionPlan['mode'] = 'neutral';
   let banter: ExpressionPlan['banter'] = 'light';

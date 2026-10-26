@@ -1,6 +1,6 @@
 import type { GroupSnapshot } from '../context.js';
-import type { ExpressionPlan } from '../personality-policy.js';
-import type { StoredRecallEvidence } from './recall.js';
+import type { ExpressionPlan } from '../personality-types.js';
+import type { StoredRecallEvidence } from './recall-types.js';
 import type { Attention, EventRecord, Scope } from './types.js';
 
 export interface InitiativeResult {

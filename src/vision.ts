@@ -1,16 +1,12 @@
+import type { ImageReference, ImageResolver, ImageRequestJudge, VisionHandler } from './vision-types.js';
 import { requestChatCompletion, completionText } from './model-request.js';
 import sharp from 'sharp';
 import { withTimeout } from './abort.js';
 import { modelContext, type ReplyContext } from './context.js';
-import { isRecord } from './onebot.js';
+import { isRecord } from './value.js';
 import { chatSystemPrompt, recallInstructions } from './persona.js';
 
-export interface ImageReference { url?: string; file?: string }
-export interface ImageAttachments { images: ImageReference[]; imageCount: number }
-export type ImageResolver = (file: string, signal: AbortSignal) => Promise<unknown>;
-export type ImageRequestJudge = (question: string, context: ReplyContext, imageMessageId: string, signal: AbortSignal) => Promise<boolean>;
-export type VisionHandler = (question: string, image: ImageReference, signal: AbortSignal,
-  context: ReplyContext, resolve?: ImageResolver) => Promise<string>;
+export type { ImageReference, ImageAttachments, ImageResolver, ImageRequestJudge, VisionHandler } from './vision-types.js';
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_PIXELS = 16_000_000;
 export const IMAGE_FAILURE = '图片没能获取或读取，可能已经过期、格式不支持或太大了。请重新发一张 JPG、PNG、WebP 或 GIF 图片。';

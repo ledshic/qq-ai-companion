@@ -1,6 +1,7 @@
+import type { MemeSendContext } from './meme-types.js';
 import type { DeliveryTarget, SendGuard } from './context.js';
 import { deliverPersonaReply, splitPersonaReply } from './delivery.js';
-import { memeNote, stripMemeRecords, type MemeManager, type MemeSendContext } from './memes.js';
+import { memeNote, stripMemeRecords, type MemeManager } from './memes.js';
 
 export interface DeliveryChannel {
   connected: () => boolean;

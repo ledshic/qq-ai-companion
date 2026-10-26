@@ -1,10 +1,10 @@
+import { isRecord } from './value.js';
 import type { ContextMessage } from './context.js';
-import type { ImageAttachments } from './vision.js';
+import type { ImageAttachments } from './vision-types.js';
 import { stripBotName } from './addressing.js';
 import type { GroupMessage } from './message.js';
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+export { isRecord } from './value.js';
 
 export const imageAttachments = (segments: unknown): ImageAttachments => {
   const images = Array.isArray(segments) ? segments.filter(isRecord).filter(s => s.type === 'image') : [];

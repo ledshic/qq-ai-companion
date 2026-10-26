@@ -2,7 +2,7 @@ import { requestChatCompletion, completionMessage } from './model-request.js';
 import { modelContext, type ReplyContext } from './context.js';
 import { chatSystemPrompt, recallInstructions } from './persona.js';
 import type { ChatTurn } from './memory.js';
-import { isRecord } from './onebot.js';
+import { isRecord } from './value.js';
 import { webSearch, searchSpec, type SearchSource } from './search.js';
 import { runTool, toolSpecs } from './tools.js';
 

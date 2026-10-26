@@ -1,4 +1,4 @@
-import type { ExpressionPlan } from './personality-policy.js';
+import type { ExpressionPlan } from './personality-types.js';
 import { readFileSync } from 'node:fs';
 
 export const recallInstructions = readFileSync(new URL('../config/event-memory/recall.md', import.meta.url), 'utf8').trim();

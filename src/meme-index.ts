@@ -1,33 +1,13 @@
-import { requestChatCompletion, completionText } from './model-request.js';
+import { MEME_SEMANTIC_VERSION, type MemeEntry } from './meme-types.js';
+import { parseMemeMeaning, memeModelObject } from './meme-schema.js';
+import { requestChatCompletion } from './model-request.js';
 import { readFileSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { isRecord } from './onebot.js';
-export const MEME_SEMANTIC_VERSION = 1;
-export interface MemeEntry {
-  id: string; file: string; sha256: string; category: string;
-  meaning: string; visibleText: string; scenes: string[]; avoid: string[]; speaker: string; target: string;
-  confidence: number; semanticVersion: number;
-}
-const strings = (value: unknown, max = 3): string[] => Array.isArray(value)
-  ? value.filter((v): v is string => typeof v === 'string' && !!v.trim()).slice(0, max).map(v => v.slice(0, 80)) : [];
-export const parseMemeMeaning = (data: unknown): Omit<MemeEntry, 'id' | 'file' | 'sha256' | 'category'> => {
-  if (!isRecord(data) || typeof data.meaning !== 'string' || !data.meaning.trim() ||
-    typeof data.speaker !== 'string' || typeof data.target !== 'string' ||
-    typeof data.confidence !== 'number' || data.confidence < 0 || data.confidence > 1) throw Error('invalid meme semantics');
-  const scenes = strings(data.scenes); const avoid = strings(data.avoid);
-  if (!scenes.length || !avoid.length) throw Error('missing meme scenarios');
-  return { meaning: data.meaning.trim().slice(0, 180), visibleText: typeof data.visibleText === 'string' ? data.visibleText.slice(0, 150) : '',
-    speaker: data.speaker.slice(0, 100), target: data.target.slice(0, 100), scenes, avoid,
-    confidence: data.confidence, semanticVersion: MEME_SEMANTIC_VERSION };
-};
-export const memeModelObject = (data: unknown): Record<string, unknown> => {
-  const object: unknown = JSON.parse(completionText(data, 'invalid model response'));
-  if (!isRecord(object)) throw Error('invalid model object');
-  return object;
-};
+export { MEME_SEMANTIC_VERSION, type MemeEntry } from './meme-types.js';
+export { parseMemeMeaning, memeModelObject } from './meme-schema.js';
 export const describeMeme = async (bytes: Buffer, key: string, request: typeof fetch = fetch): Promise<ReturnType<typeof parseMemeMeaning>> => {
   const image = await sharp(bytes, { limitInputPixels: 4_000_000 }).resize(768, 768, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
   const response = await requestChatCompletion(key, { model: 'deepseek-flash', thinking: { type: 'disabled' }, stream: false, max_tokens: 500,

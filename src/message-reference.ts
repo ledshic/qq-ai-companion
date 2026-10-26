@@ -1,7 +1,8 @@
 import type { GroupContext, ReplyContext } from './context.js';
 import type { GroupMessage } from './message.js';
-import type { ImageRequestJudge } from './vision.js';
-import { isRecord, imageAttachments, imageReferenceHistory } from './onebot.js';
+import type { ImageRequestJudge } from './vision-types.js';
+import { isRecord } from './value.js';
+import { imageAttachments, imageReferenceHistory } from './onebot.js';
 
 // Protocol validation stays here; the conversation owns when a result is current.
 export const applyMessageReference = (message: GroupMessage, data: unknown, discussion: Pick<GroupContext, 'resolveReference'>): void => {

@@ -1,5 +1,7 @@
-import { ANALYZER_VERSION, inputRevision, parseObservation, type AnalysisInput, type ContextAnalyzer, type ObservationReceipt } from './context-analysis.js';
-import { resolveExpression, type ExpressionPlan } from './personality-policy.js';
+import type { AnalysisInput, ContextAnalyzer, ObservationReceipt } from './observation-types.js';
+import { ANALYZER_VERSION, inputRevision, parseObservation } from './context-analysis.js';
+import type { ExpressionPlan } from './personality-types.js';
+import { resolveExpression } from './personality-policy.js';
 
 // Stateless: receipts are passed by the caller, never retained across tasks.
 export class PersonalityRuntime {
