@@ -1,3 +1,7 @@
+import { createEventMemory } from './events/application.js';
+import { createContextAnalyzer } from './context-analysis.js';
+import { PersonalityRuntime } from './personality-runtime.js';
+import { parsePersonalityMode } from './personality-policy.js';
 import { MemeManager, JsonMemeState, loadMemeCatalog } from './memes.js';
 import { createVisionReply, createImageRequestJudge } from './vision.js';
 import { dirname, join } from 'node:path';
@@ -25,6 +29,8 @@ try {
   process.exit(1);
 }
 
+const personalityMode = parsePersonalityMode(process.env.PERSONALITY_MODE);
+const modular = personalityMode === 'modular';
 const llmEnabled = process.env.LLM_ENABLED === 'true';
 if (llmEnabled && !process.env.DEEPSEEK_API_KEY?.trim()) {
   console.error('LLM_ENABLED=true 时必须配置 DEEPSEEK_API_KEY。');
@@ -62,6 +68,8 @@ try {
   fail(error instanceof Error ? error.message : '无法获取实例锁。');
 }
 
+const personality = llmEnabled && modular ? new PersonalityRuntime(createContextAnalyzer(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')) : undefined;
+console.log(`[人格] mode=${personalityMode}; ${personality ? '语境观察与规则计划已启用，必要时增加一次分析请求。' : '使用原角色卡。'}`);
 const visionEnabled = llmEnabled && process.env.VISION_ENABLED === 'true';
 let memes: MemeManager | undefined;
 if (llmEnabled && process.env.MEMES_ENABLED === 'true') {
@@ -89,13 +97,13 @@ const observationEnabled = llmEnabled && followUpMode !== 'always' && process.en
 const autoReplyEnabled = llmEnabled && followUpMode !== 'always' && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
 const judgeEvery = (llmEnabled && (followUpMode === 'always' || followUpMode === 'unified'))
   ? {
-    judge: createGroupJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash'),
+    judge: createGroupJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, modular),
     cooldownMs: readNumber('AUTO_REPLY_COOLDOWN_SECONDS', 45, 0, 3600) * 1000,
     hourlyCap: readNumber('AUTO_REPLY_HOURLY_CAP', 12, 1, 200),
   }
   : undefined;
 const judge = (observationEnabled || autoReplyEnabled)
-  ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash')
+  ? createFollowUpJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, modular)
   : undefined;
 const groupContextMessages = readNumber('GROUP_CONTEXT_MESSAGES', 60, 1, 120);
 const groupContextSeconds = readNumber('GROUP_CONTEXT_SECONDS', 300, 10, 3600);
@@ -138,8 +146,11 @@ console.log(warmup
   ? `[暖场] 已启用：${warmupHours[0]} 点到 ${warmupHours[1]} 点之间，每轮 ${(warmup.probability * 100).toFixed(0)}% 概率，同群冷却 ${warmup.cooldownMs / 60_000} 分钟。`
   : '[暖场] 已关闭。');
 
+const eventMemory = createEventMemory(process.env);
 const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateReply, judge, {
   memes,
+  personality,
+  eventMemory,
   vision,
   imageRequest: visionEnabled ? createImageRequestJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash') : undefined,
   autoReply: autoReplyEnabled,
@@ -155,6 +166,7 @@ const stop = connectNapCat(address, process.env.NAPCAT_TOKEN ?? '', generateRepl
 });
 
 const tickMs = readNumber('WARMUP_INTERVAL_MINUTES', 30, 1, 1440) * 60_000;
+const eventTimer = eventMemory ? setInterval(() => { void eventMemory.tick(); }, 1000) : undefined;
 const timer = warmup ? setInterval(() => stop.tick(), tickMs) : undefined;
 
 let closing = false;
@@ -162,6 +174,8 @@ const shutdown = (): void => {
   if (closing) return;
   closing = true;
   if (timer) clearInterval(timer);
+  if (eventTimer) clearInterval(eventTimer);
+  eventMemory?.close();
   stop();
   memory.close();
   releaseLock();

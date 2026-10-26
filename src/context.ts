@@ -1,3 +1,5 @@
+import type { RecallView } from './events/recall-types.js';
+import type { ExpressionPlan } from './personality-policy.js';
 import type { GroupMessage } from './message.js';
 
 export type SendGuard = () => boolean | Promise<boolean>;
@@ -36,6 +38,9 @@ export interface GroupSnapshot {
   readonly participation?: Participation;
 }
 export interface ReplyContext {
+  readonly longTermMemory?: RecallView;
+  readonly memoryGuard?: () => boolean;
+  readonly expressionPlan?: ExpressionPlan;
   readonly kind: ParticipationKind;
   readonly targetSenderId?: string;
   readonly triggerIds: readonly string[];
@@ -135,6 +140,12 @@ export class GroupContext {
     state.lastResponseVersion = state.incomingVersion;
     if (state.participation) state.participation = { ...state.participation, responded: true };
   }
+  forget(group: string, sender: string): void {
+    const state = this.state(group);
+    const keep = (m: ContextMessage) => m.senderId !== sender && !(m.role === 'assistant' && m.mentions.includes(sender));
+    state.messages = state.messages.filter(keep); state.nearby = state.nearby.filter(keep);
+    state.version++; state.incomingVersion++;
+  }
   referenceSnapshot(group: string): GroupSnapshot {
     const base = this.snapshot(group);
     return Object.freeze({ ...base, messages: Object.freeze(this.state(group).nearby.map(m => Object.freeze({ ...m,
@@ -181,7 +192,7 @@ export const modelContext = (context: ReplyContext): { context: ReplyContext; me
       mentions: message.mentions.map(id => id === 'all' ? 'all' : participant(id)),
     })), participation: context.snapshot.participation ? { ...context.snapshot.participation,
       basisIds: basis(context.snapshot.participation.basisIds) } : undefined };
-  return { context: { ...context, snapshot,
+  return { context: { ...context, memoryGuard: undefined, snapshot,
     targetSenderId: context.targetSenderId ? participant(context.targetSenderId) : undefined,
     triggerIds: basis(context.triggerIds), decision: context.decision ? { ...context.decision,
       basisIds: context.decision.basisIds ? basis(context.decision.basisIds) : undefined } : undefined }, messageIds: visibleIds };

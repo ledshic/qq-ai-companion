@@ -1,10 +1,23 @@
+import type { ExpressionPlan } from './personality-policy.js';
 import { readFileSync } from 'node:fs';
+
+export const recallInstructions = readFileSync(new URL('../config/event-memory/recall.md', import.meta.url), 'utf8').trim();
 
 export const PERSONA_TEXT = readFileSync(new URL('../config/personas/dafeiyu.md', import.meta.url), 'utf8').trim();
 if (!PERSONA_TEXT.startsWith('# 角色卡：') || PERSONA_TEXT.length < 300) throw new Error('人格卡缺失或不完整');
 
+const modules = Object.fromEntries(['core', 'base', 'neutral', 'explain', 'casual', 'play', 'support'].map(name => {
+  const text = readFileSync(new URL(`../config/personas/dafeiyu/${name}.md`, import.meta.url), 'utf8').trim();
+  if (!text.startsWith('#') || text.length < 30) throw Error('人格模块缺失或不完整');
+  return [name, text];
+}));
+
 // Platform facts complement the upstream character, without replacing its identity or tone.
-export const chatSystemPrompt = (turns = 9, searchEnabled = false, visionEnabled = false, memesEnabled = false): string => `${PERSONA_TEXT}
+export const chatSystemPrompt = (turns = 9, searchEnabled = false, visionEnabled = false, memesEnabled = false, plan?: ExpressionPlan): string => `${plan
+  ? [modules.core, modules.base, modules.neutral, plan.mode === 'neutral' ? '' : modules[plan.mode],
+    plan.banter === 'off' ? '本轮停止调侃，不因之前的玩笑忽略当前认真请求。' : plan.banter === 'light' ? '调侃保持轻度，不主动升级互损；自然回应优先。' : '',
+    '以上表达方式服从事实边界、实际能力和当前请求；原图与当前请求优先于文字场景推断。不输出内部模式或判断。'].join('\n\n')
+  : PERSONA_TEXT}
 
 ## 当前运行环境
 - QQ 账号昵称和可唤醒称呼包含“大肥鱼”，这是群友给你的外号，不要求你自称大肥鱼。保持原角色卡的小鲸鱼/DeepSeek自我认知。

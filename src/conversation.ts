@@ -1,3 +1,6 @@
+import type { EventMemoryPort } from './events/types.js';
+import type { PersonalityRuntime } from './personality-runtime.js';
+import type { ObservationReceipt } from './context-analysis.js';
 import type { MemeSendContext } from './memes.js';
 import { GroupContext, modelContext, renderContext, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
 import { abortReason, isAbort } from './abort.js';
@@ -34,6 +37,8 @@ export interface JudgeEveryOptions {
 }
 
 export interface ConversationOptions {
+  personality?: PersonalityRuntime;
+  eventMemory?: EventMemoryPort;
   memory: ConversationMemory;
   unified?: boolean;
   recordsDelivery?: boolean;
@@ -106,6 +111,7 @@ export class Conversation {
   private readonly hourly = new Map<string, { hour: number; count: number }>();
   private readonly warmups = new Set<AbortController>();
   private lifecycle = 0;
+  private background?: AbortController;
   private readonly awaitingInitial = new Map<string, number>();
 
   constructor(private readonly options: ConversationOptions) {
@@ -116,9 +122,16 @@ export class Conversation {
     this.discussion = new GroupContext(this.now, this.context.maxMessages, this.context.ttlMs);
     this.windows = new ObservationWindows(this.now, options.windowMs ?? 60_000, options.maxWindows ?? 6, options.unified ? Infinity : 2);
     this.slots = new Semaphore(options.maxInflight ?? 2);
+    options.eventMemory?.attach(controller => {
+      const release = this.slots.tryAcquire((options.maxInflight ?? 2) > 1 ? 1 : 0);
+      if (!release) return;
+      this.background = controller;
+      return () => { if (this.background === controller) this.background = undefined; release(); };
+    }, scope => this.discussion.snapshot(scope.groupId));
   }
 
   handle(message: GroupMessage): void {
+    this.options.eventMemory?.ingest(message);
     // Event IDs are retained across reconnects, before any scheduler side effects.
     if (!this.discussion.add(message)) { this.log('[跳过] 重复消息。'); return; }
     if (this.options.unified && message.replyMessageId && !message.isMentioned && !message.isCalledByName) {
@@ -135,6 +148,7 @@ export class Conversation {
       const data = this.options.lookup ? await this.options.lookup(message.replyMessageId!, new AbortController().signal) : null;
       if (this.lifecycle !== lifecycle || this.discussion.senderVersion(message.groupId, message.senderId) !== version) return;
       message.isReplyToBot = isBotGroupReply(data, message);
+      if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
       // Only a validated same-group lookup may supply the referenced sender.
       this.applyReference(message, data);
       if (!message.replyToSenderId && !message.isMentioned && !message.isCalledByName) {
@@ -168,6 +182,7 @@ export class Conversation {
     const explicit = message.isMentioned || message.isCalledByName || message.isReplyToBot ||
       (!this.options.unified && message.replyMessageId);
     if (explicit) {
+      this.background?.abort(new Error('foreground_priority'));
       if (this.options.unified) {
         this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));
         while (this.awaitingInitial.size > (this.options.maxWindows ?? 100)) this.awaitingInitial.delete(this.awaitingInitial.keys().next().value!);
@@ -242,6 +257,21 @@ export class Conversation {
         topicKey: decision.topicKey, basisIds: decision.basisIds }) : undefined });
   }
 
+  private async expressionContext(context: ReplyContext, text: string, history: ChatTurn[], signal: AbortSignal,
+    receipt?: ObservationReceipt, image = false): Promise<ReplyContext> {
+    if (this.options.eventMemory && text.trim() && (context.kind === 'explicit' || context.kind === 'follow-up') && context.targetSenderId) {
+      const recall = await this.options.eventMemory.recall({groupId:context.snapshot.groupId,ownerId:context.targetSenderId,text,history},signal);
+      signal.throwIfAborted();
+      context = Object.freeze({...context,longTermMemory:recall.view,memoryGuard:recall.isCurrent});
+    }
+    if (!this.options.personality) return context;
+    const local = image ? 'image' : context.kind === 'warmup' ? 'warmup'
+      : context.kind === 'explicit' && !text.trim() ? 'bare' : undefined;
+    const expressionPlan = await this.options.personality.plan({ text, history, context }, signal, receipt, local);
+    signal.throwIfAborted();
+    return Object.freeze({ ...context, expressionPlan });
+  }
+
   private memeContext(item: Inbound, context: ReplyContext, answer: string, signal: AbortSignal): MemeSendContext {
     return { context, signal, approve: note => this.sendApproval(item, context, answer + '\n' + note.replace('[已发送表情 ', '[拟配表情 '), signal, item.candidate) };
   }
@@ -253,7 +283,7 @@ export class Conversation {
   private async sendApproval(item: Inbound, context: ReplyContext, draft: string, signal: AbortSignal,
     candidate?: FollowUpCandidate): Promise<SendGuard | undefined> {
     const { message } = item;
-    const current = () => !signal.aborted && this.senderCurrent(item) && (!candidate || candidate());
+    const current = () => !signal.aborted && this.senderCurrent(item) && (!candidate || candidate()) && (!context.memoryGuard || context.memoryGuard());
     if (!current()) return;
     if (!this.options.unified) return current;
     // Ignore our own acknowledged parts when detecting discussion changes;
@@ -297,7 +327,10 @@ export class Conversation {
     void this.warmUp(group, warmup);
   }
 
+  connected(): void { this.options.eventMemory?.resume(); }
+
   disconnect(): void {
+    this.options.eventMemory?.pause();
     this.lifecycle++;
     for (const session of this.sessions.values()) {
       session.controller?.abort(new Error('连接已断开'));
@@ -389,7 +422,7 @@ export class Conversation {
       const budget = () => !this.cooling(this.lastAuto, message.groupId, every.cooldownMs) &&
         !this.overHourlyCap(message.groupId, every.hourlyCap);
       if (!this.senderCurrent(item) || signal.aborted || !budget()) return;
-      const generationContext = this.replyContext(item, 'interject', context.snapshot, decision);
+      const generationContext = await this.expressionContext(this.replyContext(item, 'interject', context.snapshot, decision), item.text, history, signal, decision.observation);
       const answer = await this.options.generate!(item.text, history, signal, false, generationContext);
       const guard = await this.sendApproval(item, generationContext, answer, signal);
       if (!guard || !budget()) return;
@@ -492,7 +525,7 @@ export class Conversation {
       this.log('[跳过] 用户明确结束对话，关闭窗口。');
     }
     if (!this.options.autoReply || !decision.shouldRespond || !this.options.generate) return;
-    const generationContext: ReplyContext = { ...context, decision: { reason: decision.reason } };
+    const generationContext = await this.expressionContext({ ...context, decision: { reason: decision.reason } }, item.text, history, signal, decision.observation);
     const answer = await this.options.generate(item.text, history, signal, true, generationContext);
     if (candidate && !candidate()) {
       this.log('[自动接话] 发送前窗口失效，取消回复。');
@@ -514,7 +547,8 @@ export class Conversation {
   }
 
   private async interject(item: Inbound, signal: AbortSignal): Promise<void> {
-    const replyContext = this.replyContext(item, 'interject');
+    let replyContext = this.replyContext(item, 'interject');
+    replyContext = await this.expressionContext(replyContext, item.text, [], signal);
     const context = renderContext(modelContext(replyContext).context.snapshot);
     if (!context) return;
     const content = `最近群里的聊天：\n${context}\n\n（你可以自然地插一句，符合你的人设；一两句话，不复述、不解释、不点评谁说了什么。）`;
@@ -536,7 +570,7 @@ export class Conversation {
     try {
       release = await this.slots.acquire(controller.signal);
       const snapshot = this.discussion.snapshot(group);
-      const replyContext: ReplyContext = { kind: 'warmup', triggerIds: [], snapshot };
+      const replyContext = await this.expressionContext({ kind: 'warmup', triggerIds: [], snapshot }, '', [], controller.signal);
       const context = renderContext(modelContext(replyContext).context.snapshot);
       if (!context) return;
       const content = `最近群里的聊天：\n${context}\n\n（群里安静了一会儿。主动开一个轻松的话题暖场，一两句话，符合你的人设；不要说自己是AI，也不要解释你在暖场。）`;
@@ -564,6 +598,7 @@ export class Conversation {
       catch (error) { if (signal.aborted) throw error; }
       if (this.options.unified) this.applyReference(message, data);
       message.isReplyToBot = isBotGroupReply(data, message);
+      if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
       this.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[引用] 未确认引用机器人；明确呼叫仍有效。');
       if (!message.isReplyToBot && !message.isMentioned && !message.isCalledByName) return;
     }
@@ -572,7 +607,7 @@ export class Conversation {
     const reply = handleGroupMessage(message);
     if (!reply) return;
     const content = message.content.trim();
-    const context = this.replyContext(item, 'explicit');
+    let context = this.replyContext(item, 'explicit');
     // The user may send a picture first and explicitly ask about it in a later message.
     // Keep only its ID/count in discussion context; resolve bytes only after intent is confirmed.
     if (this.options.vision && this.options.imageRequest && content && content.length <= MAX_TEXT && content !== '/清空记忆' &&
@@ -619,10 +654,18 @@ export class Conversation {
     }
     signal.throwIfAborted();
     if (!this.senderCurrent(item)) return;
+    let controlHandled = false;
     let commit: ((delivered: string) => void) | undefined;
     const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia && !(message.quotedAttachments?.imageCount);
     if (this.options.generate) {
-      if (content === '/清空记忆') {
+      const controlReply = this.options.eventMemory?.control(message);
+      if (controlReply) {
+        controlHandled = true;
+        if (content === '/清空记忆') this.options.memory.clear(message.groupId, message.senderId);
+        this.windows.close(message.groupId, message.senderId);
+        if (content === '/清空记忆') this.discussion.forget(message.groupId, message.senderId);
+        reply.content = controlReply;
+      } else if (content === '/清空记忆') {
         this.options.memory.clear(message.groupId, message.senderId);
         this.windows.close(message.groupId, message.senderId);
         reply.content = '已清空你在本群与我的聊天记忆。';
@@ -635,6 +678,7 @@ export class Conversation {
         else if (!this.options.vision) reply.content = '当前没有启用图片理解，暂时看不了这张图。';
         else {
           const image = message.attachments?.images[0] ?? message.quotedAttachments!.images[0];
+          context = await this.expressionContext(context, content, [], signal, undefined, true);
           reply.content = await this.options.vision(content, image, signal, context, this.options.resolveImage);
           commit = delivered => this.options.memory.add(message.groupId, message.senderId, content + '\n[本次附带、引用或明确指向了一张图片；历史只保留文字回答，未保留原图。]', delivered);
         }
@@ -642,6 +686,7 @@ export class Conversation {
         reply.content = '没能从这条引用中取得可验证的图片，请重新发图或引用一条单图消息。';
       } else if (awaitingContent) {
         try {
+          context = await this.expressionContext(context, '', [], signal);
           reply.content = await this.options.generate('', this.options.memory.get(message.groupId, message.senderId), signal, false, context);
         } catch (error) {
           if (signal.aborted || isAbort(error)) throw error;
@@ -654,10 +699,11 @@ export class Conversation {
         const history = this.options.memory.get(message.groupId, message.senderId);
         this.log(`[记忆] 本次携带历史 ${history.length / 2} 轮。`);
         try {
+          context = await this.expressionContext(context, content, history, signal);
           reply.content = await this.options.generate(content, history, signal, true, context);
           commit = delivered => this.options.memory.add(message.groupId, message.senderId, content, delivered);
         } catch (error) {
-          if (isAbort(error)) throw error;
+          if (signal.aborted || isAbort(error)) throw error;
           console.error('[LLM] 请求失败或超时，请检查服务、密钥和余额。');
           reply.content = '我暂时没能生成回复，请稍后再试。';
         }
@@ -667,8 +713,8 @@ export class Conversation {
       this.log('[取消] 生成完成前已被取代，不发送。');
       return;
     }
-    const guard = awaitingContent
-      ? () => !signal.aborted && this.senderCurrent(item)
+    const guard = awaitingContent || controlHandled
+      ? () => !signal.aborted && (controlHandled || this.senderCurrent(item))
       : await this.sendApproval(item, context, reply.content, signal);
     if (!guard) return;
     const delivered = await this.options.send(message.groupId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, reply.content, signal));
@@ -677,7 +723,7 @@ export class Conversation {
     if (awaitingContent) this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));
     else this.awaitingInitial.delete(this.key(message));
     if (commit) commit(delivered);
-    if (!awaitingContent && this.options.judge && !signal.aborted) {
+    if (!awaitingContent && !controlHandled && this.options.judge && !signal.aborted) {
       this.windows.open(this.windows.incoming(message.groupId, message.senderId));
       this.log(this.options.unified ? '[接续] 明确呼叫回复成功，开启可续期对话窗口。' : '[接续] 明确呼叫回复成功，开启固定接续窗口。');
     }

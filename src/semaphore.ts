@@ -26,6 +26,14 @@ export class Semaphore {
     });
   }
 
+  // Background work never queues ahead of foreground requests.
+  tryAcquire(reserve = 0): (() => void) | undefined {
+    if (this.waiters.length || this.active >= this.limit - reserve) return;
+    this.active++;
+    let released = false;
+    return () => { if (!released) { released = true; this.release(); } };
+  }
+
   private readonly release = (): void => {
     this.active--;
     this.waiters.shift()?.();

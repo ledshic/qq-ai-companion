@@ -1,8 +1,9 @@
+import type { ObservationReceipt } from './context-analysis.js';
 import type { ReplyContext } from './context.js';
 import type { ChatTurn } from './memory.js';
 
 export type FollowUpIntent = 'continue' | 'pause' | 'end' | 'uncertain';
-export interface FollowUpDecision { intent: FollowUpIntent; shouldRespond: boolean; reason: string }
+export interface FollowUpDecision { observation?: ObservationReceipt; intent: FollowUpIntent; shouldRespond: boolean; reason: string }
 export type FollowUpJudge = (content: string, history: ChatTurn[], signal?: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
 export interface WindowState {
   group: string;

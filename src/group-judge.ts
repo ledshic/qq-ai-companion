@@ -1,3 +1,4 @@
+import { OBSERVATION_PROMPT, analysisData, observationReceipt, type ObservationReceipt } from './context-analysis.js';
 import { modelContext, renderContext, type ReplyContext } from './context.js';
 import { withTimeout } from './abort.js';
 import { BOT_NAME } from './identity.js';
@@ -5,6 +6,7 @@ import { isRecord } from './onebot.js';
 import type { ChatTurn } from './memory.js';
 
 export interface GroupJudgment {
+  observation?: ObservationReceipt;
   respond: boolean;
   reason: string;
   topicKey?: string;
@@ -31,9 +33,11 @@ phase=before_send 时只判断 draft 现在是否仍合时宜；已被充分回�
 只输出 json，例如 {"respond":true,"reason":"用户在直接问机器人"}，reason 简短，不复述原文。`;
 
 export const createGroupJudge = (apiKey: string, model = 'deepseek-flash',
-  request: typeof fetch = fetch): GroupJudge => {
+  request: typeof fetch = fetch, analyzeExpression = false): GroupJudge => {
   if (!apiKey.trim()) throw new Error('缺少 DeepSeek API Key');
   return async ({ text, recent, history, context }, signal) => {
+    const includeObservation = analyzeExpression && context?.phase !== 'before_send';
+    const analysis = includeObservation ? analysisData({ text, history, context }) : undefined;
     const view = context ? modelContext(context) : undefined;
     const response = await request('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -43,11 +47,11 @@ export const createGroupJudge = (apiKey: string, model = 'deepseek-flash',
         model,
         thinking: { type: 'disabled' },
         stream: false,
-        max_tokens: 400,
+        max_tokens: includeObservation ? 650 : 400,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM },
-          { role: 'user', content: JSON.stringify({ recent: view ? renderContext(view.context.snapshot) : recent, message: text, history, ...(view ? { discussionContext: view.context } : {}) }) },
+          { role: 'system', content: SYSTEM + (includeObservation ? '\n' + OBSERVATION_PROMPT : '') },
+          { role: 'user', content: JSON.stringify({ ...analysis, recent: view ? renderContext(view.context.snapshot) : recent, message: text, history: analysis?.history ?? history, ...(view ? { discussionContext: view.context } : {}) }) },
         ],
       }),
     });
@@ -64,6 +68,7 @@ export const createGroupJudge = (apiKey: string, model = 'deepseek-flash',
       throw new Error('判断结果字段无效');
     }
     const decision: GroupJudgment = { respond: result.respond, reason: result.reason.replace(/[\r\n\t]/g, ' ').slice(0, 200) };
+    if (includeObservation) decision.observation = observationReceipt(result.observation, { text, history, context });
     // Declining a reply has no target/budget side effects. A valid negative
     // decision remains usable even when the model omits optional evidence.
     if (context && !decision.respond) return decision;

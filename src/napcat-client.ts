@@ -1,3 +1,5 @@
+import type { EventMemoryPort } from './events/types.js';
+import type { PersonalityRuntime } from './personality-runtime.js';
 import { memeNote, stripMemeRecords, type MemeManager, type MemeSendContext } from './memes.js';
 import type { VisionHandler, ImageRequestJudge } from './vision.js';
 import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
@@ -11,6 +13,8 @@ import type { FollowUpJudge } from './observation.js';
 import { isRecord, parseGroupMessage } from './onebot.js';
 
 export interface NapCatOptions {
+  eventMemory?: EventMemoryPort;
+  personality?: PersonalityRuntime;
   memes?: MemeManager;
   vision?: VisionHandler;
   imageRequest?: ImageRequestJudge;
@@ -133,12 +137,14 @@ export const connectNapCat = (url: string, token: string,
 
   const conversation = new Conversation({
     memory,
+    eventMemory: options.eventMemory,
     unified: options.unified,
     recordsDelivery: true,
     send: deliver,
     lookup: (messageId, signal) => actionLookup('get_msg', { message_id: messageId }, signal),
     resolveImage: (file, signal) => actionLookup('get_image', { file }, signal),
     referenceHistory: (groupId, signal) => actionLookup('get_group_msg_history', { group_id: groupId, count: 21, reverseOrder: false }, signal),
+    personality: options.personality,
     vision: options.vision,
     imageRequest: options.imageRequest,
     judge: judgeFollowUp,
@@ -169,7 +175,7 @@ export const connectNapCat = (url: string, token: string,
       handshakeTimeout: 10_000,
       maxPayload: 1024 * 1024,
     });
-    socket.on('open', () => log('[NapCat] 已连接，等待群消息。'));
+    socket.on('open', () => { conversation.connected(); log('[NapCat] 已连接，等待群消息。'); });
     socket.on('error', () => console.error('[NapCat] 连接错误，请检查地址、Token 和服务状态。'));
     socket.on('close', () => {
       clearPending();

@@ -4,7 +4,11 @@
 
 A–C 已实施：`FOLLOW_UP_MODE=unified` 使用共享群上下文、独立接续与插话规则，并在每段发送前检查时机。实施与验证见 [A–C 实施记录](docs/AC-IMPLEMENTATION.md)。离线回放运行 `pnpm replay`，不连接 QQ 或模型。
 
-已恢复 TS bot 作为开发主线，AstrBot 项目暂停。设计依据见 [QQ 群友机器人设计](docs/QQBOT-DESIGN.md)，后续任务与验收见 [短期目标大纲](docs/SHORT-TERM-PLAN.md)。搜索、图片与表情包等后续目标尚未实现。
+已恢复 TS bot 作为开发主线，AstrBot 项目暂停。设计依据见 [QQ 群友机器人设计](docs/QQBOT-DESIGN.md)，后续任务与验收见 [短期目标大纲](docs/SHORT-TERM-PLAN.md)。搜索、明确请求的单图理解和表情包发送已实现。
+
+模块化人格首版已实现，默认保留原角色卡。启用、回退和验证范围见[人格首版实施记录](docs/PERSONALITY-IMPLEMENTATION.md)。
+
+事件记忆第一阶段支持按群采集已明确叫到机器人的发言，保存事件与关注事项。聊天追问可召回本群本人已保存的事件，详见[长期事件聊天召回](docs/EVENT-MEMORY-RECALL.md)。关注事项只支持 observe，不主动发送；配置、边界和回放见[事件记忆观察阶段实施记录](docs/EVENT-MEMORY-OBSERVE.md)。关注事项已接入[主动决策观察](docs/EVENT-INITIATIVE-OBSERVE.md)，用 `pnpm observe:events` 查看本地判断和草稿。离线验证运行 `pnpm replay:events`。
 
 A minimal Node.js and TypeScript foundation for a QQ AI companion.
 
@@ -292,6 +296,21 @@ The group buffer is in memory only. Per-person conversation memory remains isola
 by group and sender in SQLite. See docs/AC-IMPLEMENTATION.md for limits and validation.
 
 ## Upstream whale persona
+
+`PERSONALITY_MODE=legacy` (default) keeps the existing character card and adds no
+context analysis requests. Set `PERSONALITY_MODE=modular` and restart only the Node
+bot to enable task-local expression plans. Explicit requests can add one bounded
+analysis call (3-second timeout, no retry); follow-up and participation judges
+provide reusable observations in their existing request. Failed or unknown intent
+analysis uses the original adaptive rules. Explicit seriousness and requests to
+stop teasing still constrain an otherwise unknown intent.
+
+Plans are shared by text, vision and meme selection. Bare mentions and warm-up
+use local plans, and commands do not trigger analysis. Images use conservative
+expression because the context analyzer cannot see the image. This version adds
+no persistent emotions or relationship scores. Return to `legacy` and restart
+the Node bot to roll back; no database migration is required. Program tests use
+mock models; naturalness and real-provider latency remain unverified.
 
 `config/personas/dafeiyu.md` is an adaptation of the upstream QQ group-friend character card
 from mtshang/make-your-qq-ai-group-member, retained under its MIT license

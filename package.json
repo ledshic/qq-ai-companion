@@ -14,7 +14,9 @@
     "napcat": "tsx --env-file-if-exists=.env src/napcat.ts",
     "test": "tsx --test src/*.test.ts",
     "replay": "node --import tsx src/replay.ts",
-    "memes:index": "node --import tsx --env-file-if-exists=.env src/meme-index.ts"
+    "memes:index": "node --import tsx --env-file-if-exists=.env src/meme-index.ts",
+    "replay:events": "node --import tsx src/event-replay.ts",
+    "observe:events": "node --import tsx --env-file-if-exists=.env src/event-observe-report.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
