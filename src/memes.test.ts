@@ -10,7 +10,7 @@ import type { ReplyContext } from './context.js';
 const entry: MemeEntry = { id: 'tb_abcdefabcdef', file: '/unused.png', sha256: 'unused', category: 'happy', meaning: '开心庆祝',
   visibleText: '耶', speaker: '自己庆祝', target: '自己', scenes: ['完成一件事'], avoid: ['认真倾诉'], confidence: .9, semanticVersion: 1 };
 const context: ReplyContext = { kind: 'explicit', targetSenderId: '12345678', triggerIds: [],
-  snapshot: { groupId: '87654321', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
+  snapshot: { chatId: '87654321', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
 const store = (): MemeStateStore => { let data = {}; return { load: () => structuredClone(data), save: value => { data = structuredClone(value); } }; };
 const selected: typeof fetch = async (_url, init) => Response.json({ choices: [{ message: { content: JSON.stringify(JSON.parse(String(init?.body)).messages[0].content.includes('独立复核') ? { match: true } : { id: entry.id }) } }] });
 const signal = () => new AbortController().signal;

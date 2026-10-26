@@ -20,7 +20,7 @@ import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
 import type { EventDomain,ExtractionInput,Source } from './events/types.js';
 const fri=Date.parse('2026-10-23T10:00:00+08:00'),mon=Date.parse('2026-10-26T10:00:00+08:00');
-const scope={groupId:'g',ownerId:'a'};
+const scope={chatId:'g',ownerId:'a'};
 const q=(text:string,source='source-1')=>({source,text});
 // Topic-specific examples live in fixtures; the runtime schema is universal.
 const proposal=(patch:Record<string,unknown>={})=>{
@@ -29,7 +29,7 @@ const proposal=(patch:Record<string,unknown>={})=>{
   start:q('明天'),duration:q('两天'),anchors:resume?[{label:'复工',date:resume,notBeforeEnd:true}]:[],
   followup:{anchor:resume?0:'end',intent:resume?'询问复工近况':'询问休息近况',basis:resume?'stated':'inferred'},...rest};
 };
-const source=(text='明天休两天，周一上班',id='m1',ownerId='a',groupId='g')=>({groupId,ownerId,messageId:id,text,sourceAt:fri,receivedAt:fri});
+const source=(text='明天休两天，周一上班',id='m1',ownerId='a',chatId='g')=>({chatId,ownerId,messageId:id,text,sourceAt:fri,receivedAt:fri});
 function insert(store:EventStore,text='明天休两天，周一上班',id='m1',raw=proposal(),now=fri+4000){
   store.ingest({...source(text,id),receivedAt:now-4000});const batch=store.claim(now)!;
   const ctx={sources:batch.sources,existing:store.records(scope,now),now};
@@ -129,13 +129,13 @@ test('runtime collects addressed inputs only; clear and model cancellation do no
  const runtime=new EventMemoryRuntime(s,[eventDomain],async()=>{calls++;return {event:[proposal()]};},
   {groups:new Set(['g']),scope:'addressed',mode:'observe'},eventControls,()=>undefined,()=>now,()=>0,line=>logs.push(line));
  runtime.attach(()=>()=>{});runtime.resume();t.after(()=>runtime.close());
- runtime.ingest({groupId:'g',senderId:'a',messageId:'1',content:'普通发言',isMentioned:false,timestamp:fri});
- runtime.ingest({groupId:'other',senderId:'a',messageId:'2',content:'明天休两天',isMentioned:true,timestamp:fri});
+ runtime.ingest({chatId:'g',senderId:'a',messageId:'1',content:'普通发言',isMentioned:false,timestamp:fri});
+ runtime.ingest({chatId:'other',senderId:'a',messageId:'2',content:'明天休两天',isMentioned:true,timestamp:fri});
  now+=4000;await runtime.tick();assert.equal(calls,0);
- runtime.ingest({groupId:'g',senderId:'a',messageId:'3',content:'明天休两天，周一上班',isMentioned:true,timestamp:fri});
+ runtime.ingest({chatId:'g',senderId:'a',messageId:'3',content:'明天休两天，周一上班',isMentioned:true,timestamp:fri});
  now+=4000;await runtime.tick();assert.equal(calls,1);assert.equal(s.attentions().length,1);
  assert.ok(logs.some(l=>l.includes('send=false')));assert.ok(!logs.join('').includes('明天'));
- runtime.control({groupId:'g',senderId:'a',content:'/清空长期记忆',isMentioned:true});assert.equal(s.records(scope,now).length,0);
+ runtime.control({chatId:'g',senderId:'a',content:'/清空长期记忆',isMentioned:true});assert.equal(s.records(scope,now).length,0);
 });
 
 test('domain extension requires no engine changes',async t=>{
@@ -144,7 +144,7 @@ test('domain extension requires no engine changes',async t=>{
   project(){return [{kind:'synthetic-attention',occurrenceAt:now,notBefore:now,expiresAt:now+10000,payload:{},requiresPresence:false}];}};
  const runtime=new EventMemoryRuntime(s,[domain],async()=>({}),{groups:new Set(['g']),scope:'group',mode:'observe'},eventControls,()=>undefined,()=>now);
  runtime.attach(()=>()=>{});runtime.resume();t.after(()=>runtime.close());
- runtime.ingest({groupId:'g',senderId:'a',messageId:'1',content:'任意业务',isMentioned:false,timestamp:fri});now+=4000;await runtime.tick();
+ runtime.ingest({chatId:'g',senderId:'a',messageId:'1',content:'任意业务',isMentioned:false,timestamp:fri});now+=4000;await runtime.tick();
  assert.equal(s.records(scope,now)[0].domain,'synthetic-domain');assert.equal(s.attentions()[0].kind,'synthetic-attention');
 });
 
@@ -185,11 +185,11 @@ test('conversation collection survives a failed reply; explicit clear is acknowl
  const conversation=new Conversation({memory,eventMemory:runtime,unified:true,log:()=>{},generate:async()=>'回答',
   send:async(_group,text,guard)=>{if(!await guard())return;sends++;if(!fail)return text;}});
  t.after(()=>{conversation.disconnect();runtime.close();memory.close();});conversation.connected();
- conversation.handle({groupId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true});
+ conversation.handle({chatId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true});
  for(let i=0;i<4;i++)await new Promise(setImmediate);
  now+=4000;await runtime.tick();assert.equal(events.records(scope,now).length,1);assert.deepEqual(memory.get('g','a'),[]);
  fail=false;
- conversation.handle({groupId:'g',senderId:'a',messageId:'2',timestamp:now,content:'/清空记忆',isMentioned:true});
+ conversation.handle({chatId:'g',senderId:'a',messageId:'2',timestamp:now,content:'/清空记忆',isMentioned:true});
  for(let i=0;i<4;i++)await new Promise(setImmediate);
  assert.equal(sends,2);assert.deepEqual(events.records(scope,now),[]);assert.deepEqual(memory.get('g','a'),[]);
 });
@@ -200,9 +200,9 @@ test('clear during in-flight extraction fences the late result even if the extra
  const runtime=new EventMemoryRuntime(store,[eventDomain],async()=>new Promise(done=>{resolve=done;}),
  {groups:new Set(['g']),scope:'addressed',mode:'observe'},eventControls,()=>undefined,()=>now,()=>0,()=>{});
  runtime.attach(()=>()=>{});runtime.resume();t.after(()=>runtime.close());
- runtime.ingest({groupId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true});
+ runtime.ingest({chatId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true});
  now+=4000;const pending=runtime.tick();
- runtime.control({groupId:'g',senderId:'a',content:'/清空长期记忆',isMentioned:true});
+ runtime.control({chatId:'g',senderId:'a',content:'/清空长期记忆',isMentioned:true});
  resolve({event:[proposal()]});await pending;
  assert.deepEqual(store.records(scope,now),[]);assert.deepEqual(store.attentions(),[]);
 });
@@ -213,7 +213,7 @@ test('disconnect cancels extraction and reconnect does not replay the same input
   calls++;return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));},
  {groups:new Set(['g']),scope:'addressed',mode:'observe'},eventControls,()=>undefined,()=>now,()=>0,()=>{});
  runtime.attach(()=>()=>{});runtime.resume();t.after(()=>runtime.close());
- const message={groupId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true};
+ const message={chatId:'g',senderId:'a',messageId:'1',timestamp:fri,content:'明天休两天，周一上班',isMentioned:true};
  runtime.ingest(message);now+=4000;const pending=runtime.tick();runtime.pause();await pending;
  runtime.resume();runtime.ingest(message);now+=4000;await runtime.tick();assert.equal(calls,1);assert.deepEqual(store.records(scope,now),[]);
 });
@@ -241,7 +241,7 @@ test('replayed clear commands do not delete newer memories after reconnect',t=>{
  const store=new EventStore(':memory:');
  const runtime=new EventMemoryRuntime(store,[eventDomain],async()=>({}),{groups:new Set(['g']),scope:'addressed',mode:'observe'},
  eventControls,()=>undefined,()=>fri+10000,()=>0,()=>{});t.after(()=>runtime.close());runtime.resume();
- const command={groupId:'g',senderId:'a',messageId:'clear-command',content:'/清空长期记忆',isMentioned:true};
+ const command={chatId:'g',senderId:'a',messageId:'clear-command',content:'/清空长期记忆',isMentioned:true};
  runtime.control(command);insert(store,'明天休两天，周一上班','new-event',proposal(),fri+8000);
  runtime.pause();runtime.resume();runtime.control(command);
  assert.equal(store.records(scope,fri+10000).length,1);assert.equal(store.epoch(scope),1);

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { approveSend, type SendReviewServices } from './send-review.js';
-import type { ContextMessage, GroupSnapshot, ReplyContext } from './context.js';
+import type { ContextMessage, ChatSnapshot, ReplyContext } from './context.js';
 
 const bot = (id: string, replyTo = 'request', mentions = ['owner']): ContextMessage => ({
   id, replyTo, mentions, senderId: 'bot', role: 'assistant', text: 'part', at: 1000, revision: 1, media: false,
 });
 function fixture(unified = true) {
-  const initial: GroupSnapshot = { groupId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] };
+  const initial: ChatSnapshot = { chatId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] };
   let snapshot = initial;
   let sender = true, window = true, memory = true;
   const reviewed: ReplyContext[] = [];
@@ -19,7 +19,7 @@ function fixture(unified = true) {
     snapshot: () => snapshot, reconsider: async context => { reviewed.push(context); return true; }, log: line => logs.push(line) };
   return { services, context, controller, reviewed, logs,
     approve: () => approveSend({ messageId: 'request', senderId: 'owner' }, context, 'draft', controller.signal, services),
-    change: (patch: Partial<GroupSnapshot>) => { snapshot = { ...snapshot, ...patch }; },
+    change: (patch: Partial<ChatSnapshot>) => { snapshot = { ...snapshot, ...patch }; },
     invalidate: (kind: string) => { if (kind === 'sender') sender = false; else if (kind === 'window') window = false;
       else if (kind === 'memory') memory = false; else controller.abort(); },
   };

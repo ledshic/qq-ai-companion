@@ -52,10 +52,10 @@ export class SqliteSessionStore implements SessionStore {
     }
   }
 
-  save(key: string, groupId: string, senderId: string, turns: ChatTurn[], touched: number): void {
+  save(key: string, chatId: string, senderId: string, turns: ChatTurn[], touched: number): void {
     this.db.exec('BEGIN IMMEDIATE');
     try {
-      this.upsert.run(key, groupId, senderId, touched, JSON.stringify(turns));
+      this.upsert.run(key, chatId, senderId, touched, JSON.stringify(turns));
       this.db.exec('COMMIT');
     } catch (error) {
       this.db.exec('ROLLBACK');

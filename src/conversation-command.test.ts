@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { handleConversationCommand, type ConversationCommandServices } from './conversation-command.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 
-const message = (content: string): GroupMessage => ({ groupId: 'group', senderId: 'owner', content, isMentioned: true });
+const message = (content: string): ChatMessage => ({ chatId: 'group', senderId: 'owner', content, isMentioned: true });
 function services(controlReply?: string) {
   const calls: string[] = [];
   const check = (action: string, group: string, owner: string) => {

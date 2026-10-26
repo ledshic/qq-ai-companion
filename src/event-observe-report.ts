@@ -11,7 +11,7 @@ try {
     observations:rows.map(row=>{
       const attempt=JSON.parse(String(row.body)) as InitiativeAttempt;
       const memory=db.prepare("SELECT version,epoch,status,expires_at,body FROM event_memories WHERE id=(SELECT event_id FROM attention_items WHERE id=?)").get(attempt.attentionId);
-      return {group:alias(groups,attempt.groupId,'group'),owner:alias(owners,JSON.stringify([attempt.groupId,attempt.ownerId]),'user'),
+      return {group:alias(groups,attempt.chatId,'group'),owner:alias(owners,JSON.stringify([attempt.chatId,attempt.ownerId]),'user'),
         eventSummary:memory&&memory.version===attempt.eventVersion?JSON.parse(String(memory.body)).payload.summary:undefined,
         tone:attempt.opportunity.tone,window:{from:new Date(attempt.opportunity.notBefore).toISOString(),until:new Date(attempt.opportunity.expiresAt).toISOString()},
         contextVersion:attempt.contextVersion,at:new Date(attempt.startedAt).toISOString(),finishedAt:attempt.finishedAt?new Date(attempt.finishedAt).toISOString():null,

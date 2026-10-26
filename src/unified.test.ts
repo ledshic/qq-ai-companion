@@ -1,14 +1,15 @@
+import type { ReferencedMessage } from './channel.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Conversation } from './conversation.js';
-import { GroupContext, modelContext, type ReplyContext } from './context.js';
+import { ChatContext, modelContext, type ReplyContext } from './context.js';
 import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
-import type { GroupJudge } from './group-judge.js';
+import type { ChatJudge } from './chat-judge.js';
 import type { FollowUpJudge } from './observation.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 import { parseGroupMessage } from './onebot.js';
-import { createGroupJudge } from './group-judge.js';
+import { createChatJudge } from './chat-judge.js';
 import { createFollowUpJudge } from './follow-up.js';
 import { createDeepSeekReply } from './deepseek.js';
 
@@ -20,11 +21,11 @@ function harness(t: { after: (fn: () => void) => void }, cap = 10, cooldownMs = 
   const h = {
     toolPermissions: [] as (boolean | undefined)[], sent: [] as string[], logs: [] as string[], generated: [] as ReplyContext[], decisions: [] as ReplyContext[], followDecisions: [] as ReplyContext[],
     groupJudge: (async input => ({ respond: input.text !== 'noise', reason: 'test', topicKey: 'topic-a',
-      targetSenderId: input.context?.targetSenderId, basisIds: [...(input.context?.triggerIds ?? [])] })) as GroupJudge,
+      targetSenderId: input.context?.targetSenderId, basisIds: [...(input.context?.triggerIds ?? [])] })) as ChatJudge,
     followJudge: (async text => ({ intent: text === 'pause' ? 'pause' : text === 'end' ? 'end' : text === 'other' ? 'uncertain' : 'continue',
       shouldRespond: !['pause', 'end', 'other'].includes(text), reason: 'test' })) as FollowUpJudge,
     generate: (async (text: string, _context: ReplyContext, _signal: AbortSignal) => `answer:${text}`),
-    lookup: (async (_id: string) => null) as (id: string) => Promise<unknown>,
+    lookup: (async (_id: string) => undefined) as (id: string) => Promise<ReferencedMessage | undefined>,
     sendGate: undefined as (() => Promise<void>) | undefined,
     failSend: false,
     sendOverride: undefined as ((text: string, guard: () => boolean | Promise<boolean>) => Promise<string | undefined>) | undefined,
@@ -53,8 +54,8 @@ function harness(t: { after: (fn: () => void) => void }, cap = 10, cooldownMs = 
   return Object.assign(h, {
     conversation,
     time: (time: number) => { now = time; },
-    input: async (text: string, sender = 'a', explicit = false, overrides: Partial<GroupMessage> = {}) => {
-      const message: GroupMessage = { groupId: 'g', senderId: sender, senderName: sender.toUpperCase(), selfId: 'bot',
+    input: async (text: string, sender = 'a', explicit = false, overrides: Partial<ChatMessage> = {}) => {
+      const message: ChatMessage = { chatId: 'g', senderId: sender, senderName: sender.toUpperCase(), selfId: 'bot',
         messageId: `m${++sequence}`, content: text, isMentioned: explicit, ...overrides };
       conversation.handle(message); await flush(); return message;
     },
@@ -75,7 +76,7 @@ test('one snapshot with speakers and acknowledged bot replies reaches both judge
   await h.input('noise', 'd');
   assert.ok(h.decisions.at(-1)!.snapshot.messages.some(m => m.role === 'assistant' && m.text === 'answer:question'));
   assert.equal(generated.snapshot.messages.length, 3, 'a later message cannot mutate the prior snapshot');
-  await h.input('noise', 'a', false, { groupId: 'other' });
+  await h.input('noise', 'a', false, { chatId: 'other' });
   assert.equal(h.decisions.at(-1)!.snapshot.messages.length, 1);
 });
 
@@ -88,8 +89,8 @@ test('OneBot retains message ID, sender, timestamp, media and quote/mention meta
   assert.equal(m.messageId, '-42'); assert.equal(m.senderName, 'A'); assert.equal(m.timestamp, 123000);
   assert.equal(m.replyMessageId, '-7'); assert.deepEqual(m.mentionedIds, ['9']); assert.equal(m.hasMedia, true);
   assert.equal(m.attachments?.images[0].url, 'not-stored');
-  const discussion = new GroupContext(); discussion.add(m);
-  assert.equal(JSON.stringify(discussion.snapshot(m.groupId)).includes('not-stored'), false);
+  const discussion = new ChatContext(); discussion.add(m);
+  assert.equal(JSON.stringify(discussion.snapshot(m.chatId)).includes('not-stored'), false);
 });
 
 test('continuous follow-ups bypass proactive cooldown/cap and renew past two responses', async t => {
@@ -206,7 +207,7 @@ test('same unacknowledged topic is not repeated until someone explicitly respond
 test('quoted other member and unresolved quote do not wake an explicit or follow-up reply', async t => {
   const h = harness(t);
   await h.input('start', 'a', true);
-  h.lookup = async id => id === 'missing' ? null : ({ message_type: 'group', group_id: 'g', message_id: id, sender: { user_id: '99' } });
+  h.lookup = async id => id === 'missing' ? undefined : ({ chatId: 'g', messageId: id, senderId: '99' });
   h.groupJudge = async () => ({ respond: false, reason: 'quoted elsewhere' });
   await h.input('reply to another person', 'a', false, { replyMessageId: 'other' });
   await h.input('unknown reply', 'b', false, { replyMessageId: 'missing' });
@@ -215,22 +216,22 @@ test('quoted other member and unresolved quote do not wake an explicit or follow
 
 test('verified bot quote records the target and wakes the bot', async t => {
   const h = harness(t);
-  h.lookup = async id => ({ message_type: 'group', group_id: 'g', message_id: id, sender: { user_id: 'bot' } });
+  h.lookup = async id => ({ chatId: 'g', messageId: id, senderId: 'bot' });
   h.groupJudge = async () => ({ respond: false, reason: 'unresolved quote is not an invitation' });
   // Actual OneBot IDs are numeric; retain those identities for reference validation.
   await h.input('quote', 'a', false, { selfId: '123', replyMessageId: '7' });
   assert.equal(h.sent.length, 0, 'unvalidated non-numeric sender does not become explicit');
-  h.lookup = async id => ({ message_type: 'group', group_id: 'g', message_id: id, sender: { user_id: '123' } });
+  h.lookup = async id => ({ chatId: 'g', messageId: id, senderId: '123' });
   await h.input('quote', 'a', false, { selfId: '123', replyMessageId: '8' });
   assert.equal(h.sent.length, 1);
   assert.equal(h.generated.at(-1)!.snapshot.messages.at(-1)!.replyToSenderId, '123');
 });
 
 test('late quote lookup after disconnect cannot restart scheduling', async t => {
-  const h = harness(t); const lookup = deferred<unknown>(); h.lookup = () => lookup.promise;
+  const h = harness(t); const lookup = deferred<ReferencedMessage | undefined>(); h.lookup = () => lookup.promise;
   await h.input('quote', 'a', false, { selfId: '123', replyMessageId: '8' });
   h.conversation.disconnect();
-  lookup.resolve({ message_type: 'group', group_id: 'g', message_id: '8', sender: { user_id: '123' } }); await flush();
+  lookup.resolve({ chatId: 'g', messageId: '8', senderId: '123' }); await flush();
   assert.equal(h.sent.length, 0); assert.equal(h.generated.length, 0);
 });
 
@@ -240,7 +241,7 @@ test('event IDs deduplicate before memory/window side effects and across reconne
   h.conversation.handle({ ...message }); await flush();
   h.conversation.disconnect(); h.conversation.handle({ ...message }); await flush();
   assert.equal(h.sent.length, 1); assert.equal(h.memory.get('g', 'a').length, 2);
-  await h.input('other group', 'a', true, { messageId: message.messageId, groupId: 'other' });
+  await h.input('other group', 'a', true, { messageId: message.messageId, chatId: 'other' });
   assert.equal(h.sent.length, 2);
 });
 
@@ -255,8 +256,8 @@ test('failed delivery does not consume budget; only successful partial text ente
 });
 
 test('group snapshots prune expired text on reads and enforce length/count bounds', () => {
-  let now = 100; const ctx = new GroupContext(() => now, 3, 1000, 2, 8);
-  for (let i = 0; i < 5; i++) ctx.add({ groupId: 'g', senderId: 'a', content: '1234', isMentioned: false, messageId: String(i) });
+  let now = 100; const ctx = new ChatContext(() => now, 3, 1000, 2, 8);
+  for (let i = 0; i < 5; i++) ctx.add({ chatId: 'g', senderId: 'a', content: '1234', isMentioned: false, messageId: String(i) });
   assert.equal(ctx.snapshot('g').messages.length, 2);
   const frozen = ctx.snapshot('g'); assert.equal(Object.isFrozen(frozen.messages[0]), true);
   now = 1101; assert.equal(ctx.snapshot('g').messages.length, 0);
@@ -264,7 +265,7 @@ test('group snapshots prune expired text on reads and enforce length/count bound
 
 test('actual generation API receives group metadata as data, distinct from personal history', async () => {
   const context: ReplyContext = { kind: 'follow-up', targetSenderId: 'a', triggerIds: ['1'], snapshot: {
-    groupId: 'g', version: 1, incomingVersion: 1, capturedAt: 1, messages: [{ id: '1', senderId: 'b', role: 'user', text: 'B said this', at: 1, revision: 1, mentions: [], media: false }],
+    chatId: 'g', version: 1, incomingVersion: 1, capturedAt: 1, messages: [{ id: '1', senderId: 'b', role: 'user', text: 'B said this', at: 1, revision: 1, mentions: [], media: false }],
   } };
   const reply = createDeepSeekReply('test-key', undefined, async (_url, options) => {
     const body = JSON.parse(options!.body as string);
@@ -277,7 +278,7 @@ test('actual generation API receives group metadata as data, distinct from perso
 
 test('judge and follow-up request include context; fabricated basis/target fail closed', async () => {
   const context: ReplyContext = { kind: 'interject', targetSenderId: 'a', triggerIds: ['1'], snapshot: {
-    groupId: 'g', version: 1, incomingVersion: 1, capturedAt: 1, messages: [{ id: '1', senderId: 'a', role: 'user', text: 'question', at: 1, revision: 1, mentions: [], media: false }],
+    chatId: 'g', version: 1, incomingVersion: 1, capturedAt: 1, messages: [{ id: '1', senderId: 'a', role: 'user', text: 'question', at: 1, revision: 1, mentions: [], media: false }],
   } };
   const result = { respond: true, reason: 'test', topicKey: 'topic', targetSenderId: 'a', basisIds: ['1'] };
   const mock = (data: unknown): typeof fetch => async (_url, options) => {
@@ -291,9 +292,9 @@ test('judge and follow-up request include context; fabricated basis/target fail 
       basisIds: Array.isArray(value.basisIds) ? value.basisIds.map(id => id === '1' ? external.snapshot.messages[0].id : id) : value.basisIds } : value;
     return Response.json({ choices: [{ message: { content: JSON.stringify(mapped) } }] });
   };
-  assert.deepEqual(await createGroupJudge('key', undefined, mock(result))({ text: 'q', recent: '', history: [], context }), result);
+  assert.deepEqual(await createChatJudge('key', undefined, mock(result))({ text: 'q', recent: '', history: [], context }), result);
   for (const invalid of [{ ...result, targetSenderId: 'b' }, { ...result, basisIds: ['made-up'] }]) {
-    await assert.rejects(createGroupJudge('key', undefined, mock(invalid))({ text: 'q', recent: '', history: [], context }));
+    await assert.rejects(createChatJudge('key', undefined, mock(invalid))({ text: 'q', recent: '', history: [], context }));
   }
   const follow = await createFollowUpJudge('key', undefined, mock({ intent: 'pause', shouldRespond: false, reason: 'pause' }))('wait', [], undefined, context);
   assert.equal(follow.intent, 'pause');
@@ -376,11 +377,11 @@ test('an unresolved quote during an active conversation does not automatically c
 
 
 test('an addressed quote establishes the relationship before a slow lookup and preserves additions', async t => {
-  const h = harness(t); const lookup = deferred<unknown>(); h.lookup = () => lookup.promise;
+  const h = harness(t); const lookup = deferred<ReferencedMessage | undefined>(); h.lookup = () => lookup.promise;
   h.groupJudge = async () => ({ respond: false, reason: 'proactive reply is forbidden' });
   await h.input('original question', 'a', true, { selfId: '123', replyMessageId: '8' });
   await h.input('additional constraint', 'a');
-  lookup.resolve({ message_type: 'group', group_id: 'g', message_id: '8', sender: { user_id: '99' }, message: 'original reference' });
+  lookup.resolve({ chatId: 'g', messageId: '8', senderId: '99', text: 'original reference' });
   await flush();
   assert.deepEqual(h.sent, ['answer:additional constraint']);
   const ctx = h.generated.at(-1)!;
@@ -411,7 +412,7 @@ test('follow-up queued behind delivery is rechecked when another member answers'
 
 test('model payload aliases account/group/message identifiers while preserving reference relationships', () => {
   const context: ReplyContext = { kind: 'explicit', targetSenderId: '22222222', triggerIds: ['33333333'], snapshot: {
-    groupId: '11111111', version: 1, incomingVersion: 1, capturedAt: 1,
+    chatId: '11111111', version: 1, incomingVersion: 1, capturedAt: 1,
     messages: [{ id: '33333333', senderId: '22222222', role: 'user', text: 'hello', at: 1, revision: 1,
       replyTo: '44444444', replyToSenderId: '55555555', mentions: ['55555555'], media: false }],
   } };
@@ -425,9 +426,9 @@ test('model payload aliases account/group/message identifiers while preserving r
 
 
 test('negative model decisions remain useful without fabricated topic or target evidence', async () => {
-  const ctx = new GroupContext(); ctx.add({ groupId: 'g', senderId: 'a', messageId: '1', content: 'noise', isMentioned: false });
+  const ctx = new ChatContext(); ctx.add({ chatId: 'g', senderId: 'a', messageId: '1', content: 'noise', isMentioned: false });
   const context: ReplyContext = { kind: 'interject', targetSenderId: 'a', triggerIds: ['1'], snapshot: ctx.snapshot('g') };
-  const judge = createGroupJudge('test-key', undefined, async () => Response.json({ choices: [{ message: {
+  const judge = createChatJudge('test-key', undefined, async () => Response.json({ choices: [{ message: {
     content: JSON.stringify({ respond: false, reason: 'another conversation' }) } }] }));
   assert.deepEqual(await judge({ text: 'noise', recent: '', history: [], context }), { respond: false, reason: 'another conversation' });
 });
@@ -442,7 +443,7 @@ test('legacy interjection and warmup prompt text also uses identifier aliases', 
     send: async (_group, text, guard) => await guard() ? text : undefined,
   });
   t.after(() => { conversation.disconnect(); memory.close(); });
-  conversation.handle({ groupId: '11111111', senderId: '22222222', selfId: '99999999', messageId: '33333333', content: 'hello', isMentioned: false });
+  conversation.handle({ chatId: '11111111', senderId: '22222222', selfId: '99999999', messageId: '33333333', content: 'hello', isMentioned: false });
   await flush(); conversation.tick(); await flush();
   assert.equal(prompts.length, 2);
   for (const text of prompts) for (const id of ['11111111','22222222','33333333','99999999']) assert.equal(text.includes(id), false);

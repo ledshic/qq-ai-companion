@@ -12,12 +12,12 @@ import { EventMemoryRuntime } from './events/runtime.js';
 import { eventControls } from './events/controls.js';
 import { createEventDomain } from './events/domains/event.js';
 import { createInitiativeObserver } from './events/initiative.js';
-import { GroupContext } from './context.js';
-import type { GroupMessage } from './message.js';
+import { ChatContext } from './context.js';
+import type { ChatMessage } from './message.js';
 import type { InitiativeInput, InitiativeObserver } from './events/initiative-types.js';
 const start=Date.parse('2026-10-25T10:00:00+08:00'),now=Date.parse('2026-10-26T10:00:00+08:00');
-const scope={groupId:'private-group',ownerId:'private-user'};
-const message=(id='current',text='今天终于有空了'):GroupMessage=>({groupId:scope.groupId,senderId:scope.ownerId,content:text,messageId:id,timestamp:now,isMentioned:false});
+const scope={chatId:'private-group',ownerId:'private-user'};
+const message=(id='current',text='今天终于有空了'):ChatMessage=>({chatId:scope.chatId,senderId:scope.ownerId,content:text,messageId:id,timestamp:now,isMentioned:false});
 function seed(store:EventStore,s=scope,id='origin') {
   const domain=createEventDomain();
   store.ingest({...s,messageId:id,text:'我明天开始做模型',sourceAt:start,receivedAt:start});
@@ -29,18 +29,18 @@ function seed(store:EventStore,s=scope,id='origin') {
 }
 function setup(observer:InitiativeObserver,db=':memory:') {
  const store=new EventStore(db);const item=seed(store);let clock=now;
- const discussion=new GroupContext(()=>clock);discussion.add(message());
- const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.groupId]),scope:'addressed',mode:'observe'},eventControls,
+ const discussion=new ChatContext(()=>clock);discussion.add(message());
+ const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.chatId]),scope:'addressed',mode:'observe'},eventControls,
   (records,settings)=>settings.proactive==='off'?{reason:'preference_off',terminal:true}:undefined,()=>clock,()=>0,()=>{},undefined,observer);
- runtime.attach(()=>()=>{},()=>discussion.snapshot(scope.groupId));runtime.resume();
+ runtime.attach(()=>()=>{},()=>discussion.snapshot(scope.chatId));runtime.resume();
  return {store,item,runtime,discussion,setNow:(v:number)=>{clock=v;}};
 }
 const reply=(value:unknown)=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(value)}}]}),{status:200});
 const decision=(action='draft',reason='natural_opening')=>({action,reason,basis:['memory-1','message-1'],observation:{intent:'casual',seriousness:'inferred',requestedBanter:'unspecified',evidenceRefs:['message-1']}});
 function input():InitiativeInput {
  const store=new EventStore(':memory:');const attention=seed(store);const record=store.records(scope,now)[0];
- const discussion=new GroupContext(()=>now);discussion.add(message());
- const value={attention,record,evidence:store.recallEvidence(scope,record.evidenceIds,now),records:store.records(scope,now),snapshot:discussion.snapshot(scope.groupId),now};store.close();return value;
+ const discussion=new ChatContext(()=>now);discussion.add(message());
+ const value={attention,record,evidence:store.recallEvidence(scope,record.evidenceIds,now),records:store.records(scope,now),snapshot:discussion.snapshot(scope.chatId),now};store.close();return value;
 }
 
 test('ready opportunity evaluates once, stores draft and stable tone, with no send capability',async()=>{
@@ -57,7 +57,7 @@ test('not due, absent owner, expired, foreign groups and preference off never re
   if(state==='not_due')x.setNow(now-2*3600000);
   if(state==='expired')x.setNow(now+9*3600000);
   if(state==='preference_off')x.store.setSettings(scope,{proactive:'off'});
-  if(state==='foreign')x.runtime.ingest({...message(),groupId:'foreign'});else if(state!=='no_presence')x.runtime.ingest(message());
+  if(state==='foreign')x.runtime.ingest({...message(),chatId:'foreign'});else if(state!=='no_presence')x.runtime.ingest(message());
   await x.runtime.tick();assert.equal(calls,0,state);x.runtime.close();
  }
 });
@@ -103,7 +103,7 @@ test('model adapter anonymizes IDs, reuses modular persona and validates referen
  });
  const result=await observe(input(),new AbortController().signal);
  assert.equal(result.status,'drafted');assert.equal(result.expressionPlan?.mode,'casual');assert.equal(requests.length,3);
- const wire=JSON.stringify(requests);for(const id of [scope.groupId,scope.ownerId,input().record.id])assert.ok(!wire.includes(id));
+ const wire=JSON.stringify(requests);for(const id of [scope.chatId,scope.ownerId,input().record.id])assert.ok(!wire.includes(id));
  assert.ok(!requests[0].tools);assert.ok(!requests[1].tools);assert.match(requests[1].messages[0].content,/小鲸鱼|鲸鱼/);
 });
 
@@ -120,8 +120,8 @@ test('skip uses only decision request; invalid JSON, forged basis and HTTP failu
 
 test('recent bot participation and missing target context skip before model; banter preference controls persona',async()=>{
  for(const kind of ['bot','absent']){
-  const data=input();const context=new GroupContext(()=>now);if(kind==='bot'){context.add(message());context.delivered(scope.groupId,'刚说完');}
-  data.snapshot=context.snapshot(scope.groupId);
+  const data=input();const context=new ChatContext(()=>now);if(kind==='bot'){context.add(message());context.delivered(scope.chatId,'刚说完');}
+  data.snapshot=context.snapshot(scope.chatId);
   const result=await createInitiativeObserver('k','m','modular',async()=>{throw Error('must not call');})(data,new AbortController().signal);
   assert.equal(result.status,'skipped');assert.equal(result.reason,kind==='bot'?'recent_bot_reply':'no_recent_context');
  }
@@ -172,7 +172,7 @@ test('local report shows anonymized historical decision and clear removes report
   x.runtime.ingest(message());await x.runtime.tick();const output=report(),body=JSON.parse(output);
   assert.equal(body.sendCapability,false);assert.equal(body.observations[0].text,'观察候选');
   assert.equal(body.observations[0].tone,'wry');assert.ok(body.observations[0].window.from);
-  for(const id of [scope.groupId,scope.ownerId,x.item.id])assert.ok(!output.includes(id));
+  for(const id of [scope.chatId,scope.ownerId,x.item.id])assert.ok(!output.includes(id));
   x.store.clear(scope);assert.deepEqual(JSON.parse(report()).observations,[]);
  }finally{x.runtime.close();rmSync(dir,{recursive:true,force:true});}
 });

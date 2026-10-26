@@ -279,3 +279,39 @@ test('observation never replies or changes memory and ignores other speakers', {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });
+
+test('private chat replies without mention and keeps acknowledged history apart from group history', {timeout:5000}, async()=>{
+  const server=new WebSocketServer({host:'127.0.0.1',port:0});
+  await once(server,'listening');
+  const address=server.address();assert.ok(address&&typeof address!=='string');
+  const connection=once(server,'connection');
+  const seen:Array<{text:string;history:string[];scope?:string}>=[];
+  const stop=connectNapCat(`ws://127.0.0.1:${address.port}`,'',async(text,history,_signal,_tools,context)=>{
+    seen.push({text,history:history.map(t=>t.content),scope:context?.snapshot.chatId});return '收到';
+  },undefined,{unified:true});
+  try {
+    const [peer]=await connection;
+    const actions:Array<{action:string;params:Record<string,unknown>}>=[];
+    peer.on('message',(raw:RawData)=>{
+      const action=JSON.parse(raw.toString());actions.push(action);
+      peer.send(JSON.stringify({status:'ok',retcode:0,echo:action.echo,data:{message_id:100+actions.length}}));
+    });
+    let id=0;
+    const send=async(privateChat:boolean,text:string,userId=456)=>{
+      const count=actions.length;
+      peer.send(JSON.stringify({...event('123'),user_id:userId,message_id:++id,
+        message_type:privateChat?'private':'group',
+        message:privateChat?[{type:'text',data:{text}}]:[{type:'at',data:{qq:'123'}},{type:'text',data:{text}}]}));
+      for(let i=0;i<100&&actions.length===count;i++)await new Promise(r=>setTimeout(r,10));
+      assert.equal(actions.length,count+1);
+      await new Promise(r=>setTimeout(r,20));
+    };
+    await send(true,'私聊考试');await send(false,'群聊问题');await send(true,'继续');await send(true,'另一个人',999);
+    assert.equal(actions[0].action,'send_private_msg');assert.equal(actions[1].action,'send_group_msg');
+    assert.deepEqual(seen[1].history,[]);assert.deepEqual(seen[2].history,['私聊考试','收到']);
+    assert.deepEqual(seen[3].history,[]);assert.equal(seen[0].scope,'private:456');
+  } finally {
+    stop();for(const client of server.clients)client.terminate();
+    await new Promise<void>(resolve=>server.close(()=>resolve()));
+  }
+});

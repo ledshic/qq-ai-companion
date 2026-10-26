@@ -12,7 +12,7 @@ import type { InitiativeAttempt } from './events/initiative-types.js';
 
 const now = Date.parse('2026-10-26T10:00:00+08:00');
 const hour = 3_600_000;
-const scope = { groupId: 'group', ownerId: 'owner' };
+const scope = { chatId: 'group', ownerId: 'owner' };
 const record: EventRecord = { ...scope, id: 'event', domain: 'test', businessKey: 'key', version: 2, epoch: 0,
   payload: {}, evidenceIds: [], status: 'active', createdAt: now, updatedAt: now, expiresAt: now + 24 * hour };
 const draft = (kind = 'followup'): AttentionDraft => ({ kind, occurrenceAt: now, notBefore: now,
@@ -20,8 +20,8 @@ const draft = (kind = 'followup'): AttentionDraft => ({ kind, occurrenceAt: now,
 const domain = (project: EventDomain['project']): EventDomain => ({ name: 'test', prompt: '', interpret: () => [], project });
 const previous: Attention = { ...draft(), ...scope, id: 'attention', eventId: 'event', eventVersion: 1,
   epoch: 0, tone: 'wry', status: 'cancelled', observation: 'old observation' };
-const attempt = (ownerId: string, startedAt: number, groupId = scope.groupId): InitiativeAttempt => ({
-  groupId, ownerId, attentionId: `attention-${ownerId}`, eventVersion: 1, epoch: 0, startedAt,
+const attempt = (ownerId: string, startedAt: number, chatId = scope.chatId): InitiativeAttempt => ({
+  chatId, ownerId, attentionId: `attention-${ownerId}`, eventVersion: 1, epoch: 0, startedAt,
   opportunity: { occurrenceAt: now, notBefore: now, expiresAt: now + hour, tone: 'wry' },
 });
 function batch(store: EventStore, messageId = 'source'): Batch {

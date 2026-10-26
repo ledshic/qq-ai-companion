@@ -1,18 +1,18 @@
-import type { GroupMessage } from './message.js';
-import type { GroupSnapshot, ReplyContext, SendGuard } from './context.js';
+import type { ChatMessage } from './message.js';
+import type { ChatSnapshot, ReplyContext, SendGuard } from './context.js';
 
 export interface SendReviewServices {
   unified?: boolean;
   senderCurrent: () => boolean;
   candidate?: () => boolean;
-  snapshot: () => GroupSnapshot;
+  snapshot: () => ChatSnapshot;
   reconsider: (context: ReplyContext) => Promise<boolean | undefined>;
   log: (line: string) => void;
 }
 
 // Owns one draft's approval key. The caller provides live conversation state and
 // judge routing; the returned guard is reused before every queued delivery part.
-export const approveSend = async (message: Pick<GroupMessage, 'messageId' | 'senderId'>,
+export const approveSend = async (message: Pick<ChatMessage, 'messageId' | 'senderId'>,
   context: ReplyContext, draft: string, signal: AbortSignal, services: SendReviewServices): Promise<SendGuard | undefined> => {
   const current = () => !signal.aborted && services.senderCurrent() && (!services.candidate || services.candidate()) &&
     (!context.memoryGuard || context.memoryGuard());
@@ -20,7 +20,7 @@ export const approveSend = async (message: Pick<GroupMessage, 'messageId' | 'sen
   if (!services.unified) return current;
   // Ignore only acknowledged parts replying to this request for this sender.
   // Other bot replies and every new human message still change the key.
-  const changeKey = (snapshot: GroupSnapshot) => `${snapshot.incomingVersion}:` + snapshot.messages
+  const changeKey = (snapshot: ChatSnapshot) => `${snapshot.incomingVersion}:` + snapshot.messages
     .filter(m => m.role === 'assistant' && !(m.replyTo === message.messageId && m.mentions.includes(message.senderId)))
     .map(m => m.id).join(',');
   let approvedKey = changeKey(context.snapshot);

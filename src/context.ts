@@ -1,6 +1,7 @@
+import { isPrivateChat } from './chat-scope.js';
 import type { RecallView } from './events/recall-types.js';
 import type { ExpressionPlan } from './personality-types.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 
 export type SendGuard = () => boolean | Promise<boolean>;
 
@@ -29,8 +30,8 @@ export interface Participation {
   readonly at: number;
   readonly responded: boolean;
 }
-export interface GroupSnapshot {
-  readonly groupId: string;
+export interface ChatSnapshot {
+  readonly chatId: string;
   readonly version: number;
   readonly incomingVersion: number;
   readonly capturedAt: number;
@@ -44,13 +45,13 @@ export interface ReplyContext {
   readonly kind: ParticipationKind;
   readonly targetSenderId?: string;
   readonly triggerIds: readonly string[];
-  readonly snapshot: GroupSnapshot;
+  readonly snapshot: ChatSnapshot;
   readonly phase?: 'decision' | 'before_send';
   readonly draft?: string;
   readonly awaitingReply?: boolean;
   readonly decision?: { readonly reason: string; readonly topicKey?: string; readonly basisIds?: readonly string[] };
 }
-interface GroupState {
+interface ChatState {
   version: number;
   incomingVersion: number;
   lastResponseVersion: number;
@@ -61,24 +62,24 @@ interface GroupState {
   participation?: Participation;
 }
 
-// Short-lived group discussion is separate from persisted per-person memory.
+// Short-lived conversation context is separate from persisted per-person memory.
 // Snapshots are immutable so a judge and generator see the same conversation.
-export class GroupContext {
-  private groups = new Map<string, GroupState>();
+export class ChatContext {
+  private chats = new Map<string, ChatState>();
   private sequence = 0;
   constructor(private now = Date.now, private maxMessages = 60, private ttlMs = 5 * 60_000,
-    private maxGroups = 100, private maxChars = 16_000) {}
+    private maxChats = 100, private maxChars = 16_000) {}
 
-  private state(group: string): GroupState {
-    let state = this.groups.get(group);
+  private state(chatId: string): ChatState {
+    let state = this.chats.get(chatId);
     if (!state) state = { version: 0, incomingVersion: 0, lastResponseVersion: 0, messages: [], nearby: [], seen: new Map(), selfId: 'bot' };
-    this.groups.delete(group);
-    this.groups.set(group, state);
-    while (this.groups.size > this.maxGroups) this.groups.delete(this.groups.keys().next().value!);
+    this.chats.delete(chatId);
+    this.chats.set(chatId, state);
+    while (this.chats.size > this.maxChats) this.chats.delete(this.chats.keys().next().value!);
     this.prune(state);
     return state;
   }
-  private prune(state: GroupState): void {
+  private prune(state: ChatState): void {
     const cutoff = this.now() - this.ttlMs;
     state.messages = state.messages.filter(m => m.at >= cutoff).slice(-this.maxMessages);
     let chars = state.messages.reduce((sum, m) => sum + m.text.length + (m.replyToText?.length ?? 0), 0);
@@ -93,8 +94,8 @@ export class GroupContext {
     while (state.seen.size > 512) state.seen.delete(state.seen.keys().next().value!);
     if (state.participation && state.participation.at < cutoff) state.participation = undefined;
   }
-  add(message: GroupMessage): boolean {
-    const state = this.state(message.groupId);
+  add(message: ChatMessage): boolean {
+    const state = this.state(message.chatId);
     const id = message.messageId ?? `local-user:${++this.sequence}`;
     if (state.seen.has(id)) return false;
     state.seen.set(id, this.now());
@@ -108,63 +109,63 @@ export class GroupContext {
       ...(message.attachments?.imageCount ? { imageCount: Math.min(message.attachments.imageCount, 2) } : {}),
       replyToSenderId: message.replyToSenderId, mentions: [...(message.mentionedIds ?? [])].slice(0, 32), media: !!message.hasMedia, addressedToBot: !!(message.isMentioned || message.isCalledByName || message.isReplyToBot) };
     state.messages.push(entry); state.nearby.push(entry);
-    if (message.isMentioned || message.isCalledByName || message.isReplyToBot) this.responded(message.groupId);
+    if (message.isMentioned || message.isCalledByName || message.isReplyToBot) this.responded(message.chatId);
     this.prune(state);
     return true;
   }
-  resolveReference(group: string, id: string, senderId: string, text?: string): void {
-    const state = this.state(group);
+  resolveReference(chatId: string, id: string, senderId: string, text?: string): void {
+    const state = this.state(chatId);
     state.messages = state.messages.map(m => m.id === id ? { ...m, replyToSenderId: senderId, replyToText: text?.slice(0, 2000) } : m);
     state.nearby = state.nearby.map(m => m.id === id ? { ...m, replyToSenderId: senderId, replyToText: text?.slice(0, 2000) } : m);
     this.prune(state);
     state.version++;
-    if (senderId === state.selfId) this.responded(group);
+    if (senderId === state.selfId) this.responded(chatId);
   }
-  delivered(group: string, text: string, id?: string, targetSenderId?: string, replyTo?: string): void {
-    const state = this.state(group);
+  delivered(chatId: string, text: string, id?: string, targetSenderId?: string, replyTo?: string): void {
+    const state = this.state(chatId);
     const entry: ContextMessage = { id: id ?? `local-bot:${++this.sequence}`, senderId: state.selfId,
       senderName: '机器人', role: 'assistant', text: text.slice(0, 4000), at: this.now(),
       revision: ++state.version, replyTo, mentions: targetSenderId ? [targetSenderId] : [], media: false };
     state.messages.push(entry); state.nearby.push(entry);
     this.prune(state);
   }
-  senderVersion(group: string, sender: string): number {
-    return [...this.state(group).messages].reverse().find(m => m.role === 'user' && m.senderId === sender)?.revision ?? 0;
+  senderVersion(chatId: string, sender: string): number {
+    return [...this.state(chatId).messages].reverse().find(m => m.role === 'user' && m.senderId === sender)?.revision ?? 0;
   }
-  participated(group: string, topicKey: string, basisIds: readonly string[], startedAtIncomingVersion: number): void {
-    const state = this.state(group);
+  participated(chatId: string, topicKey: string, basisIds: readonly string[], startedAtIncomingVersion: number): void {
+    const state = this.state(chatId);
     state.participation = { topicKey, basisIds: [...basisIds], at: this.now(), responded: state.lastResponseVersion > startedAtIncomingVersion };
   }
-  responded(group: string): void {
-    const state = this.state(group);
+  responded(chatId: string): void {
+    const state = this.state(chatId);
     state.lastResponseVersion = state.incomingVersion;
     if (state.participation) state.participation = { ...state.participation, responded: true };
   }
-  forget(group: string, sender: string): void {
-    const state = this.state(group);
+  forget(chatId: string, sender: string): void {
+    const state = this.state(chatId);
     const keep = (m: ContextMessage) => m.senderId !== sender && !(m.role === 'assistant' && m.mentions.includes(sender));
     state.messages = state.messages.filter(keep); state.nearby = state.nearby.filter(keep);
     state.version++; state.incomingVersion++;
   }
-  referenceSnapshot(group: string): GroupSnapshot {
-    const base = this.snapshot(group);
-    return Object.freeze({ ...base, messages: Object.freeze(this.state(group).nearby.map(m => Object.freeze({ ...m,
+  referenceSnapshot(chatId: string): ChatSnapshot {
+    const base = this.snapshot(chatId);
+    return Object.freeze({ ...base, messages: Object.freeze(this.state(chatId).nearby.map(m => Object.freeze({ ...m,
       mentions: Object.freeze([...m.mentions]) }))) });
   }
-  snapshot(group: string): GroupSnapshot {
-    const state = this.state(group);
-    return Object.freeze({ groupId: group, version: state.version, incomingVersion: state.incomingVersion,
+  snapshot(chatId: string): ChatSnapshot {
+    const state = this.state(chatId);
+    return Object.freeze({ chatId: chatId, version: state.version, incomingVersion: state.incomingVersion,
       capturedAt: this.now(), messages: Object.freeze(state.messages.map(m => Object.freeze({ ...m,
         mentions: Object.freeze([...m.mentions]) }))), participation: state.participation
         ? Object.freeze({ ...state.participation, basisIds: Object.freeze([...state.participation.basisIds]) }) : undefined });
   }
 }
-export const renderContext = (snapshot: GroupSnapshot): string => snapshot.messages.map(m =>
+export const renderContext = (snapshot: ChatSnapshot): string => snapshot.messages.map(m =>
   `[${m.id}] ${m.senderName ?? m.senderId}${m.role === 'assistant' ? '(机器人)' : ''}：${m.text || (m.media ? '[图片或其他媒体]' : '[无文本]')}${m.replyTo ? ` [引用:${m.replyTo}]` : ''}`).join('\n');
 
 
 // Transport/account identifiers stay internal. The model only needs consistent
-// relationships within this snapshot, not the actual QQ/group/message numbers.
+// relationships within this snapshot, not the actual channel/chat/message identifiers.
 export const modelContext = (context: ReplyContext): { context: ReplyContext; messageIds: Map<string, string> } => {
   const participants = new Map<string, string>();
   const messages = new Map<string, string>();
@@ -184,7 +185,7 @@ export const modelContext = (context: ReplyContext): { context: ReplyContext; me
     return messages.get(id)!;
   };
   const basis = (ids: readonly string[]) => ids.map(messageId);
-  const snapshot: GroupSnapshot = { ...context.snapshot, groupId: 'current-group',
+  const snapshot: ChatSnapshot = { ...context.snapshot, chatId: isPrivateChat(context.snapshot.chatId) ? 'current-private-chat' : 'current-chat',
     messages: context.snapshot.messages.map(message => ({ ...message,
       id: messageId(message.id), senderId: participant(message.senderId),
       replyTo: message.replyTo ? messageId(message.replyTo) : undefined,

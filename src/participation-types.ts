@@ -1,10 +1,10 @@
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 import type { FollowUpCandidate } from './observation.js';
 
 export type ParticipationTaskKind = 'explicit' | 'follow-up' | 'interject' | 'judge';
 export interface Inbound {
   kind: ParticipationTaskKind;
-  message: GroupMessage;
+  message: ChatMessage;
   text: string;
   receivedAt: number;
   candidate?: FollowUpCandidate;

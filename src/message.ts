@@ -1,6 +1,6 @@
+import type { ChatScope } from './chat-scope.js';
 import type { ImageAttachments } from './vision-types.js';
-export interface GroupMessage {
-  groupId: string;
+export interface ChatMessage extends ChatScope {
   senderId: string;
   content: string;
   isMentioned: boolean;
@@ -19,18 +19,17 @@ export interface GroupMessage {
   isReplyToBot?: boolean;
 }
 
-export interface GroupReply {
-  groupId: string;
+export interface ChatReply extends ChatScope {
   content: string;
 }
 
-export const handleGroupMessage = (message: GroupMessage): GroupReply | null => {
+export const handleChatMessage = (message: ChatMessage): ChatReply | null => {
   if (!message.isMentioned && !message.isReplyToBot && !message.isCalledByName) {
     return null;
   }
 
   return {
-    groupId: message.groupId,
+    chatId: message.chatId,
     content: '你好，我是 AI 群友。',
   };
 };

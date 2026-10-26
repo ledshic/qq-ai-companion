@@ -6,7 +6,7 @@ export type FollowUpIntent = 'continue' | 'pause' | 'end' | 'uncertain';
 export interface FollowUpDecision { observation?: ObservationReceipt; intent: FollowUpIntent; shouldRespond: boolean; reason: string }
 export type FollowUpJudge = (content: string, history: ChatTurn[], signal?: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
 export interface WindowState {
-  group: string;
+  chatId: string;
   sender: string;
   until: number;
   used: number;
@@ -16,13 +16,13 @@ export interface WindowState {
 export type FollowUpCandidate = (() => boolean) & { consume: () => boolean };
 
 // A window is anchored to an acknowledged bot reply and belongs to one
-// participant in one group. Another member speaking is not an interruption.
+// participant in one chat. Another member speaking is not an interruption.
 export class ObservationWindows {
   private windows = new Map<string, WindowState>();
   constructor(private now = Date.now, private duration = 60_000, private maxWindows = 100, private maxReplies = 2) {}
 
-  private key(group: string, sender: string): string {
-    return JSON.stringify([group, sender]);
+  private key(chatId: string, sender: string): string {
+    return JSON.stringify([chatId, sender]);
   }
 
   // Re-insert so the least recently used window stays at the front.
@@ -39,21 +39,21 @@ export class ObservationWindows {
     }
   }
 
-  incoming(group: string, sender: string): WindowState {
-    const key = this.key(group, sender);
+  incoming(chatId: string, sender: string): WindowState {
+    const key = this.key(chatId, sender);
     const existing = this.windows.get(key);
     if (existing) {
       this.touch(key, existing);
       return existing;
     }
-    const state: WindowState = { group, sender, until: 0, used: 0, version: 0, closedReason: 'no_window' };
+    const state: WindowState = { chatId, sender, until: 0, used: 0, version: 0, closedReason: 'no_window' };
     this.touch(key, state);
     this.evict();
     return state;
   }
 
   open(ticket: WindowState): void {
-    const key = this.key(ticket.group, ticket.sender);
+    const key = this.key(ticket.chatId, ticket.sender);
     if (this.windows.get(key) !== ticket) return;
     ticket.until = this.now() + this.duration;
     ticket.used = 0;
@@ -62,8 +62,8 @@ export class ObservationWindows {
     this.touch(key, ticket);
   }
 
-  close(group: string, sender: string, reason: 'closed' | 'ended' = 'closed'): void {
-    const state = this.windows.get(this.key(group, sender));
+  close(chatId: string, sender: string, reason: 'closed' | 'ended' = 'closed'): void {
+    const state = this.windows.get(this.key(chatId, sender));
     if (!state) return;
     state.until = 0;
     state.version++;
@@ -72,8 +72,8 @@ export class ObservationWindows {
 
   clear(): void { this.windows.clear(); }
 
-  skipReason(group: string, sender: string): string | undefined {
-    const state = this.windows.get(this.key(group, sender));
+  skipReason(chatId: string, sender: string): string | undefined {
+    const state = this.windows.get(this.key(chatId, sender));
     if (!state) return '没有开放窗口';
     if (state.until === 0) {
       if (state.closedReason === 'ended') return '用户已结束对话，窗口关闭';
@@ -85,8 +85,8 @@ export class ObservationWindows {
     return undefined;
   }
 
-  candidate(group: string, sender: string): FollowUpCandidate | undefined {
-    const key = this.key(group, sender);
+  candidate(chatId: string, sender: string): FollowUpCandidate | undefined {
+    const key = this.key(chatId, sender);
     const state = this.windows.get(key);
     if (!state || state.until <= this.now() || state.used >= this.maxReplies) return undefined;
     const deadline = state.until;

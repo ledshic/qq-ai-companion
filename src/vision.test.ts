@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import sharp from 'sharp';
 import { createVisionReply, prepareImage, qqImageUrl, IMAGE_FAILURE, VISION_FAILURE } from './vision.js';
 import { imageAttachments, parseGroupMessage } from './onebot.js';
-import { GroupContext, type ReplyContext } from './context.js';
+import { ChatContext, type ReplyContext } from './context.js';
 const url = 'https://gchat.qpic.cn/test?rkey=PRIVATE';
 const context: ReplyContext = { kind: 'explicit', targetSenderId: '12345678', triggerIds: ['m1'],
-  snapshot: { groupId: '87654321', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
+  snapshot: { chatId: '87654321', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
 const signal = () => new AbortController().signal;
 const image = () => sharp({ create: { width: 1400, height: 300, channels: 3, background: '#ef3030' } }).png().toBuffer();
 const success = () => Response.json({ choices: [{ message: { content: '图中有红色矩形。' } }] });
@@ -20,7 +20,7 @@ test('attachment parsing retains count without putting signed URLs in group or m
     message_id: 9, message: [{ type: 'image', data: { url, file: 'abc.png' } }, { type: 'image', data: {} }, { type: 'image' }] })!;
   assert.equal(message.attachments?.imageCount, 3); assert.equal(message.attachments?.images.length, 2);
   assert.equal(message.attachments?.images[0].url, url);
-  const group = new GroupContext(); group.add(message);
+  const group = new ChatContext(); group.add(message);
   assert.doesNotMatch(JSON.stringify(group.snapshot('3')), /PRIVATE|abc.png/);
   assert.deepEqual(imageAttachments(null), { imageCount: 0, images: [] });
 });

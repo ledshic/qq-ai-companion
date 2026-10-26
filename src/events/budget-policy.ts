@@ -12,6 +12,6 @@ export const extractionBudget = (now: number): { since: number; limit: number } 
 // Every attempt counts, including interrupted, failed and unfinished attempts.
 export const allowsInitiative = (scope: Scope, attempts: InitiativeAttempt[], now: number): boolean => {
   const day = Math.floor((now + UTC8_OFFSET) / DAY) * DAY - UTC8_OFFSET;
-  return attempts.filter(attempt => attempt.groupId === scope.groupId && attempt.startedAt > now - HOUR).length < 6 &&
-    !attempts.some(attempt => attempt.groupId === scope.groupId && attempt.ownerId === scope.ownerId && attempt.startedAt >= day);
+  return attempts.filter(attempt => attempt.chatId === scope.chatId && attempt.startedAt > now - HOUR).length < 6 &&
+    !attempts.some(attempt => attempt.chatId === scope.chatId && attempt.ownerId === scope.ownerId && attempt.startedAt >= day);
 };

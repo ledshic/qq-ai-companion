@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { imageReferenceHistory } from './onebot.js';
-const current = { groupId: '3', senderId: '2', selfId: '1', messageId: '30', content: '看图', isMentioned: true };
+const current = { chatId: '3', senderId: '2', selfId: '1', messageId: '30', content: '看图', isMentioned: true };
 const row = (id: number, user = 2, image = false) => ({ message_type: 'group', group_id: 3, user_id: user, message_id: id,
   sender: { user_id: user }, message: image ? [{ type: 'image', data: { file: 'PRIVATE', url: 'https://gchat.qpic.cn/?SECRET' } }] : [{ type: 'text', data: { text: 'chat' } }] });
 test('history is anchored to the actual request and cannot select a later image', () => {

@@ -115,3 +115,24 @@ test('reconnect keeps old channels invalid and never replays unconfirmed actions
   assert.deepEqual(replayed, []);
   assert.deepEqual(f.receipts, []);
 });
+
+test('private events and text/images use a private channel with acknowledgement scoped to its user', async t => {
+  const f = await fixture(t);
+  f.socket.send(JSON.stringify({post_type:'message',message_type:'private',self_id:1,user_id:2,message_id:33,
+    message:[{type:'text',data:{text:'你好'}}]}));
+  await waitFor(()=>f.messages.length===1);
+  assert.equal((f.messages[0] as {chatId:string}).chatId,'private:2');
+  const channel=f.transport.capture('private:2')!;
+  for(const image of [undefined,'base64://image']) {
+    const actionPromise=once(f.socket,'message');
+    const sent=channel.send('回复',undefined,image);
+    const [raw]=await actionPromise;
+    const action=JSON.parse(String(raw));
+    assert.equal(action.action,'send_private_msg');assert.equal(action.params.user_id,'2');
+    assert.equal(action.params.group_id,undefined);
+    assert.equal(action.params.message[0].type,image?'image':'text');
+    f.socket.send(JSON.stringify({status:'ok',retcode:0,echo:action.echo,data:{message_id:44}}));
+    assert.equal(await sent,true);
+    assert.equal(f.receipts.at(-1)![0],'private:2');
+  }
+});

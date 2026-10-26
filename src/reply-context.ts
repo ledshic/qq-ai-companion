@@ -15,7 +15,7 @@ export const createReplyContextPreparer = (services: ReplyContextServices) =>
   async (context: ReplyContext, text: string, history: ChatTurn[], signal: AbortSignal,
     receipt?: ObservationReceipt, image = false): Promise<ReplyContext> => {
     if (services.eventMemory && text.trim() && (context.kind === 'explicit' || context.kind === 'follow-up') && context.targetSenderId) {
-      const recall = await services.eventMemory.recall({groupId:context.snapshot.groupId,ownerId:context.targetSenderId,text,history},signal);
+      const recall = await services.eventMemory.recall({chatId:context.snapshot.chatId,ownerId:context.targetSenderId,text,history},signal);
       signal.throwIfAborted();
       context = Object.freeze({...context,longTermMemory:recall.view,memoryGuard:recall.isCurrent});
     }

@@ -6,7 +6,7 @@ import { MemeManager, JsonMemeState, loadMemeCatalog } from './memes.js';
 import { createVisionReply, createImageRequestJudge } from './vision.js';
 import { dirname, join } from 'node:path';
 import { createFollowUpJudge } from './follow-up.js';
-import { createGroupJudge } from './group-judge.js';
+import { createChatJudge } from './chat-judge.js';
 import { connectNapCat } from './napcat-client.js';
 import { createDeepSeekReply } from './deepseek.js';
 import { acquireInstanceLock } from './lock.js';
@@ -87,7 +87,7 @@ const generateReply = llmEnabled
   ? createDeepSeekReply(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, { turns: memoryTurns, memesEnabled: !!memes, visionEnabled, searchEnabled: process.env.WEB_SEARCH_ENABLED === 'true' })
   : undefined;
 console.log(llmEnabled
-  ? `[LLM] DeepSeek 已启用，按群和用户隔离记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
+  ? `[LLM] DeepSeek 已启用，按聊天和用户隔离短期记忆（${memoryPath}），最多 ${memoryTurns} 轮，30 分钟过期。`
   : '[LLM] 未启用，使用固定回复。');
 if (llmEnabled) console.log(`[工具] 时间、骰子已启用；联网搜索${process.env.WEB_SEARCH_ENABLED === 'true' ? '已启用' : '未启用'}，仅呼叫与连续对话可用。`);
 console.log(`[识图] ${visionEnabled ? '已启用，明确呼叫时关联同条、引用或楼上本人单图；本地不足时按需查历史。' : '未启用。'}`);
@@ -97,7 +97,7 @@ const observationEnabled = llmEnabled && followUpMode !== 'always' && process.en
 const autoReplyEnabled = llmEnabled && followUpMode !== 'always' && !observationEnabled && process.env.FOLLOW_UP_AUTO === 'true';
 const judgeEvery = (llmEnabled && (followUpMode === 'always' || followUpMode === 'unified'))
   ? {
-    judge: createGroupJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, modular),
+    judge: createChatJudge(process.env.DEEPSEEK_API_KEY!, process.env.DEEPSEEK_MODEL || 'deepseek-flash', undefined, modular),
     cooldownMs: readNumber('AUTO_REPLY_COOLDOWN_SECONDS', 45, 0, 3600) * 1000,
     hourlyCap: readNumber('AUTO_REPLY_HOURLY_CAP', 12, 1, 200),
   }

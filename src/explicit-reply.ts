@@ -1,6 +1,6 @@
 import { isAbort } from './abort.js';
 import type { ReplyContext } from './context.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import type { createReplyContextPreparer } from './reply-context.js';
 import type { VisionHandler, ImageResolver } from './vision-types.js';
@@ -21,10 +21,10 @@ export interface ExplicitReplyDraft {
   memoryPrompt?: string;
 }
 
-const textReply = async (message: GroupMessage, context: ReplyContext, signal: AbortSignal,
+const textReply = async (message: ChatMessage, context: ReplyContext, signal: AbortSignal,
   services: ExplicitReplyServices): Promise<ExplicitReplyDraft> => {
   const content = message.content.trim();
-  const history = services.memory.get(message.groupId, message.senderId);
+  const history = services.memory.get(message.chatId, message.senderId);
   services.log(`[记忆] 本次携带历史 ${history.length / 2} 轮。`);
   try {
     context = await services.prepareContext(context, content, history, signal);
@@ -37,7 +37,7 @@ const textReply = async (message: GroupMessage, context: ReplyContext, signal: A
   }
 };
 
-const imageReply = async (message: GroupMessage, context: ReplyContext, signal: AbortSignal,
+const imageReply = async (message: ChatMessage, context: ReplyContext, signal: AbortSignal,
   services: ExplicitReplyServices): Promise<ExplicitReplyDraft> => {
   const count = (message.attachments?.imageCount ?? 0) + (message.quotedAttachments?.imageCount ?? 0);
   if (count !== 1) return { content: '目前一次只能看一张图，请单独发或引用一张。', context };
@@ -50,11 +50,11 @@ const imageReply = async (message: GroupMessage, context: ReplyContext, signal: 
     memoryPrompt: content + '\n[本次附带、引用或明确指向了一张图片；历史只保留文字回答，未保留原图。]' };
 };
 
-const bareReply = async (message: GroupMessage, context: ReplyContext, signal: AbortSignal,
+const bareReply = async (message: ChatMessage, context: ReplyContext, signal: AbortSignal,
   services: ExplicitReplyServices): Promise<ExplicitReplyDraft> => {
   try {
     context = await services.prepareContext(context, '', [], signal);
-    const answer = await services.generate('', services.memory.get(message.groupId, message.senderId), signal, false, context);
+    const answer = await services.generate('', services.memory.get(message.chatId, message.senderId), signal, false, context);
     return { content: answer, context };
   } catch (error) {
     if (signal.aborted || isAbort(error)) throw error;
@@ -65,7 +65,7 @@ const bareReply = async (message: GroupMessage, context: ReplyContext, signal: A
 
 // Commands and image-reference preparation have already run. Preserve routing
 // precedence; cancellation, delivery, memory writes and windows belong to Conversation.
-export const generateExplicitReply = (message: GroupMessage, context: ReplyContext,
+export const generateExplicitReply = (message: ChatMessage, context: ReplyContext,
   awaitingContent: boolean, signal: AbortSignal, services: ExplicitReplyServices): Promise<ExplicitReplyDraft> => {
   const content = message.content.trim();
   if (content.length > 4000) return Promise.resolve({ content: '文字太长了，请缩短到 4000 个字符以内。', context });

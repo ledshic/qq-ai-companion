@@ -21,7 +21,7 @@ try {
   let id = 0;
   for (const event of events) {
     output.push({ event: 'input', detail: `${event.sender}: ${event.text}` });
-    conversation.handle({ groupId: 'demo', senderId: event.sender, senderName: event.sender,
+    conversation.handle({ chatId: 'demo', senderId: event.sender, senderName: event.sender,
       messageId: String(++id), content: event.text, isMentioned: false });
     await new Promise(setImmediate); await new Promise(setImmediate);
   }

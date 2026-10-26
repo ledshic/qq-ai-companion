@@ -100,7 +100,7 @@ test('bare mention asks for a short contextual acknowledgement without tools or 
     return Response.json({ choices: [{ message: { content: '叫我干嘛' } }] });
   }, { searchEnabled: true });
   const context = { kind: 'explicit' as const, targetSenderId: 'a', triggerIds: ['m1'],
-    snapshot: { groupId: 'g', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
+    snapshot: { chatId: 'g', version: 1, incomingVersion: 1, capturedAt: 0, messages: [] } };
   assert.equal(await reply('', [{ role: 'assistant', content: '之前已经应声过' }], undefined, false, context), '叫我干嘛');
 });
 

@@ -3,11 +3,11 @@ import { test } from 'node:test';
 import { Conversation } from './conversation.js';
 import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 import type { VisionHandler } from './vision.js';
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 const deferred = () => { let resolve!: (text: string) => void; return { promise: new Promise<string>(done => { resolve = done; }), resolve: (text: string) => resolve(text) }; };
-const inbound = (id: string, sender = 'a', explicit = true, picture = true): GroupMessage => ({ groupId: 'g', senderId: sender,
+const inbound = (id: string, sender = 'a', explicit = true, picture = true): ChatMessage => ({ chatId: 'g', senderId: sender,
   selfId: 'bot', messageId: id, content: picture ? '看图' : 'new question', isMentioned: explicit,
   hasMedia: picture, attachments: picture ? { imageCount: 1, images: [{ url: 'https://gchat.qpic.cn/a' }] } : undefined });
 

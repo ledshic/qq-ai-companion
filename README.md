@@ -1,5 +1,7 @@
 # QQ AI Companion
 
+项目按个人 Agent 定位演进：人格、个人记忆、对话调度和工具由独立运行时装配，QQ Bot 通过渠道接口接入。核心使用 `ChatMessage`、`chatId` 和 `ChatContext`，通过统一消息契约读取引用和图片历史；OneBot 响应由 QQ 适配器解析并校验。已有数据库和会话键保持兼容。模块职责、接入约定和验证方式见[个人 Agent 架构](docs/PERSONAL-AGENT-ARCHITECTURE.md)。
+
 ## 当前开发方向
 
 A–C 已实施：`FOLLOW_UP_MODE=unified` 使用共享群上下文、独立接续与插话规则，并在每段发送前检查时机。实施与验证见 [A–C 实施记录](docs/AC-IMPLEMENTATION.md)。离线回放运行 `pnpm replay`，不连接 QQ 或模型。
@@ -25,7 +27,7 @@ pnpm dev
 pnpm typecheck
 ```
 
-`pnpm dev` runs `src/index.ts` with tsx, processes two mock group messages, and exits.
+`pnpm dev` runs the personal Agent with an in-process channel, processes two mock messages, and exits without connecting to QQ or a model provider.
 `pnpm typecheck` checks TypeScript without generating files.
 
 ## Files
@@ -79,7 +81,8 @@ and the upstream whale persona; otherwise a fixed reply is used.
    This is the OneBot connection Token, not the WebUI login password.
 4. Run `pnpm napcat`. In a test group, use another QQ account to mention the
    bot. Expect `你好，我是 AI 群友。`. Plain text, mentions of other accounts,
-   mentions of everyone, private messages, and self messages produce no reply.
+   mentions of everyone and self messages produce no reply. Direct messages also
+   receive replies without an @; NapCat must report private message events.
 5. Stop with Ctrl+C. Connection loss retries after 3 seconds. A send is only
    reported successful after an API acknowledgement; unconfirmed sends are
    not retried automatically.
@@ -139,7 +142,7 @@ tool result is not a trusted instruction.
 
 ## Conversation memory
 
-Memory is isolated by group and sender and stored in `data/memory.db` through
+Short-term memory is isolated by chat and sender and stored in `data/memory.db` through
 the built-in `node:sqlite` module, so it survives a bot restart. Sessions expire
 after 30 minutes without a successful exchange; up to 100 sessions are kept and
 the least recently updated one is evicted when full. Only replies acknowledged
@@ -148,8 +151,80 @@ messages do not enter memory. Set `MEMORY_DB` to move the database; `:memory:`
 keeps it local to one process. Delete the file to forget everything.
 
 Mention the bot with `/清空记忆` to clear your conversation in the current group
-without calling DeepSeek. This does not delete the provider's own records.
+without calling DeepSeek. In a direct chat the same command clears that direct
+chat only. This does not delete the provider's own records.
 Wait for a reply before asking a follow-up; concurrent requests are ignored.
+
+## Personal memory across chats
+
+Group and private messages use the same persona and generation pipeline. Private
+chats have internal IDs of `private:<user QQ>`; numeric group IDs remain unchanged.
+Recent conversation history, discussion snapshots and outgoing delivery queues
+remain separate for each chat. Direct replies use `send_private_msg`; private
+chats are excluded from group warm-ups and group-history lookups.
+
+When event memory is enabled (`EVENT_MEMORY_ENABLED=true`,
+`EVENT_FOLLOWUP_MODE=observe`, explicit `EVENT_MEMORY_GROUPS`), addressed private
+messages also enter the existing evidence-backed extraction pipeline. Personal
+recall combines the same user's records across allowlisted groups and their own
+direct chat, preserving each original source. Other users' records and groups
+outside the allowlist are excluded. Interaction preferences can be recalled too.
+
+In a group, private memory is excluded before candidate presentation by default.
+A separate decision sees only the current message, and admits a specific private
+topic only when its owner explicitly brings it up (for example,
+“接着说我私聊提到的考试”). The selector must restrict private results to that
+specific topic and reject records containing unrelated private facts. This
+semantic decision uses the model; uncertainty, malformed output and errors close
+the private-memory path. Permission is not persisted or inferred from previous
+history. Normal greetings and vague recollection requests do not grant access.
+Private messages may recall the owner's public group memories.
+
+`/清空个人长期记忆` clears the current user's long-term records and pending
+extraction across all chats. `/清空长期记忆` and `/清空记忆` remain local to the
+current chat. Cross-chat recall retains source version/deletion guards, so
+clearing a source invalidates a reply still waiting to send. Existing database
+records keep their original source and need no destructive migration.
+
+Long-term memory uses the same SQLite file and has no automatic retention TTL.
+The bounded recent conversation cache still expires after 30 minutes; this does
+not remove its separately archived interactions, personal facts or summaries.
+
+| Table | Purpose |
+| --- | --- |
+| `person_profiles` | Current evidence-backed personal fields, separated by source chat and visibility |
+| `chat_states` | Per-user window type, latest activity/topic and explicit unresolved items |
+| `interaction_log` | Addressed user text and acknowledged assistant messages, timestamps, message/reply IDs and visibility |
+| `chat_summaries` | Bounded segments of up to 12 interactions, original source links and summary versions |
+| `summary_revisions` | Previous extractive/semantic summary versions and their sources |
+| `memory_revisions` | Original facts, superseded versions, retractions and historical transitions |
+
+Profiles are extracted only from the user's explicit statements with literal
+source excerpts. Private profile fields retain private provenance; a unified
+profile is not a public copy of everything known about someone. Conflicting
+source values remain attributable rather than silently overwriting other chats.
+
+Expired events become `historical`; their facts and supporting evidence remain.
+A past plan is not treated as proof that it happened or completed. Corrections
+retain old versions, and retractions retain their evidence in the revision log
+while removing the current projection. Existing active-record capacity limits
+remain; historical archives do not consume those active slots.
+
+Summaries are generated in the existing background slot, after 12 interactions
+or 30 seconds of inactivity. Source IDs are validated; stale/cleared jobs cannot
+restore deleted data. Failure retains an extractive summary and all original
+text. Per-window summaries never cross chat boundaries, including after a
+specific private-fact disclosure. Recall ranks a bounded set of relevant facts,
+profiles and current-window summaries before model selection; it does not send
+the complete archive.
+
+Schema v3 initializes the new tables transactionally, preserves surviving v1/v2
+facts/evidence, snapshots current versions and imports surviving inbox text.
+Content already deleted by old retention rules cannot be recovered. Existing
+short-term session caches are not a historical transcript and are not imported.
+Only text and media presence notes are archived; original media bytes/URLs are
+not retained. Memory commands also remove the associated profiles, transcripts,
+summaries and revisions; `/清空个人长期记忆` applies across all the user's windows.
 
 ## Replying without a mention
 

@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generateExplicitReply, type ExplicitReplyServices } from './explicit-reply.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 import type { ReplyContext } from './context.js';
 import type { ChatTurn } from './memory.js';
 
-const message = (overrides: Partial<GroupMessage> = {}): GroupMessage => ({ groupId: 'group', senderId: 'owner',
+const message = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({ chatId: 'group', senderId: 'owner',
   content: ' question ', isMentioned: true, ...overrides });
 const context = (): ReplyContext => ({ kind: 'explicit', targetSenderId: 'owner', triggerIds: ['message'],
-  snapshot: { groupId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] } });
+  snapshot: { chatId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] } });
 const history: ChatTurn[] = [{ role: 'user', content: 'previous question' }, { role: 'assistant', content: 'previous answer' }];
 const signal = () => new AbortController().signal;
 function fixture() {

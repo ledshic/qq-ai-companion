@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import { isExplicitCall, directedElsewhere, awaitingFollowUp, admitsWindowFollowUp, admitsEveryMessage,
   canMergeFragment, mergedFragment, repeatsUnansweredTopic } from './participation-policy.js';
 import type { Inbound } from './participation-types.js';
-import type { GroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
 
-const message = (overrides: Partial<GroupMessage> = {}): GroupMessage => ({
-  groupId: 'group', senderId: 'owner', selfId: 'bot', messageId: 'new', content: 'hello', isMentioned: false, ...overrides,
+const message = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
+  chatId: 'group', senderId: 'owner', selfId: 'bot', messageId: 'new', content: 'hello', isMentioned: false, ...overrides,
 });
 const pending = (overrides: Partial<Inbound> = {}): Inbound => ({
   kind: 'follow-up', message: message(), text: 'first', receivedAt: 1000, triggerIds: ['first'], ...overrides,

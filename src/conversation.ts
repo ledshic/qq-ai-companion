@@ -1,3 +1,4 @@
+import { isPrivateChat } from './chat-scope.js';
 import { approveSend } from './send-review.js';
 import type { Inbound } from './participation-types.js';
 import { isExplicitCall, directedElsewhere, awaitingFollowUp, admitsWindowFollowUp, admitsEveryMessage,
@@ -9,15 +10,15 @@ import { createReplyContextPreparer } from './reply-context.js';
 import type { EventMemoryPort } from './events/types.js';
 import type { PersonalityRuntime } from './personality-runtime.js';
 import type { MemeSendContext } from './meme-types.js';
-import { GroupContext, modelContext, renderContext, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
+import { ChatContext, modelContext, renderContext, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
 import { abortReason, isAbort } from './abort.js';
-import type { GroupMessage } from './message.js';
-import { handleGroupMessage } from './message.js';
+import type { ChatMessage } from './message.js';
+import { handleChatMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import type { VisionHandler, ImageResolver, ImageRequestJudge } from './vision-types.js';
-import { isBotGroupReply } from './onebot.js';
-import { applyMessageReference, prepareImageReference } from './message-reference.js';
-import type { GroupJudge, GroupJudgment } from './group-judge.js';
+import type { ReferencedMessage, MessageLookup, HistoryLookup } from './channel.js';
+import { isBotReference, applyMessageReference, prepareImageReference } from './message-reference.js';
+import type { ChatJudge, ChatJudgment } from './chat-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
 
@@ -39,7 +40,7 @@ export interface ContextOptions {
 }
 
 export interface JudgeEveryOptions {
-  judge: GroupJudge;
+  judge: ChatJudge;
   cooldownMs: number;
   hourlyCap: number;
 }
@@ -50,12 +51,12 @@ export interface ConversationOptions {
   memory: ConversationMemory;
   unified?: boolean;
   recordsDelivery?: boolean;
-  send: (groupId: string, content: string, guard: SendGuard, target?: DeliveryTarget, media?: MemeSendContext) => Promise<string | undefined>;
+  send: (chatId: string, content: string, guard: SendGuard, target?: DeliveryTarget, media?: MemeSendContext) => Promise<string | undefined>;
   vision?: VisionHandler;
   imageRequest?: ImageRequestJudge;
   resolveImage?: ImageResolver;
-  referenceHistory?: (groupId: string, signal: AbortSignal) => Promise<unknown>;
-  lookup?: (messageId: string, signal: AbortSignal) => Promise<unknown>;
+  referenceHistory?: HistoryLookup;
+  lookup?: MessageLookup;
   judge?: (text: string, history: ChatTurn[], signal: AbortSignal, context?: ReplyContext) => Promise<FollowUpDecision>;
   generate?: (text: string, history: ChatTurn[], signal: AbortSignal, allowTools?: boolean, context?: ReplyContext) => Promise<string>;
   maxInflight?: number;
@@ -71,7 +72,7 @@ export interface ConversationOptions {
   log?: (line: string) => void;
 }
 
-// One cooperative task per (group, sender). Every await is a yield point, and
+// One cooperative task per (chatId, sender). Every await is a yield point, and
 // the controller is the single cancellation path for the task.
 interface Session {
   pending: Inbound | undefined;
@@ -98,7 +99,7 @@ export class Conversation {
   private readonly now: () => number;
   private readonly random: () => number;
   private readonly context: ContextOptions;
-  private readonly discussion: GroupContext;
+  private readonly discussion: ChatContext;
   private readonly proactiveBudget: ProactiveBudget;
   private readonly proactiveInFlight = new Set<string>();
   private readonly warmups = new Set<AbortController>();
@@ -113,7 +114,7 @@ export class Conversation {
     this.random = options.random ?? Math.random;
     this.log = options.log ?? console.log;
     this.context = options.context ?? DEFAULT_CONTEXT;
-    this.discussion = new GroupContext(this.now, this.context.maxMessages, this.context.ttlMs);
+    this.discussion = new ChatContext(this.now, this.context.maxMessages, this.context.ttlMs);
     this.windows = new ObservationWindows(this.now, options.windowMs ?? 60_000, options.maxWindows ?? 6, options.unified ? Infinity : 2);
     this.slots = new Semaphore(options.maxInflight ?? 2);
     options.eventMemory?.attach(controller => {
@@ -121,10 +122,10 @@ export class Conversation {
       if (!release) return;
       this.background = controller;
       return () => { if (this.background === controller) this.background = undefined; release(); };
-    }, scope => this.discussion.snapshot(scope.groupId));
+    }, scope => this.discussion.snapshot(scope.chatId));
   }
 
-  handle(message: GroupMessage): void {
+  handle(message: ChatMessage): void {
     this.options.eventMemory?.ingest(message);
     // Event IDs are retained across reconnects, before any scheduler side effects.
     if (!this.discussion.add(message)) { this.log('[跳过] 重复消息。'); return; }
@@ -135,31 +136,31 @@ export class Conversation {
     this.dispatch(message);
   }
 
-  private async resolveReply(message: GroupMessage): Promise<void> {
-    const version = this.discussion.senderVersion(message.groupId, message.senderId);
+  private async resolveReply(message: ChatMessage): Promise<void> {
+    const version = this.discussion.senderVersion(message.chatId, message.senderId);
     const lifecycle = this.lifecycle;
     try {
-      const data = this.options.lookup ? await this.options.lookup(message.replyMessageId!, new AbortController().signal) : null;
-      if (this.lifecycle !== lifecycle || this.discussion.senderVersion(message.groupId, message.senderId) !== version) return;
-      message.isReplyToBot = isBotGroupReply(data, message);
+      const data = this.options.lookup ? await this.options.lookup(message.replyMessageId!, new AbortController().signal, message) : undefined;
+      if (this.lifecycle !== lifecycle || this.discussion.senderVersion(message.chatId, message.senderId) !== version) return;
+      message.isReplyToBot = isBotReference(data, message);
       if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
-      // Only a validated same-group lookup may supply the referenced sender.
+      // Only a validated same-chat lookup may supply the referenced sender.
       applyMessageReference(message, data, this.discussion);
       if (!message.replyToSenderId && !message.isMentioned && !message.isCalledByName) {
         this.log('[跳过] 引用对象无法确认，不自动唤醒。'); return;
       }
       this.dispatch(message);
     } catch {
-      if (this.lifecycle === lifecycle && this.discussion.senderVersion(message.groupId, message.senderId) === version && (message.isMentioned || message.isCalledByName)) this.dispatch(message);
+      if (this.lifecycle === lifecycle && this.discussion.senderVersion(message.chatId, message.senderId) === version && (message.isMentioned || message.isCalledByName)) this.dispatch(message);
       else this.log('[跳过] 引用查询失败，未自动唤醒。');
     }
   }
 
-  private dispatch(message: GroupMessage): void {
+  private dispatch(message: ChatMessage): void {
     const session = this.session(this.key(message), message);
-    this.windows.incoming(message.groupId, message.senderId);
+    this.windows.incoming(message.chatId, message.senderId);
     const text = message.content.trim();
-    const senderVersion = this.discussion.senderVersion(message.groupId, message.senderId);
+    const senderVersion = this.discussion.senderVersion(message.chatId, message.senderId);
     const base = { message, text, receivedAt: this.now(), senderVersion, triggerIds: [message.messageId!] };
     const explicit = isExplicitCall(message, !!this.options.unified);
     if (explicit) {
@@ -168,7 +169,7 @@ export class Conversation {
         this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));
         while (this.awaitingInitial.size > (this.options.maxWindows ?? 100)) this.awaitingInitial.delete(this.awaitingInitial.keys().next().value!);
       }
-      this.windows.close(message.groupId, message.senderId);
+      this.windows.close(message.chatId, message.senderId);
       session.controller?.abort(new Error('被新的呼叫取代'));
       session.pending = { ...base, kind: 'explicit' };
       void this.run(session);
@@ -195,7 +196,7 @@ export class Conversation {
       this.handleEvery(session, message, text);
       return;
     }
-    const candidate = this.options.judge ? this.windows.candidate(message.groupId, message.senderId) : undefined;
+    const candidate = this.options.judge ? this.windows.candidate(message.chatId, message.senderId) : undefined;
     if (candidate) {
       if (!admitsWindowFollowUp(message, text)) {
         this.log('[跳过] 消息指向他人、无文本或文本超限。'); return;
@@ -212,21 +213,25 @@ export class Conversation {
     if (this.options.unified && this.options.judgeEvery) {
       this.handleEvery(session, message, text); return;
     }
-    if (this.options.judge) this.log(`[跳过] ${this.windows.skipReason(message.groupId, message.senderId)}。`);
+    if (this.options.judge) this.log(`[跳过] ${this.windows.skipReason(message.chatId, message.senderId)}。`);
     this.maybeInterject(session, message, text);
   }
 
   // Called only after an actual send acknowledgement, once per delivered part.
-  acknowledged(group: string, text: string, messageId?: string, target?: DeliveryTarget): void {
-    this.discussion.delivered(group, text, messageId, target?.senderId, target?.replyTo);
+  acknowledged(chatId: string, text: string, messageId?: string, target?: DeliveryTarget): void {
+    this.discussion.delivered(chatId, text, messageId, target?.senderId, target?.replyTo);
+    if(target)this.options.eventMemory?.delivered?.({chatId:chatId,ownerId:target.senderId},text,messageId,target.replyTo);
   }
 
-  private delivered(group: string, text: string, target?: DeliveryTarget): void {
-    if (!this.options.recordsDelivery) this.discussion.delivered(group, text, undefined, target?.senderId, target?.replyTo);
+  private delivered(chatId: string, text: string, target?: DeliveryTarget): void {
+    if (!this.options.recordsDelivery) {
+      this.discussion.delivered(chatId, text, undefined, target?.senderId, target?.replyTo);
+      if(target)this.options.eventMemory?.delivered?.({chatId:chatId,ownerId:target.senderId},text,undefined,target.replyTo);
+    }
   }
 
-  private replyContext(item: Inbound, kind: ReplyContext['kind'], snapshot = this.discussion.snapshot(item.message.groupId),
-    decision?: GroupJudgment): ReplyContext {
+  private replyContext(item: Inbound, kind: ReplyContext['kind'], snapshot = this.discussion.snapshot(item.message.chatId),
+    decision?: ChatJudgment): ReplyContext {
     return Object.freeze({ kind, targetSenderId: item.message.senderId,
       triggerIds: Object.freeze([...(item.triggerIds ?? [item.message.messageId!])]), snapshot,
       phase: 'decision' as const, awaitingReply: item.awaitingReply, decision: decision ? Object.freeze({ reason: decision.reason,
@@ -238,7 +243,7 @@ export class Conversation {
   }
 
   private senderCurrent(item: Inbound): boolean {
-    return !this.options.unified || item.senderVersion === this.discussion.senderVersion(item.message.groupId, item.message.senderId);
+    return !this.options.unified || item.senderVersion === this.discussion.senderVersion(item.message.chatId, item.message.senderId);
   }
 
   private async sendApproval(item: Inbound, context: ReplyContext, draft: string, signal: AbortSignal,
@@ -248,27 +253,27 @@ export class Conversation {
       unified: this.options.unified,
       senderCurrent: () => this.senderCurrent(item),
       candidate,
-      snapshot: () => this.discussion.snapshot(message.groupId),
+      snapshot: () => this.discussion.snapshot(message.chatId),
       reconsider: async review => {
         const decision = context.kind === 'follow-up' && this.options.judge
-          ? await this.options.judge(item.text, this.options.memory.get(message.groupId, message.senderId), signal, review)
+          ? await this.options.judge(item.text, this.options.memory.get(message.chatId, message.senderId), signal, review)
           : this.options.judgeEvery ? await this.options.judgeEvery.judge({ text: item.text,
-              recent: renderContext(review.snapshot), history: this.options.memory.get(message.groupId, message.senderId), context: review }, signal) : undefined;
+              recent: renderContext(review.snapshot), history: this.options.memory.get(message.chatId, message.senderId), context: review }, signal) : undefined;
         return decision && ('shouldRespond' in decision ? decision.shouldRespond : decision.respond);
       },
       log: this.log,
     });
   }
 
-  // Called on a timer: occasionally open a topic in a group that has been quiet.
+  // Called on a timer: occasionally open a topic in a chat that has been quiet.
   tick(): void {
     const warmup = this.options.warmup;
     if (!warmup || !this.options.generate) return;
     if (!withinHours(new Date(this.now()).getHours(), warmup.hours)) return;
     if (this.random() >= warmup.probability) return;
-    const group = this.pickWarmupGroup(warmup);
-    if (!group) return;
-    void this.warmUp(group, warmup);
+    const chatId = this.pickWarmupChat(warmup);
+    if (!chatId) return;
+    void this.warmUp(chatId, warmup);
   }
 
   connected(): void { this.options.eventMemory?.resume(); }
@@ -287,11 +292,11 @@ export class Conversation {
     this.proactiveBudget.disconnected(!!this.options.unified);
   }
 
-  private key(message: GroupMessage): string {
-    return JSON.stringify([message.groupId, message.senderId]);
+  private key(message: ChatMessage): string {
+    return JSON.stringify([message.chatId, message.senderId]);
   }
 
-  private session(key: string, message: GroupMessage): Session {
+  private session(key: string, message: ChatMessage): Session {
     let session = this.sessions.get(key);
     if (!session) {
       session = { pending: undefined, controller: undefined, running: false };
@@ -300,20 +305,20 @@ export class Conversation {
     return session;
   }
 
-  private maybeInterject(session: Session, message: GroupMessage, text: string): void {
+  private maybeInterject(session: Session, message: ChatMessage, text: string): void {
     const interject = this.options.interject;
     if (!interject || !this.options.generate) return;
     if (session.pending) return;
     if (!text || text.length > MAX_TEXT) return;
-    if (this.proactiveBudget.cooling('interject', message.groupId, interject.cooldownMs)) return;
+    if (this.proactiveBudget.cooling('interject', message.chatId, interject.cooldownMs)) return;
     if (this.random() >= interject.probability) return;
     session.pending = { kind: 'interject', message, text, receivedAt: this.now(),
-      senderVersion: this.discussion.senderVersion(message.groupId, message.senderId), triggerIds: [message.messageId!] };
+      senderVersion: this.discussion.senderVersion(message.chatId, message.senderId), triggerIds: [message.messageId!] };
     void this.run(session);
   }
 
-  // Window-free mode: every ordinary group message is judged, then rate limited.
-  private handleEvery(session: Session, message: GroupMessage, text: string): void {
+  // Window-free mode: every ordinary chat message is judged, then rate limited.
+  private handleEvery(session: Session, message: ChatMessage, text: string): void {
     const every = this.options.judgeEvery!;
     if (!admitsEveryMessage(message, text)) {
       this.log('[跳过] 消息含其他@、无文本或文本超限。');
@@ -322,70 +327,71 @@ export class Conversation {
     const pending = session.pending;
     if (canMergeFragment(pending, text, this.now(), 'judge')) {
       Object.assign(pending, mergedFragment(pending, text, this.now(),
-        this.discussion.senderVersion(message.groupId, message.senderId), message.messageId!));
+        this.discussion.senderVersion(message.chatId, message.senderId), message.messageId!));
       return;
     }
-    if (this.proactiveBudget.cooling('judge', message.groupId, every.cooldownMs)) {
+    if (this.proactiveBudget.cooling('judge', message.chatId, every.cooldownMs)) {
       this.log('[跳过] 刚接过话，冷却中。');
       return;
     }
-    if (this.proactiveBudget.overHourlyCap(message.groupId, every.hourlyCap)) {
+    if (this.proactiveBudget.overHourlyCap(message.chatId, every.hourlyCap)) {
       this.log('[跳过] 本小时接话已达上限。');
       return;
     }
     if (session.pending) return;
     session.pending = { kind: 'judge', message, text, receivedAt: this.now(),
-      senderVersion: this.discussion.senderVersion(message.groupId, message.senderId), triggerIds: [message.messageId!] };
+      senderVersion: this.discussion.senderVersion(message.chatId, message.senderId), triggerIds: [message.messageId!] };
     void this.run(session);
   }
 
   private async judged(item: Inbound, signal: AbortSignal): Promise<void> {
     const every = this.options.judgeEvery!;
     const { message } = item;
-    if (this.options.unified && this.proactiveInFlight.has(message.groupId)) {
+    if (this.options.unified && this.proactiveInFlight.has(message.chatId)) {
       this.log('[跳过] 本群已有主动参与任务，保留上下文。'); return;
     }
-    if (this.options.unified) this.proactiveInFlight.add(message.groupId);
+    if (this.options.unified) this.proactiveInFlight.add(message.chatId);
     try {
       const context = this.replyContext(item, 'interject');
-      const history = this.options.memory.get(message.groupId, message.senderId);
+      const history = this.options.memory.get(message.chatId, message.senderId);
       const decision = await every.judge({ text: item.text, recent: renderContext(context.snapshot), history, context }, signal);
       if (!decision.respond) { this.log(`[判断] 不接：${decision.reason}`); return; }
       const previous = context.snapshot.participation;
       if (repeatsUnansweredTopic(!!this.options.unified, previous, decision.topicKey)) {
         this.log('[跳过] 同一话题已主动参与且无人回应。'); return;
       }
-      const budget = () => !this.proactiveBudget.cooling('judge', message.groupId, every.cooldownMs) &&
-        !this.proactiveBudget.overHourlyCap(message.groupId, every.hourlyCap);
+      const budget = () => !this.proactiveBudget.cooling('judge', message.chatId, every.cooldownMs) &&
+        !this.proactiveBudget.overHourlyCap(message.chatId, every.hourlyCap);
       if (!this.senderCurrent(item) || signal.aborted || !budget()) return;
       const generationContext = await this.prepareContext(this.replyContext(item, 'interject', context.snapshot, decision), item.text, history, signal, decision.observation);
       const answer = await this.options.generate!(item.text, history, signal, false, generationContext);
       const guard = await this.sendApproval(item, generationContext, answer, signal);
       if (!guard || !budget()) return;
-      const delivered = await this.options.send(message.groupId, answer, async () => await guard() && budget(), { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
+      const delivered = await this.options.send(message.chatId, answer, async () => await guard() && budget(), { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
       if (!delivered) return;
-      this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
-      this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
-      this.proactiveBudget.record('judge', message.groupId);
+      this.delivered(message.chatId, delivered, { senderId: message.senderId, replyTo: message.messageId });
+      this.options.memory.add(message.chatId, message.senderId, item.text, delivered);
+      this.proactiveBudget.record('judge', message.chatId);
       if (this.options.unified) {
-        this.discussion.participated(message.groupId, decision.topicKey ?? item.message.messageId!, decision.basisIds ?? context.triggerIds, context.snapshot.incomingVersion);
-        this.windows.open(this.windows.incoming(message.groupId, message.senderId));
+        this.discussion.participated(message.chatId, decision.topicKey ?? item.message.messageId!, decision.basisIds ?? context.triggerIds, context.snapshot.incomingVersion);
+        this.windows.open(this.windows.incoming(message.chatId, message.senderId));
       }
       this.log(`[接话] 已回复（${decision.reason}）。`);
-    } finally { if (this.options.unified) this.proactiveInFlight.delete(message.groupId); }
+    } finally { if (this.options.unified) this.proactiveInFlight.delete(message.chatId); }
   }
 
-  private pickWarmupGroup(warmup: WarmupOptions): string | undefined {
+  private pickWarmupChat(warmup: WarmupOptions): string | undefined {
     const cutoff = this.now() - warmup.idleMs;
-    let best: { group: string; at: number } | undefined;
+    let best: { chatId: string; at: number } | undefined;
     for (const key of this.sessions.keys()) {
-      const [group] = JSON.parse(key) as [string, string];
-      const last = this.discussion.snapshot(group).messages.at(-1);
+      const [chatId] = JSON.parse(key) as [string, string];
+      if (isPrivateChat(chatId)) continue;
+      const last = this.discussion.snapshot(chatId).messages.at(-1);
       if (!last || last.at < cutoff) continue;
-      if (this.proactiveBudget.cooling('warmup', group, warmup.cooldownMs)) continue;
-      if (!best || last.at > best.at) best = { group, at: last.at };
+      if (this.proactiveBudget.cooling('warmup', chatId, warmup.cooldownMs)) continue;
+      if (!best || last.at > best.at) best = { chatId, at: last.at };
     }
-    return best?.group;
+    return best?.chatId;
   }
 
   private async run(session: Session): Promise<void> {
@@ -428,10 +434,10 @@ export class Conversation {
 
   private async followUp(item: Inbound, signal: AbortSignal): Promise<void> {
     const { message } = item;
-    const candidate = this.options.unified ? this.windows.candidate(message.groupId, message.senderId) : item.candidate;
+    const candidate = this.options.unified ? this.windows.candidate(message.chatId, message.senderId) : item.candidate;
     if (!candidate?.() && !item.awaitingReply) return;
     const context = this.replyContext(item, 'follow-up');
-    const history = this.options.memory.get(message.groupId, message.senderId);
+    const history = this.options.memory.get(message.chatId, message.senderId);
     if (!history.length && !item.awaitingReply) return;
     const decision = await this.options.judge!(item.text, history, signal, context);
     if (signal.aborted || !this.senderCurrent(item)) return;
@@ -443,10 +449,11 @@ export class Conversation {
     this.log(`[${this.options.autoReply ? '自动接话' : '观察'}] intent=${intentLabel}; wouldRespond=${decision.shouldRespond}; reason=${decision.reason}; 历史${history.length / 2}轮。`);
     if (decision.intent === 'end') {
       this.awaitingInitial.delete(this.key(message));
-      this.windows.close(message.groupId, message.senderId, 'ended');
+      this.windows.close(message.chatId, message.senderId, 'ended');
       this.log('[跳过] 用户明确结束对话，关闭窗口。');
     }
     if (!this.options.autoReply || !decision.shouldRespond || !this.options.generate) return;
+    this.options.eventMemory?.ingest({...message,isMentioned:true});
     const generationContext = await this.prepareContext({ ...context, decision: { reason: decision.reason } }, item.text, history, signal, decision.observation);
     const answer = await this.options.generate(item.text, history, signal, true, generationContext);
     if (candidate && !candidate()) {
@@ -455,52 +462,53 @@ export class Conversation {
     }
     const guard = await this.sendApproval(item, generationContext, answer, signal, candidate);
     if (!guard) return;
-    const delivered = await this.options.send(message.groupId, answer, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
+    const delivered = await this.options.send(message.chatId, answer, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, generationContext, answer, signal));
     if (!delivered) return;
-    this.options.memory.add(message.groupId, message.senderId, item.text, delivered);
-    this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
+    this.options.memory.add(message.chatId, message.senderId, item.text, delivered);
+    this.delivered(message.chatId, delivered, { senderId: message.senderId, replyTo: message.messageId });
     candidate?.consume();
     if (this.options.unified) {
       this.awaitingInitial.delete(this.key(message));
-      this.discussion.responded(message.groupId);
-      this.windows.open(this.windows.incoming(message.groupId, message.senderId));
+      this.discussion.responded(message.chatId);
+      this.windows.open(this.windows.incoming(message.chatId, message.senderId));
     }
     this.log(this.options.unified ? '[自动接话] 已回复并续期对话，不占主动插话预算。' : '[自动接话] 成功回复已写入记忆，计入本窗口2次限额。');
   }
 
   private async interject(item: Inbound, signal: AbortSignal): Promise<void> {
+    this.options.eventMemory?.ingest({...item.message,isMentioned:true});
     let replyContext = this.replyContext(item, 'interject');
     replyContext = await this.prepareContext(replyContext, item.text, [], signal);
     const context = renderContext(modelContext(replyContext).context.snapshot);
     if (!context) return;
     const content = `最近群里的聊天：\n${context}\n\n（你可以自然地插一句，符合你的人设；一两句话，不复述、不解释、不点评谁说了什么。）`;
     const answer = await this.options.generate!(content, [], signal, false, replyContext);
-    const delivered = await this.options.send(item.message.groupId, answer, () => !signal.aborted, { senderId: item.message.senderId, replyTo: item.message.messageId }, this.memeContext(item, replyContext, answer, signal));
+    const delivered = await this.options.send(item.message.chatId, answer, () => !signal.aborted, { senderId: item.message.senderId, replyTo: item.message.messageId }, this.memeContext(item, replyContext, answer, signal));
     if (!delivered) return;
-    this.delivered(item.message.groupId, delivered, { senderId: item.message.senderId, replyTo: item.message.messageId });
+    this.delivered(item.message.chatId, delivered, { senderId: item.message.senderId, replyTo: item.message.messageId });
     // An interjection is a normal reply: it enters memory and opens a window.
-    this.options.memory.add(item.message.groupId, item.message.senderId, item.text, delivered);
-    this.windows.open(this.windows.incoming(item.message.groupId, item.message.senderId));
-    this.proactiveBudget.record('interject', item.message.groupId);
+    this.options.memory.add(item.message.chatId, item.message.senderId, item.text, delivered);
+    this.windows.open(this.windows.incoming(item.message.chatId, item.message.senderId));
+    this.proactiveBudget.record('interject', item.message.chatId);
     this.log('[插话] 已主动参与当前话题，按普通回复开窗并写入记忆。');
   }
 
-  private async warmUp(group: string, warmup: WarmupOptions): Promise<void> {
+  private async warmUp(chatId: string, warmup: WarmupOptions): Promise<void> {
     const controller = new AbortController();
     this.warmups.add(controller);
     let release: (() => void) | undefined;
     try {
       release = await this.slots.acquire(controller.signal);
-      const snapshot = this.discussion.snapshot(group);
+      const snapshot = this.discussion.snapshot(chatId);
       const replyContext = await this.prepareContext({ kind: 'warmup', triggerIds: [], snapshot }, '', [], controller.signal);
       const context = renderContext(modelContext(replyContext).context.snapshot);
       if (!context) return;
       const content = `最近群里的聊天：\n${context}\n\n（群里安静了一会儿。主动开一个轻松的话题暖场，一两句话，符合你的人设；不要说自己是AI，也不要解释你在暖场。）`;
       const answer = await this.options.generate!(content, [], controller.signal, false, replyContext);
-      const delivered = await this.options.send(group, answer, () => !controller.signal.aborted && (!this.options.unified || this.discussion.snapshot(group).incomingVersion === snapshot.incomingVersion));
+      const delivered = await this.options.send(chatId, answer, () => !controller.signal.aborted && (!this.options.unified || this.discussion.snapshot(chatId).incomingVersion === snapshot.incomingVersion));
       if (!delivered) return;
-      this.delivered(group, delivered);
-      this.proactiveBudget.record('warmup', group);
+      this.delivered(chatId, delivered);
+      this.proactiveBudget.record('warmup', chatId);
       this.log('[暖场] 已主动开启话题。');
     } catch (error) {
       if (isAbort(error)) this.log(`[取消] ${abortReason(error)}，暖场放弃。`);
@@ -515,18 +523,18 @@ export class Conversation {
     const { message } = item;
     if (message.replyMessageId && !message.isReplyToBot &&
         (this.options.unified || !message.isMentioned && !message.isCalledByName)) {
-      let data: unknown = null;
-      try { data = this.options.lookup ? await this.options.lookup(message.replyMessageId, signal) : null; }
+      let data: ReferencedMessage | undefined;
+      try { data = this.options.lookup ? await this.options.lookup(message.replyMessageId, signal, message) : undefined; }
       catch (error) { if (signal.aborted) throw error; }
       if (this.options.unified) applyMessageReference(message, data, this.discussion);
-      message.isReplyToBot = isBotGroupReply(data, message);
+      message.isReplyToBot = isBotReference(data, message);
       if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
       this.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[引用] 未确认引用机器人；明确呼叫仍有效。');
       if (!message.isReplyToBot && !message.isMentioned && !message.isCalledByName) return;
     }
     if (signal.aborted || !this.senderCurrent(item)) return;
     if (message.isCalledByName) this.log('[触发] 句首称呼命中（角色称呼）。');
-    const reply = handleGroupMessage(message);
+    const reply = handleChatMessage(message);
     if (!reply) return;
     const content = message.content.trim();
     let context = this.replyContext(item, 'explicit');
@@ -568,7 +576,7 @@ export class Conversation {
         reply.content = draft.content;
         if (draft.memoryPrompt !== undefined) {
           const prompt = draft.memoryPrompt;
-          commit = delivered => this.options.memory.add(message.groupId, message.senderId, prompt, delivered);
+          commit = delivered => this.options.memory.add(message.chatId, message.senderId, prompt, delivered);
         }
       }
     }
@@ -580,14 +588,14 @@ export class Conversation {
       ? () => !signal.aborted && (controlHandled || this.senderCurrent(item))
       : await this.sendApproval(item, context, reply.content, signal);
     if (!guard) return;
-    const delivered = await this.options.send(message.groupId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, reply.content, signal));
+    const delivered = await this.options.send(message.chatId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, reply.content, signal));
     if (!delivered) return;
-    this.delivered(message.groupId, delivered, { senderId: message.senderId, replyTo: message.messageId });
+    this.delivered(message.chatId, delivered, { senderId: message.senderId, replyTo: message.messageId });
     if (awaitingContent) this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));
     else this.awaitingInitial.delete(this.key(message));
     if (commit) commit(delivered);
     if (!awaitingContent && !controlHandled && this.options.judge && !signal.aborted) {
-      this.windows.open(this.windows.incoming(message.groupId, message.senderId));
+      this.windows.open(this.windows.incoming(message.chatId, message.senderId));
       this.log(this.options.unified ? '[接续] 明确呼叫回复成功，开启可续期对话窗口。' : '[接续] 明确呼叫回复成功，开启固定接续窗口。');
     }
   }

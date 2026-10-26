@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import { analysisData, createContextAnalyzer, observationReceipt, parseObservation, type AnalysisInput, type ContextObservation } from './context-analysis.js';
 import { parsePersonalityMode, resolveExpression } from './personality-policy.js';
 import { PersonalityRuntime } from './personality-runtime.js';
-import { GroupContext, type ReplyContext } from './context.js';
-import { createGroupJudge } from './group-judge.js';
+import { ChatContext, type ReplyContext } from './context.js';
+import { createChatJudge } from './chat-judge.js';
 import { createFollowUpJudge } from './follow-up.js';
 import { createDeepSeekReply } from './deepseek.js';
 import { Conversation } from './conversation.js';
@@ -18,8 +18,8 @@ const observation = (patch: Partial<ContextObservation> = {}): ContextObservatio
   intent: 'play', seriousness: 'inferred', requestedBanter: 'unspecified', evidenceRefs: ['current-request'], ...patch,
 });
 const input = (text = '继续这个梗', sender = '123456'): AnalysisInput => {
-  const group = new GroupContext(() => 1000);
-  group.add({ groupId: '987654', senderId: sender, messageId: '888888', content: text, isMentioned: true });
+  const group = new ChatContext(() => 1000);
+  group.add({ chatId: '987654', senderId: sender, messageId: '888888', content: text, isMentioned: true });
   return { text, history: [{ role: 'assistant', content: '上一句玩笑' }], context: {
     kind: 'explicit', targetSenderId: sender, triggerIds: ['888888'], snapshot: group.snapshot('987654'),
   } };
@@ -111,7 +111,7 @@ test('judge observation extension validates separately and reuses the same input
     return Response.json({ choices: [{ message: { content: JSON.stringify({ respond: true, reason: 'addressed',
       topicKey: 'topic', targetSenderId: 'person-1', basisIds: ['message-1'], observation: observation() }) } }] });
   };
-  const judge = createGroupJudge('key', 'model', request, true);
+  const judge = createChatJudge('key', 'model', request, true);
   const decision = await judge({ ...i, recent: '' });
   assert.equal(decision.observation?.status, 'valid');
   const runtime = new PersonalityRuntime(async () => { throw Error('must reuse'); }, () => {});
@@ -165,7 +165,7 @@ test('scheduler shares task-local plans with media, cancels old analysis and byp
   });
   t.after(() => { bot.disconnect(); memory.close(); });
   let n = 0;
-  const send = (text: string, senderId = 'a') => bot.handle({ groupId: 'g', senderId, content: text, messageId: `m${++n}`, isMentioned: true });
+  const send = (text: string, senderId = 'a') => bot.handle({ chatId: 'g', senderId, content: text, messageId: `m${++n}`, isMentioned: true });
   send('slow'); await flush();
   send('help'); send('joke', 'b'); await flush();
   assert.deepEqual(sent.sort(), ['help', 'joke']);
@@ -202,9 +202,9 @@ test('scheduler reuses follow-up and proactive observations without another anal
     send: async (_group, text, guard) => await guard() ? text : undefined,
   });
   t.after(() => { bot.disconnect(); memory.close(); });
-  bot.handle({ groupId: 'g', senderId: 'a', messageId: '1', content: 'hi', isMentioned: true }); await flush();
-  bot.handle({ groupId: 'g', senderId: 'a', messageId: '2', content: 'help', isMentioned: false }); await flush();
-  bot.handle({ groupId: 'g', senderId: 'b', messageId: '3', content: 'question', isMentioned: false }); await flush();
+  bot.handle({ chatId: 'g', senderId: 'a', messageId: '1', content: 'hi', isMentioned: true }); await flush();
+  bot.handle({ chatId: 'g', senderId: 'a', messageId: '2', content: 'help', isMentioned: false }); await flush();
+  bot.handle({ chatId: 'g', senderId: 'b', messageId: '3', content: 'question', isMentioned: false }); await flush();
   assert.deepEqual(plans, ['play', 'support', 'explain']);
   assert.equal(analyzed, 1);
 });
@@ -234,7 +234,7 @@ test('single-image scheduler and real vision adapter receive one conservative im
     },
   });
   t.after(() => { bot.disconnect(); memory.close(); });
-  bot.handle({ groupId: 'g', senderId: 'a', messageId: 'image1', content: '看看这张图', isMentioned: true,
+  bot.handle({ chatId: 'g', senderId: 'a', messageId: 'image1', content: '看看这张图', isMentioned: true,
     hasMedia: true, attachments: { imageCount: 1, images: [{ url: 'https://gchat.qpic.cn/test' }] } });
   await sent; await flush();
   assert.equal(analyzed, 1); assert.equal(viewed, 1);
@@ -252,7 +252,7 @@ test('warmup uses a local plan without semantic analysis', async t => {
     send: async (_group, text, guard) => await guard() ? text : undefined,
   });
   t.after(() => { bot.disconnect(); memory.close(); });
-  bot.handle({ groupId: 'g', senderId: 'a', messageId: '1', content: '闲聊', isMentioned: false });
+  bot.handle({ chatId: 'g', senderId: 'a', messageId: '1', content: '闲聊', isMentioned: false });
   await flush(); bot.tick(); await flush();
   assert.equal(calls, 0);
   assert.equal(contexts[0].kind, 'warmup');

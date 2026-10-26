@@ -18,7 +18,7 @@ export const projectAttentions = (record: EventRecord, previous: Attention[], do
   for (const draft of drafts) {
     if (draft.expiresAt <= now) continue;
     const old = previous.find(item => item.kind === draft.kind && item.occurrenceAt === draft.occurrenceAt);
-    upserts.push({ ...draft, groupId: record.groupId, ownerId: record.ownerId, id: old?.id ?? createId(),
+    upserts.push({ ...draft, chatId: record.chatId, ownerId: record.ownerId, id: old?.id ?? createId(),
       eventId: record.id, eventVersion: record.version, epoch: record.epoch,
       tone: selectAttentionTone(old?.tone, random), status: 'pending' });
   }

@@ -15,7 +15,7 @@ export const analysisData = ({ text, history, context }: AnalysisInput) => ({
 export const inputRevision = (input: AnalysisInput): string => createHash('sha256')
   .update(JSON.stringify({ ...analysisData(input),
     // Real identifiers bind the receipt locally, never enter the model request.
-    group: input.context?.snapshot.groupId, target: input.context?.targetSenderId,
+    chatId: input.context?.snapshot.chatId, target: input.context?.targetSenderId,
     triggers: input.context?.triggerIds })).digest('hex');
 
 export const OBSERVATION_PROMPT = `同时返回 observation 对象，例如 {"intent":"unknown","seriousness":"unknown","requestedBanter":"unspecified","evidenceRefs":["current-request"]}。只允许这四个字段。

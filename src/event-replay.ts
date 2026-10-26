@@ -1,4 +1,4 @@
-import { GroupContext } from './context.js';
+import { ChatContext } from './context.js';
 // Deterministic event and initiative-observe replay: no QQ connection, provider key or send function.
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -12,7 +12,7 @@ const dir=mkdtempSync(join(tmpdir(),'event-replay-')),path=join(dir,'events.db')
 let now=Date.parse('2026-10-23T10:00:00+08:00');
 const logs:string[]=[];
 const make=()=>{
- const store=new EventStore(path),discussion=new GroupContext(()=>now);
+ const store=new EventStore(path),discussion=new ChatContext(()=>now);
  const runtime=new EventMemoryRuntime(store,[eventDomain],async()=>({event:[{operation:'record',target:null,assertion:'stated',topic:'休假计划',summary:'休假与后续安排',
   statement:{source:'source-1',text:'明天休两天，周一上班'},start:{source:'source-1',text:'明天'},
   duration:{source:'source-1',text:'两天'},anchors:[{label:'复工',date:{source:'source-1',text:'周一'},notBeforeEnd:true}],followup:{anchor:0,intent:'询问近况',basis:'stated'}}]}),
@@ -21,12 +21,12 @@ const make=()=>{
 };
 let current=make();
 try{
- current.runtime.ingest({groupId:'demo',senderId:'member',messageId:'demo-1',timestamp:now,content:'明天休两天，周一上班',isMentioned:true});
+ current.runtime.ingest({chatId:'demo',senderId:'member',messageId:'demo-1',timestamp:now,content:'明天休两天，周一上班',isMentioned:true});
  now+=4000;await current.runtime.tick();
  const before=current.store.attentions()[0];
  current.runtime.close();now=Date.parse('2026-10-26T10:00:00+08:00');current=make();
  await current.runtime.tick();
- const presence={groupId:'demo',senderId:'member',messageId:'demo-2',timestamp:now,content:'早上好',isMentioned:false};
+ const presence={chatId:'demo',senderId:'member',messageId:'demo-2',timestamp:now,content:'早上好',isMentioned:false};
  current.discussion.add(presence);current.runtime.ingest(presence);
  await current.runtime.tick();await current.runtime.tick();
  const after=current.store.attentions()[0];

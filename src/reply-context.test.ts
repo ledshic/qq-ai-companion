@@ -7,7 +7,7 @@ import type { ObservationReceipt } from './observation-types.js';
 import type { RecallView } from './events/recall-types.js';
 
 const context = (kind: ReplyContext['kind'] = 'explicit'): ReplyContext => ({ kind, targetSenderId: 'owner', triggerIds: ['message'],
-  snapshot: { groupId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] } });
+  snapshot: { chatId: 'group', version: 1, incomingVersion: 1, capturedAt: 1000, messages: [] } });
 const receipt: ObservationReceipt = { inputRevision: 'revision', analyzerVersion: 'version', status: 'unknown' };
 const view: RecallView = { status: 'empty', capturedAt: 'now', timezone: 'Asia/Shanghai', records: [] };
 const signal = () => new AbortController().signal;
@@ -22,7 +22,7 @@ test('recall precedes personality planning with unchanged history, receipt and l
     const prepare = createReplyContextPreparer({
       eventMemory: { recall: async query => {
         calls.push('recall');
-        assert.deepEqual(query, { groupId: 'group', ownerId: 'owner', text: 'question', history });
+        assert.deepEqual(query, { chatId: 'group', ownerId: 'owner', text: 'question', history });
         return { view, isCurrent: guard };
       } },
       personality: { plan: async (analysis, _signal, reused, local) => {

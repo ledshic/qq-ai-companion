@@ -10,23 +10,23 @@ export class ProactiveBudget {
   private readonly hourly = new Map<string, HourlyCount>();
   constructor(private readonly now: () => number) {}
 
-  cooling(kind: ProactiveKind, group: string, cooldownMs: number): boolean {
-    const last = this.last[kind].get(group);
+  cooling(kind: ProactiveKind, chatId: string, cooldownMs: number): boolean {
+    const last = this.last[kind].get(chatId);
     return last !== undefined && this.now() - last < cooldownMs;
   }
 
-  overHourlyCap(group: string, cap: number): boolean {
-    const entry = this.hourly.get(group);
+  overHourlyCap(chatId: string, cap: number): boolean {
+    const entry = this.hourly.get(chatId);
     if (!entry) return false;
     return entry.hour === Math.floor(this.now() / 3_600_000) && entry.count >= cap;
   }
 
-  record(kind: ProactiveKind, group: string): void {
-    this.last[kind].set(group, this.now());
+  record(kind: ProactiveKind, chatId: string): void {
+    this.last[kind].set(chatId, this.now());
     if (kind !== 'judge') return;
     const hour = Math.floor(this.now() / 3_600_000);
-    const entry = this.hourly.get(group);
-    if (!entry || entry.hour !== hour) this.hourly.set(group, { hour, count: 1 });
+    const entry = this.hourly.get(chatId);
+    if (!entry || entry.hour !== hour) this.hourly.set(chatId, { hour, count: 1 });
     else entry.count++;
   }
 

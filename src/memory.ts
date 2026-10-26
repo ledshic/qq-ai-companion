@@ -11,7 +11,7 @@ export interface StoredSession {
 // Persistence is delegated: the memory policy stays independent of the backend.
 export interface SessionStore {
   load(key: string): StoredSession | undefined;
-  save(key: string, groupId: string, senderId: string, turns: ChatTurn[], touched: number): void;
+  save(key: string, chatId: string, senderId: string, turns: ChatTurn[], touched: number): void;
   delete(key: string): void;
   prune(before: number, keep: number): void;
   close(): void;
@@ -23,12 +23,12 @@ export class ConversationMemory {
   constructor(private store: SessionStore, private now = Date.now,
     private ttl = 30 * 60_000, private maxTurns = 9, private maxSessions = 100) {}
 
-  private key(groupId: string, senderId: string): string {
-    return JSON.stringify([groupId, senderId]);
+  private key(chatId: string, senderId: string): string {
+    return JSON.stringify([chatId, senderId]);
   }
 
-  get(groupId: string, senderId: string): ChatTurn[] {
-    const key = this.key(groupId, senderId);
+  get(chatId: string, senderId: string): ChatTurn[] {
+    const key = this.key(chatId, senderId);
     const session = this.store.load(key);
     if (!session) return [];
     if (this.now() - session.touched >= this.ttl) {
@@ -38,16 +38,16 @@ export class ConversationMemory {
     return session.turns.map(turn => ({ ...turn }));
   }
 
-  add(groupId: string, senderId: string, prompt: string, reply: string): void {
-    const turns: ChatTurn[] = [...this.get(groupId, senderId),
+  add(chatId: string, senderId: string, prompt: string, reply: string): void {
+    const turns: ChatTurn[] = [...this.get(chatId, senderId),
       { role: 'user', content: prompt }, { role: 'assistant', content: reply }];
     const now = this.now();
-    this.store.save(this.key(groupId, senderId), groupId, senderId, turns.slice(-this.maxTurns * 2), now);
+    this.store.save(this.key(chatId, senderId), chatId, senderId, turns.slice(-this.maxTurns * 2), now);
     this.store.prune(now - this.ttl, this.maxSessions);
   }
 
-  clear(groupId: string, senderId: string): void {
-    this.store.delete(this.key(groupId, senderId));
+  clear(chatId: string, senderId: string): void {
+    this.store.delete(this.key(chatId, senderId));
   }
 
   close(): void {

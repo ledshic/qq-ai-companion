@@ -11,20 +11,20 @@ import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
 import { createDeepSeekReply } from './deepseek.js';
 import { createVisionReply } from './vision.js';
-import { GroupContext, modelContext, type ReplyContext } from './context.js';
+import { ChatContext, modelContext, type ReplyContext } from './context.js';
 import { observationReceipt } from './context-analysis.js';
 import { PersonalityRuntime } from './personality-runtime.js';
 import sharp from 'sharp';
 const at = Date.parse('2026-10-23T10:00:00+08:00'), later = at + 86400000;
-const scope = {groupId:'private-group',ownerId:'private-owner'};
+const scope = {chatId:'private-group',ownerId:'private-owner'};
 const q = (text:string)=>({source:'source-1',text});
-function seed(store:EventStore, ownerId=scope.ownerId, groupId=scope.groupId, id='message-1') {
+function seed(store:EventStore, ownerId=scope.ownerId, chatId=scope.chatId, id='message-1') {
   const domain=createEventDomain();
-  store.ingest({groupId,ownerId,messageId:`${groupId}-${ownerId}-${id}`,text:'下周三考试',sourceAt:at,receivedAt:at});
+  store.ingest({chatId,ownerId,messageId:`${chatId}-${ownerId}-${id}`,text:'下周三考试',sourceAt:at,receivedAt:at});
   const batch=store.claim(at+4000)!;
   const raw={operation:'record',target:null,assertion:'stated',topic:'考试',summary:'计划下周三参加考试',
     statement:q('下周三考试'),start:q('下周三'),duration:null,anchors:[],followup:null};
-  const ctx={sources:batch.sources,existing:store.records({groupId,ownerId},at+4000),now:at+4000};
+  const ctx={sources:batch.sources,existing:store.records({chatId,ownerId},at+4000),now:at+4000};
   store.commit(batch,domain.interpret([raw],ctx),[domain],at+4000,()=>0);
   return batch;
 }
@@ -38,7 +38,7 @@ test('recall uses only scoped, active, evidence-backed facts, not proactive sugg
  const recall=createMemoryRecall(store,async query=>{
   selections++;assert.equal(query.records.length,1);
   const text=JSON.stringify(query);
-  for(const hidden of [scope.groupId,scope.ownerId,source.id,source.sources[0].id])assert.ok(!text.includes(hidden));
+  for(const hidden of [scope.chatId,scope.ownerId,source.id,source.sources[0].id])assert.ok(!text.includes(hidden));
   assert.ok(!text.includes('followup'));return ['memory-1'];
  },presentEventRecall,()=>later);
  const result=await recall({...scope,text:'我之前说什么时候考试？',history:[]},signal());
@@ -46,7 +46,7 @@ test('recall uses only scoped, active, evidence-backed facts, not proactive sugg
  assert.match(result.view.records[0].evidence[0].excerpt,/考试/);
  assert.equal(result.view.records[0].evidence[0].at,new Date(at).toISOString());
  assert.equal(result.isCurrent(),true);assert.equal(selections,1);
- const foreign=await recall({groupId:scope.groupId,ownerId:'nobody',text:'之前的事',history:[]},signal());
+ const foreign=await recall({chatId:scope.chatId,ownerId:'nobody',text:'之前的事',history:[]},signal());
  assert.equal(foreign.view.status,'empty');assert.equal(selections,1);
 });
 
@@ -58,8 +58,9 @@ test('empty, unrelated, selector failure and forged IDs are distinct and do not 
   const result=await createMemoryRecall(store,select,presentEventRecall,()=>later)(query,signal());
   assert.equal(result.view.status,'unavailable');assert.equal(result.view.records.length,0);
  }
- const expired=await createMemoryRecall(store,async()=>{throw Error('must not call');},presentEventRecall,()=>at+31*86400000)(query,signal());
- assert.equal(expired.view.status,'empty');
+ const expired=await createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>at+31*86400000)(query,signal());
+ assert.equal(expired.view.status,'matched');
+ assert.equal((expired.view.records[0].facts as {phase:string}).phase,'historical');
 });
 
 test('clear while selection is running invalidates late results; clear after selection invalidates send guard',async t=>{
@@ -69,7 +70,7 @@ test('clear while selection is running invalidates late results; clear after sel
  const pending=recall({...scope,text:'之前的事',history:[]},signal());
  store.clear(scope);done(['memory-1']);const result=await pending;
  assert.equal(result.view.status,'unavailable');assert.equal(result.isCurrent(),false);
- seed(store,scope.ownerId,scope.groupId,'message-2');
+ seed(store,scope.ownerId,scope.chatId,'message-2');
  const fresh=await createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>later)({...scope,text:'之前的事',history:[]},signal());
  assert.equal(fresh.isCurrent(),true);store.clear(scope);assert.equal(fresh.isCurrent(),false);
 });
@@ -109,9 +110,9 @@ test('parent cancellation propagates instead of silently generating an unavailab
 test('chat generation receives recalled data as user material; tool rounds reuse the same snapshot',async t=>{
  const store=new EventStore(':memory:');t.after(()=>store.close());seed(store);
  const recalled=await createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>later)({...scope,text:'之前的事',history:[]},signal());
- const group=new GroupContext(()=>later);
- group.add({groupId:scope.groupId,senderId:scope.ownerId,messageId:'request',content:'还记得吗',isMentioned:true});
- const context:ReplyContext={kind:'explicit',targetSenderId:scope.ownerId,triggerIds:['request'],snapshot:group.snapshot(scope.groupId),
+ const group=new ChatContext(()=>later);
+ group.add({chatId:scope.chatId,senderId:scope.ownerId,messageId:'request',content:'还记得吗',isMentioned:true});
+ const context:ReplyContext={kind:'explicit',targetSenderId:scope.ownerId,triggerIds:['request'],snapshot:group.snapshot(scope.chatId),
   longTermMemory:recalled.view,memoryGuard:recalled.isCurrent};
  const bodies:any[]=[];
  const reply=createDeepSeekReply('key','model',async(_url,init)=>{
@@ -119,7 +120,7 @@ test('chat generation receives recalled data as user material; tool rounds reuse
   assert.match(body.messages[0].content,/未召回到记录只表示本次没找到/);
   const data=JSON.parse(body.messages[1].content).discussionContext;
   assert.equal(data.longTermMemory.records[0].id,'memory-1');assert.equal(data.memoryGuard,undefined);
-  for(const hidden of [scope.groupId,scope.ownerId])assert.ok(!JSON.stringify(body).includes(hidden));
+  for(const hidden of [scope.chatId,scope.ownerId])assert.ok(!JSON.stringify(body).includes(hidden));
   return Response.json({choices:[{message:bodies.length===1?{tool_calls:[{id:'time',type:'function',function:{name:'get_current_time',arguments:'{}'}}]}:{content:'你之前说下周三考试。'}}]});
  },{log:()=>{}});
  assert.equal(await reply('还记得吗',[],signal(),true,context),'你之前说下周三考试。');assert.equal(bodies.length,2);
@@ -130,7 +131,7 @@ test('scheduler recalls for addressed questions and follow-ups, but not ordinary
  let now=later,calls=0;const store=new EventStore(':memory:');seed(store);
  const memory=new ConversationMemory(new SqliteSessionStore(':memory:'),()=>now);
  const retrieved=createMemoryRecall(store,async()=>{calls++;return ['memory-1'];},presentEventRecall,()=>now);
- const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.groupId]),scope:'addressed',mode:'observe'},
+ const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.chatId]),scope:'addressed',mode:'observe'},
   eventControls,()=>undefined,()=>now,()=>0,()=>{},retrieved);
  const contexts:ReplyContext[]=[];
  const bot=new Conversation({memory,eventMemory:runtime,unified:true,autoReply:true,now:()=>now,random:()=>0,log:()=>{},
@@ -140,7 +141,7 @@ test('scheduler recalls for addressed questions and follow-ups, but not ordinary
   send:async(_group,text,guard)=>await guard()?text:undefined,
  });
  t.after(()=>{bot.disconnect();runtime.close();memory.close();});bot.connected();
- const message=(id:string,text:string,explicit:boolean)=>bot.handle({groupId:scope.groupId,senderId:scope.ownerId,messageId:id,content:text,isMentioned:explicit,timestamp:now});
+ const message=(id:string,text:string,explicit:boolean)=>bot.handle({chatId:scope.chatId,senderId:scope.ownerId,messageId:id,content:text,isMentioned:explicit,timestamp:now});
  message('ordinary','随便说句话',false);await flush();assert.equal(calls,0);
  message('explicit','我之前说过什么？',true);await flush();assert.equal(calls,1);
  assert.equal(contexts[0].longTermMemory?.status,'matched');
@@ -152,22 +153,22 @@ test('scheduler recalls for addressed questions and follow-ups, but not ordinary
 test('memory invalidation during generation prevents the stale answer from being sent',async t=>{
  const store=new EventStore(':memory:');seed(store);
  const memory=new ConversationMemory(new SqliteSessionStore(':memory:'));
- const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.groupId]),scope:'addressed',mode:'observe'},
+ const runtime=new EventMemoryRuntime(store,[],async()=>({}),{groups:new Set([scope.chatId]),scope:'addressed',mode:'observe'},
   eventControls,()=>undefined,()=>later,()=>0,()=>{},createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>later));
  let generated!:(text:string)=>void,sends=0;
  const bot=new Conversation({memory,eventMemory:runtime,unified:true,log:()=>{},
   generate:async()=>new Promise(done=>{generated=done;}),send:async(_group,text,guard)=>{if(await guard()){sends++;return text;}}});
  t.after(()=>{bot.disconnect();runtime.close();memory.close();});bot.connected();
- bot.handle({groupId:scope.groupId,senderId:scope.ownerId,messageId:'request',timestamp:later,content:'我之前说过什么',isMentioned:true});
+ bot.handle({chatId:scope.chatId,senderId:scope.ownerId,messageId:'request',timestamp:later,content:'我之前说过什么',isMentioned:true});
  await flush();store.clear(scope);generated('旧事实');await flush();
- assert.equal(sends,0);assert.deepEqual(memory.get(scope.groupId,scope.ownerId),[]);
+ assert.equal(sends,0);assert.deepEqual(memory.get(scope.chatId,scope.ownerId),[]);
 });
 
 test('image generation receives scoped text memories without treating them as previously seen images',async t=>{
  const store=new EventStore(':memory:');t.after(()=>store.close());seed(store);
  const recalled=await createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>later)({...scope,text:'之前的事',history:[]},signal());
- const group=new GroupContext(()=>later);group.add({groupId:scope.groupId,senderId:scope.ownerId,messageId:'image',content:'这个跟之前的事有关吗',isMentioned:true});
- const context:ReplyContext={kind:'explicit',targetSenderId:scope.ownerId,triggerIds:['image'],snapshot:group.snapshot(scope.groupId),longTermMemory:recalled.view,memoryGuard:recalled.isCurrent};
+ const group=new ChatContext(()=>later);group.add({chatId:scope.chatId,senderId:scope.ownerId,messageId:'image',content:'这个跟之前的事有关吗',isMentioned:true});
+ const context:ReplyContext={kind:'explicit',targetSenderId:scope.ownerId,triggerIds:['image'],snapshot:group.snapshot(scope.chatId),longTermMemory:recalled.view,memoryGuard:recalled.isCurrent};
  const bytes=await sharp({create:{width:10,height:10,channels:3,background:'#fff'}}).png().toBuffer();
  const vision=createVisionReply('key','model',async(url,init)=>{
   if(!String(url).includes('api.deepseek'))return new Response(bytes);
@@ -183,8 +184,8 @@ test('image generation receives scoped text memories without treating them as pr
 test('adding recalled material does not invalidate the existing expression observation receipt',async t=>{
  const store=new EventStore(':memory:');t.after(()=>store.close());seed(store);
  const recalled=await createMemoryRecall(store,async()=>['memory-1'],presentEventRecall,()=>later)({...scope,text:'之前的事',history:[]},signal());
- const group=new GroupContext(()=>later);group.add({groupId:scope.groupId,senderId:scope.ownerId,messageId:'request',content:'之前的事',isMentioned:true});
- const context:ReplyContext={kind:'follow-up',targetSenderId:scope.ownerId,triggerIds:['request'],snapshot:group.snapshot(scope.groupId)};
+ const group=new ChatContext(()=>later);group.add({chatId:scope.chatId,senderId:scope.ownerId,messageId:'request',content:'之前的事',isMentioned:true});
+ const context:ReplyContext={kind:'follow-up',targetSenderId:scope.ownerId,triggerIds:['request'],snapshot:group.snapshot(scope.chatId)};
  const input={text:'之前的事',history:[],context};
  const receipt=observationReceipt({intent:'question',seriousness:'explicit',requestedBanter:'stop',evidenceRefs:['current-request']},input);
  const runtime=new PersonalityRuntime(async()=>{throw Error('must reuse');},()=>{});

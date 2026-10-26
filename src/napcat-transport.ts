@@ -1,17 +1,13 @@
+import { privateChatUser } from './chat-scope.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import type { DeliveryTarget } from './context.js';
 import type { DeliveryChannel } from './delivery-types.js';
-import type { GroupMessage } from './message.js';
+import type { AgentChannelEvents } from './channel.js';
 import { isRecord } from './value.js';
-import { parseGroupMessage } from './onebot.js';
+import { parseChatMessage } from './onebot.js';
 
-export interface NapCatTransportEvents {
-  connected: () => void;
-  disconnected: () => void;
-  message: (message: GroupMessage) => void;
-  acknowledged: (groupId: string, content: string, messageId?: string, target?: DeliveryTarget) => void;
-}
+export type NapCatTransportEvents = AgentChannelEvents;
 
 // Owns only the OneBot connection, action correlation and connection-bound sends.
 // Start after application handlers have been assembled.
@@ -20,20 +16,21 @@ export const createNapCatTransport = (url: string, token: string, events: NapCat
   let stopped = false;
   let socket: WebSocket;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
-  const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void; groupId: string; content: string; target?: DeliveryTarget }>();
+  const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void; chatId: string; content: string; target?: DeliveryTarget }>();
   const lookups = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: (data: unknown) => void }>();
 
   const activeSocket = (): WebSocket | undefined =>
     !stopped && socket?.readyState === WebSocket.OPEN ? socket : undefined;
 
-  const sendPart = (target: WebSocket, groupId: string, content: string, finish: (success: boolean) => void, targetInfo?: DeliveryTarget, image?: string): void => {
+  const sendPart = (target: WebSocket, chatId: string, content: string, finish: (success: boolean) => void, targetInfo?: DeliveryTarget, image?: string): void => {
     const echo = randomUUID();
-    pending.set(echo, { finish, groupId, content, target: targetInfo, timer: setTimeout(() => {
+    pending.set(echo, { finish, chatId, content, target: targetInfo, timer: setTimeout(() => {
       pending.delete(echo); finish(false);
       console.error('[NapCat] 回复确认超时，不自动重发。');
     }, 10_000) });
-    target.send(JSON.stringify({ action: 'send_group_msg',
-      params: { group_id: groupId, message: image ? [{ type: 'image', data: { file: image, sub_type: 1 } }] : [{ type: 'text', data: { text: content } }] }, echo,
+    const userId = privateChatUser(chatId);
+    target.send(JSON.stringify({ action: userId ? 'send_private_msg' : 'send_group_msg',
+      params: { ...(userId ? { user_id: userId } : { group_id: chatId }), message: image ? [{ type: 'image', data: { file: image, sub_type: 1 } }] : [{ type: 'text', data: { text: content } }] }, echo,
     }), error => {
       if (!error) return;
       const entry = pending.get(echo);
@@ -42,13 +39,13 @@ export const createNapCatTransport = (url: string, token: string, events: NapCat
     });
   };
 
-  const capture = (groupId: string): DeliveryChannel | undefined => {
+  const capture = (chatId: string): DeliveryChannel | undefined => {
     const target = activeSocket();
     if (!target) return;
     return {
       connected: () => !stopped && socket === target && target.readyState === WebSocket.OPEN,
       send: (content, targetInfo, image) => new Promise<boolean>(done =>
-        sendPart(target, groupId, content, done, targetInfo, image)),
+        sendPart(target, chatId, content, done, targetInfo, image)),
     };
   };
 
@@ -85,7 +82,7 @@ export const createNapCatTransport = (url: string, token: string, events: NapCat
       handshakeTimeout: 10_000,
       maxPayload: 1024 * 1024,
     });
-    socket.on('open', () => { events.connected(); log('[NapCat] 已连接，等待群消息。'); });
+    socket.on('open', () => { events.connected(); log('[NapCat] 已连接，等待群聊和私聊消息。'); });
     socket.on('error', () => console.error('[NapCat] 连接错误，请检查地址、Token 和服务状态。'));
     socket.on('close', () => {
       clearPending();
@@ -113,7 +110,7 @@ export const createNapCatTransport = (url: string, token: string, events: NapCat
           clearTimeout(pendingEntry.timer);
           pending.delete(event.echo);
           const success = event.status === 'ok' && event.retcode === 0;
-          if (success) events.acknowledged(pendingEntry.groupId, pendingEntry.content,
+          if (success) events.acknowledged(pendingEntry.chatId, pendingEntry.content,
             isRecord(event.data) && (typeof event.data.message_id === 'string' || typeof event.data.message_id === 'number')
               ? String(event.data.message_id) : undefined, pendingEntry.target);
           pendingEntry.finish(success);
@@ -122,7 +119,7 @@ export const createNapCatTransport = (url: string, token: string, events: NapCat
         }
       }
 
-      const message = parseGroupMessage(event);
+      const message = parseChatMessage(event);
       if (message === null) return;
       events.message(message);
     });

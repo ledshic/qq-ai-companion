@@ -3,6 +3,7 @@ import type { EventRecord, Scope } from './types.js';
 export interface RecallEvidence { readonly id: string; readonly at: string | null; readonly excerpt: string }
 export interface RecallDocument {
   readonly id: string;
+  readonly source?: 'current_chat' | 'other_group' | 'private_chat';
   readonly recordedAt: string;
   readonly updatedAt: string;
   readonly facts: unknown;
@@ -24,4 +25,4 @@ export type RecallProvider = (query: RecallQuery, signal: AbortSignal) => Promis
 
 export interface StoredRecallEvidence { id: string; sourceAt: number | null; excerpt: string }
 export type RecallPresenter = (record: EventRecord, evidence: StoredRecallEvidence[], alias: string) => RecallDocument | undefined;
-export type RecallSelector = (query: { text: string; history: ChatTurn[]; now: string; records: RecallDocument[] }, signal: AbortSignal) => Promise<string[]>;
+export type RecallSelector = (query: { text: string; history: ChatTurn[]; now: string; privateTopic?: string; records: RecallDocument[] }, signal: AbortSignal) => Promise<string[]>;

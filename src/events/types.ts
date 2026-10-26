@@ -1,12 +1,13 @@
-import type { GroupMessage } from '../message.js';
-export interface Scope { groupId: string; ownerId: string }
+import type { ChatScope } from '../chat-scope.js';
+import type { ChatMessage } from '../message.js';
+export interface Scope extends ChatScope { ownerId: string }
 export interface Source extends Scope {
   id: string; messageId: string; text: string; sourceAt: number | null;
   receivedAt: number; epoch: number; status: string;
 }
 export interface EventRecord extends Scope {
   id: string; domain: string; businessKey: string; version: number; epoch: number;
-  payload: unknown; evidenceIds: string[]; status: 'active' | 'superseded' | 'retracted' | 'expired';
+  payload: unknown; evidenceIds: string[]; status: 'active' | 'superseded' | 'retracted' | 'expired' | 'historical';
   createdAt: number; updatedAt: number; expiresAt: number;
 }
 export interface Mutation {
@@ -35,8 +36,9 @@ export type Extractor = (input: ExtractionInput, signal: AbortSignal) => Promise
 export interface Batch extends Scope { id: string; epoch: number; sources: Source[] }
 export interface EventMemoryPort {
   recall(query: import('./recall-types.js').RecallQuery, signal: AbortSignal): Promise<import('./recall-types.js').RecallResult>;
-  ingest(message: GroupMessage): void;
-  control(message: GroupMessage): string | undefined;
+  ingest(message: ChatMessage): void;
+  delivered?(scope: Scope, text: string, messageId?: string, replyTo?: string): void;
+  control(message: ChatMessage): string | undefined;
   attach(acquire: (controller: AbortController) => (() => void) | undefined, context?: import('./initiative-types.js').InitiativeContext): void;
   pause(): void;
   resume(): void;

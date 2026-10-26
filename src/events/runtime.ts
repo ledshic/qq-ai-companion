@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto';
+import type { ArchiveSummarizer } from './summarize.js';
+import { isPrivateChat, privateChatId } from '../chat-scope.js';
 import type { InitiativeContext, InitiativeObserver } from './initiative-types.js';
-import { recallView } from './recall.js';
+import { recallView, rankMemoryCandidates } from './recall.js';
 import type { RecallProvider, RecallQuery, RecallResult } from './recall-types.js';
-import type { GroupMessage } from '../message.js';
+import type { ChatMessage } from '../message.js';
 import { EventStore } from './store.js';
 import { observeAttention } from './observe-policy.js';
 import type { EventConfig, EventDomain, EventMemoryPort, Extractor, Scope } from './types.js';
@@ -21,7 +24,7 @@ export class EventMemoryRuntime implements EventMemoryPort {
     private config:EventConfig,private controls:EventControls,
     private scopeRestriction:(records:import('./types.js').EventRecord[],settings:Record<string,unknown>)=>{reason:string;terminal:boolean}|undefined=()=>undefined,
     private now=Date.now,private random=Math.random,private log:(line:string)=>void=console.log,
-    private retrieval?:RecallProvider,private initiative?:InitiativeObserver) {
+    private retrieval?:RecallProvider,private initiative?:InitiativeObserver,private summarize?:ArchiveSummarizer) {
     store.recover();store.prune(now());
   }
   attach(acquire:(controller:AbortController)=>(()=>void)|undefined,context?:InitiativeContext):void{this.acquire=acquire;this.context=context;}
@@ -29,38 +32,48 @@ export class EventMemoryRuntime implements EventMemoryPort {
   pause():void{this.paused=true;this.active?.abort(new Error('event_paused'));}
   close():void{if(this.closed)return;this.closed=true;this.pause();if(!this.active)this.store.close();}
   private fail():void {this.disabled=true;this.active?.abort(new Error('event_disabled'));this.log('[事件记忆] disabled=storage_error');}
-  ingest(message:GroupMessage):void {
-    if(this.paused||this.disabled||this.closed||this.config.mode!=='observe'||!this.config.groups.has(message.groupId))return;
+  private enabledScope(chatId:string,ownerId:string):boolean {
+    return this.config.groups.has(chatId)||chatId===privateChatId(ownerId);
+  }
+  ingest(message:ChatMessage):void {
+    if(this.paused||this.disabled||this.closed||this.config.mode!=='observe'||!this.enabledScope(message.chatId,message.senderId))return;
     const text=message.content.trim();
-    if(!message.messageId||message.messageId.startsWith('local-')||text.startsWith('/')||!text||text.length>4000)return;
+    if(!message.messageId||message.messageId.startsWith('local-')||text.startsWith('/'))return;
     const addressed=message.isMentioned||message.isCalledByName||message.isReplyToBot;
     const at=message.timestamp??null,now=this.now();
     if(at!==null&&(at<now-86_400_000||at>now+5*60_000))return;
     try {
       // Metadata-only dedup also covers unaddressed activity; message bodies are not collected there.
-      if(this.store.markSeen(message.groupId,message.messageId,now)) {
-        this.presence.set(JSON.stringify([message.groupId,message.senderId]),now);
+      if(this.store.markSeen(message.chatId,message.messageId,now)) {
+        this.presence.set(JSON.stringify([message.chatId,message.senderId]),now);
         while(this.presence.size>2000)this.presence.delete(this.presence.keys().next().value!);
       }
       if(this.config.scope==='addressed'&&!addressed)return;
-      const stored=this.store.ingest({groupId:message.groupId,ownerId:message.senderId,messageId:message.messageId,
+      this.store.archive.append({chatId:message.chatId,ownerId:message.senderId},'user',message.messageId,text||(message.hasMedia?'[媒体消息；未保留原始媒体]':''),at??now,message.replyMessageId);
+      if(!text||text.length>4000)return;
+      const stored=this.store.ingest({chatId:message.chatId,ownerId:message.senderId,messageId:message.messageId,
         text,sourceAt:at,receivedAt:now});
       if(stored)this.log('[事件记忆] source=queued; mode=observe');
     } catch{this.fail();}
   }
-  control(message:GroupMessage):string|undefined {
-    if(this.disabled||this.closed||!this.config.groups.has(message.groupId))return;
+  delivered(scope:Scope,text:string,messageId?:string,replyTo?:string):void {
+    if(this.disabled||this.closed||!this.enabledScope(scope.chatId,scope.ownerId))return;
+    try {this.store.archive.append(scope,'assistant',messageId??randomUUID(),text,this.now(),replyTo);}
+    catch{this.fail();}
+  }
+  control(message:ChatMessage):string|undefined {
+    if(this.disabled||this.closed||!this.enabledScope(message.chatId,message.senderId))return;
     const text=message.content.trim();
     if(!this.controls.matches(text))return;
     try {
-      if(message.messageId&&!this.store.markSeen(message.groupId,message.messageId,this.now()))return '该记忆操作已处理。';
-      return this.controls.handle(text,{groupId:message.groupId,ownerId:message.senderId},this.store,this.now());
+      if(message.messageId&&!this.store.markSeen(message.chatId,message.messageId,this.now()))return '该记忆操作已处理。';
+      return this.controls.handle(text,{chatId:message.chatId,ownerId:message.senderId},this.store,this.now());
     }
     catch{this.fail();return '长期记忆当前不可用，未完成此操作。';}
   }
   async recall(query:RecallQuery,signal:AbortSignal):Promise<RecallResult> {
     signal.throwIfAborted();
-    if(this.paused||this.disabled||this.closed||!this.config.groups.has(query.groupId)||!this.retrieval)
+    if(this.paused||this.disabled||this.closed||!this.enabledScope(query.chatId,query.ownerId)||!this.retrieval)
       return {view:recallView('disabled',this.now()),isCurrent:()=>!this.closed};
     const start=this.now();
     try {
@@ -84,7 +97,7 @@ export class EventMemoryRuntime implements EventMemoryPort {
     try {
       this.store.prune(this.now());batch=this.store.claim(this.now());
       if(batch){
-        const input={sources:batch.sources,existing:this.store.records(batch,this.now()),now:this.now(),
+        const input={sources:batch.sources,existing:rankMemoryCandidates(this.store.retainedRecords(batch,this.now()),batch.sources.map(s=>s.text).join("\n")),now:this.now(),
           prompts:this.domains.map(d=>({name:d.name,prompt:d.prompt}))};
         let raw:Record<string,unknown>;
         try{raw=await this.extract(input,controller.signal);controller.signal.throwIfAborted();}
@@ -103,6 +116,18 @@ export class EventMemoryRuntime implements EventMemoryPort {
         }
         this.log(`[事件记忆] extraction=${committed?'committed':'invalidated'}; mutations=${mutations.length}; mode=observe`);
       }
+      if(this.summarize){
+        const job=this.store.archive.nextSummary(this.now(),scope=>this.enabledScope(scope.chatId,scope.ownerId));
+        if(job){
+          try {
+            const items=await this.summarize(job,controller.signal);
+            controller.signal.throwIfAborted();
+            if(!this.paused&&!this.closed)this.store.archive.finishSummary(job,items);
+          }catch{
+            if(!controller.signal.aborted)this.store.archive.finishSummary(job,undefined);
+          }
+        }
+      }
       await this.observe(controller.signal);
     }catch{if(!controller.signal.aborted)this.fail();}
     finally{release();this.active=undefined;if(this.closed)this.store.close();}
@@ -110,13 +135,13 @@ export class EventMemoryRuntime implements EventMemoryPort {
   private async observe(signal:AbortSignal):Promise<void> {
     let evaluated=false;
     for(const item of this.store.attentions()) {
-      if(!this.config.groups.has(item.groupId))continue;
-      const scope={groupId:item.groupId,ownerId:item.ownerId};
+      if(isPrivateChat(item.chatId)||!this.config.groups.has(item.chatId))continue;
+      const scope={chatId:item.chatId,ownerId:item.ownerId};
       const records=this.store.records(scope,this.now());
       const block=item.status==='pending'?this.scopeRestriction(records,this.store.settings(scope)):undefined;
       if(block?.terminal)this.store.cancelScope(scope);
       const reason=block?.reason??observeAttention(item,{now:this.now(),epoch:this.store.epoch(scope),records,
-        lastPresence:this.presence.get(JSON.stringify([item.groupId,item.ownerId]))});
+        lastPresence:this.presence.get(JSON.stringify([item.chatId,item.ownerId]))});
       if(this.store.observe(item.id,reason))this.log(`[关注观察] state=${reason}; mode=observe; send=false`);
       if(reason!=='ready_for_review'||evaluated||!this.initiative||!this.context)continue;
       signal.throwIfAborted();
@@ -134,7 +159,7 @@ export class EventMemoryRuntime implements EventMemoryPort {
       const blocked=this.scopeRestriction(liveRecords,this.store.settings(scope));
       const stillCurrent=!signal.aborted&&!this.paused&&!this.disabled&&!this.closed&&!blocked&&updated&&
         updated.eventVersion===item.eventVersion&&observeAttention(updated,{now:this.now(),epoch:this.store.epoch(scope),records:liveRecords,
-          lastPresence:this.presence.get(JSON.stringify([item.groupId,item.ownerId]))})==='ready_for_review'&&
+          lastPresence:this.presence.get(JSON.stringify([item.chatId,item.ownerId]))})==='ready_for_review'&&
         this.store.recallEvidence(scope,record.evidenceIds,this.now()).length===new Set(record.evidenceIds).size&&
         this.context(scope).version===snapshot.version;
       if(!stillCurrent)result={status:signal.aborted?'interrupted':'invalidated',reason:signal.aborted?'cancelled':'context_or_memory_changed'};
