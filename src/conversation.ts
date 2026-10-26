@@ -1,3 +1,4 @@
+import { approveSend } from './send-review.js';
 import type { Inbound } from './participation-types.js';
 import { isExplicitCall, directedElsewhere, awaitingFollowUp, admitsWindowFollowUp, admitsEveryMessage,
   canMergeFragment, mergedFragment, repeatsUnansweredTopic } from './participation-policy.js';
@@ -243,37 +244,20 @@ export class Conversation {
   private async sendApproval(item: Inbound, context: ReplyContext, draft: string, signal: AbortSignal,
     candidate?: FollowUpCandidate): Promise<SendGuard | undefined> {
     const { message } = item;
-    const current = () => !signal.aborted && this.senderCurrent(item) && (!candidate || candidate()) && (!context.memoryGuard || context.memoryGuard());
-    if (!current()) return;
-    if (!this.options.unified) return current;
-    // Ignore our own acknowledged parts when detecting discussion changes;
-    // other bot replies and all new human messages still require a recheck.
-    const changeKey = (snapshot: ReplyContext['snapshot']) => `${snapshot.incomingVersion}:` + snapshot.messages
-      .filter(m => m.role === 'assistant' && !(m.replyTo === message.messageId && m.mentions.includes(message.senderId)))
-      .map(m => m.id).join(',');
-    let approvedKey = changeKey(context.snapshot);
-    const guard: SendGuard = async () => {
-      if (!current()) return false;
-      const snapshot = this.discussion.snapshot(message.groupId);
-      const latestKey = changeKey(snapshot);
-      if (latestKey !== approvedKey) {
-        const review = { ...context, snapshot, phase: 'before_send' as const, draft };
+    return approveSend(message, context, draft, signal, {
+      unified: this.options.unified,
+      senderCurrent: () => this.senderCurrent(item),
+      candidate,
+      snapshot: () => this.discussion.snapshot(message.groupId),
+      reconsider: async review => {
         const decision = context.kind === 'follow-up' && this.options.judge
           ? await this.options.judge(item.text, this.options.memory.get(message.groupId, message.senderId), signal, review)
           : this.options.judgeEvery ? await this.options.judgeEvery.judge({ text: item.text,
-              recent: renderContext(snapshot), history: this.options.memory.get(message.groupId, message.senderId), context: review }, signal) : undefined;
-        const respond = decision && ('shouldRespond' in decision ? decision.shouldRespond : decision.respond);
-        if (!respond) { this.log('[时机] 新讨论使回复不再适合发送，跳过。'); return false; }
-        if (changeKey(this.discussion.snapshot(message.groupId)) !== latestKey) {
-          this.log('[时机] 复查期间讨论再次变化，跳过本次发送。'); return false;
-        }
-        approvedKey = latestKey;
-      }
-      return current();
-    };
-    // Check once before enqueueing and again in the transport immediately before
-    // each part is written. Queueing delays cannot bypass the semantic check.
-    return await guard() ? guard : undefined;
+              recent: renderContext(review.snapshot), history: this.options.memory.get(message.groupId, message.senderId), context: review }, signal) : undefined;
+        return decision && ('shouldRespond' in decision ? decision.shouldRespond : decision.respond);
+      },
+      log: this.log,
+    });
   }
 
   // Called on a timer: occasionally open a topic in a group that has been quiet.
