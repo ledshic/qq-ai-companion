@@ -1,9 +1,9 @@
 import type { EventMemoryPort } from './events/types.js';
 import type { PersonalityRuntime } from './personality-runtime.js';
-import { memeNote, stripMemeRecords, type MemeManager, type MemeSendContext } from './memes.js';
+import type { MemeManager } from './memes.js';
 import type { VisionHandler, ImageRequestJudge } from './vision.js';
-import type { ReplyContext, DeliveryTarget, SendGuard } from './context.js';
-import { deliverPersonaReply, splitPersonaReply } from './delivery.js';
+import type { ReplyContext, DeliveryTarget } from './context.js';
+import { createReplyDelivery } from './reply-delivery.js';
 import { Conversation, type ContextOptions, type InterjectOptions, type JudgeEveryOptions, type WarmupOptions } from './conversation.js';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
@@ -44,18 +44,8 @@ export const connectNapCat = (url: string, token: string,
   let stopped = false;
   let socket: WebSocket;
   let reconnect: ReturnType<typeof setTimeout> | undefined;
-  const sendQueues = new Map<string, Promise<void>>();
   const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; finish: (success: boolean) => void; groupId: string; content: string; target?: DeliveryTarget }>();
   const lookups = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: (data: unknown) => void }>();
-
-  const enqueueSend = <T,>(group: string, task: () => Promise<T>): Promise<T> => {
-    const previous = sendQueues.get(group) ?? Promise.resolve();
-    const next = previous.then(task, task);
-    const tail = next.then(() => undefined, () => undefined);
-    sendQueues.set(group, tail);
-    void tail.then(() => { if (sendQueues.get(group) === tail) sendQueues.delete(group); });
-    return next;
-  };
 
   const activeSocket = (): WebSocket | undefined =>
     !stopped && socket?.readyState === WebSocket.OPEN ? socket : undefined;
@@ -76,44 +66,15 @@ export const connectNapCat = (url: string, token: string,
     });
   };
 
-  const deliver = (groupId: string, content: string, guard: SendGuard, targetInfo?: DeliveryTarget, media?: MemeSendContext): Promise<string | undefined> => {
-    content = stripMemeRecords(content);
-    if (!content) return Promise.resolve(undefined);
+  const deliver = createReplyDelivery(groupId => {
     const target = activeSocket();
-    if (!target) return Promise.resolve(undefined);
-    return new Promise(resolve => {
-      void enqueueSend(groupId, async () => {
-        const connected = () => !stopped && socket === target && target.readyState === WebSocket.OPEN;
-        const allowed = async (check = guard) => connected() && await check() && connected();
-        if (!await allowed()) return '';
-        let entry = media && options.memes ? await options.memes.choose(groupId, content, media.context, media.signal) : undefined;
-        let effectiveGuard = guard;
-        if (entry && media) {
-          try { const approved = await media.approve(memeNote(entry)); if (approved) effectiveGuard = async () => await approved() && await guard(); else entry = undefined; }
-          catch { entry = undefined; }
-        }
-        let delivered = await deliverPersonaReply(content,
-          part => new Promise<boolean>(done => sendPart(target, groupId, part, done, targetInfo)), () => allowed(effectiveGuard));
-        let attempted = false;
-        if (entry && options.memes && delivered === splitPersonaReply(content).join('\n')) {
-          try {
-            const image = options.memes.image(entry);
-            if (await allowed(effectiveGuard)) {
-              options.memes.attempt(groupId, entry.id); attempted = true;
-              const note = memeNote(entry);
-              const ok = await new Promise<boolean>(done => sendPart(target, groupId, note, done, targetInfo, image));
-              if (ok) delivered += '\n' + note;
-              log(`[表情] ${ok ? '已确认发送' : '发送未确认，不重发'} ${entry.id}`);
-            }
-          } catch { log('[表情] 图片未发送，保留已确认文字。'); }
-        }
-        options.memes?.finish(groupId, !!delivered, attempted);
-        return delivered;
-      })
-        .then(delivered => resolve(delivered || undefined))
-        .catch(() => resolve(undefined));
-    });
-  };
+    if (!target) return;
+    return {
+      connected: () => !stopped && socket === target && target.readyState === WebSocket.OPEN,
+      send: (content, targetInfo, image) => new Promise<boolean>(done =>
+        sendPart(target, groupId, content, done, targetInfo, image)),
+    };
+  }, options.memes, log);
 
   const actionLookup = (action: string, params: Record<string, unknown>, signal: AbortSignal): Promise<unknown> => {
     const target = activeSocket();

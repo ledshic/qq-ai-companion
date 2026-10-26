@@ -8,7 +8,8 @@ import type { GroupMessage } from './message.js';
 import { handleGroupMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import type { VisionHandler, ImageResolver, ImageRequestJudge } from './vision.js';
-import { isBotGroupReply, isRecord, imageAttachments, imageReferenceHistory } from './onebot.js';
+import { isBotGroupReply } from './onebot.js';
+import { applyMessageReference, prepareImageReference } from './message-reference.js';
 import type { GroupJudge, GroupJudgment } from './group-judge.js';
 import { ObservationWindows, type FollowUpCandidate, type FollowUpDecision } from './observation.js';
 import { Semaphore } from './semaphore.js';
@@ -150,7 +151,7 @@ export class Conversation {
       message.isReplyToBot = isBotGroupReply(data, message);
       if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
       // Only a validated same-group lookup may supply the referenced sender.
-      this.applyReference(message, data);
+      applyMessageReference(message, data, this.discussion);
       if (!message.replyToSenderId && !message.isMentioned && !message.isCalledByName) {
         this.log('[跳过] 引用对象无法确认，不自动唤醒。'); return;
       }
@@ -159,18 +160,6 @@ export class Conversation {
       if (this.lifecycle === lifecycle && this.discussion.senderVersion(message.groupId, message.senderId) === version && (message.isMentioned || message.isCalledByName)) this.dispatch(message);
       else this.log('[跳过] 引用查询失败，未自动唤醒。');
     }
-  }
-
-  private applyReference(message: GroupMessage, data: unknown): void {
-      if (isRecord(data) && data.message_type === 'group' && String(data.group_id) === message.groupId &&
-          String(data.message_id) === message.replyMessageId && isRecord(data.sender) && /^\d+$/.test(String(data.sender.user_id))) {
-        message.replyToSenderId = String(data.sender.user_id);
-        message.quotedAttachments = imageAttachments(data.message);
-        const quotedText = typeof data.message === 'string' ? data.message : Array.isArray(data.message)
-          ? data.message.filter(isRecord).filter(s => s.type === 'text' && isRecord(s.data))
-            .map(s => (s.data as Record<string, unknown>).text).filter(s => typeof s === 'string').join('') : undefined;
-        this.discussion.resolveReference(message.groupId, message.messageId!, message.replyToSenderId, quotedText);
-      }
   }
 
   private dispatch(message: GroupMessage): void {
@@ -596,7 +585,7 @@ export class Conversation {
       let data: unknown = null;
       try { data = this.options.lookup ? await this.options.lookup(message.replyMessageId, signal) : null; }
       catch (error) { if (signal.aborted) throw error; }
-      if (this.options.unified) this.applyReference(message, data);
+      if (this.options.unified) applyMessageReference(message, data, this.discussion);
       message.isReplyToBot = isBotGroupReply(data, message);
       if (message.isReplyToBot) this.options.eventMemory?.ingest(message);
       this.log(message.isReplyToBot ? '[触发] 引用机器人消息。' : '[引用] 未确认引用机器人；明确呼叫仍有效。');
@@ -608,50 +597,15 @@ export class Conversation {
     if (!reply) return;
     const content = message.content.trim();
     let context = this.replyContext(item, 'explicit');
-    // The user may send a picture first and explicitly ask about it in a later message.
-    // Keep only its ID/count in discussion context; resolve bytes only after intent is confirmed.
-    if (this.options.vision && this.options.imageRequest && content && content.length <= MAX_TEXT && content !== '/清空记忆' &&
-        !message.replyMessageId && !message.attachments?.imageCount) {
-      let referenceContext = { ...context, snapshot: this.discussion.referenceSnapshot(message.groupId) };
-      const currentIndex = referenceContext.snapshot.messages.findIndex(entry => entry.id === message.messageId);
-      const above = currentIndex < 0 ? [] : referenceContext.snapshot.messages.slice(Math.max(0, currentIndex - 20), currentIndex);
-      let recent = [...above].reverse().find(entry => entry.role === 'user' && entry.imageCount && entry.senderId === message.senderId);
-      if (!recent && above.length < 20 && this.options.referenceHistory) {
-        this.log('[识图] 本地附近记录不足，按楼层查询群历史。');
-        try {
-          const data = await this.options.referenceHistory(message.groupId, signal);
-          signal.throwIfAborted();
-          if (!this.senderCurrent(item)) return;
-          const history = imageReferenceHistory(data, message);
-          if (history) {
-            referenceContext = { ...context, snapshot: { ...context.snapshot, messages: history } };
-            recent = [...history].reverse().find(entry => entry.id !== message.messageId && entry.role === 'user' &&
-              entry.imageCount && entry.senderId === message.senderId);
-          }
-        } catch { signal.throwIfAborted(); this.log('[识图] 群历史查询失败，未读取历史图片。'); }
-      }
-      this.log(`[识图] 附近本人图片候选${recent ? '已找到' : '不存在'}。`);
-      if (recent) {
-        let inspect = false;
-        try { inspect = await this.options.imageRequest(content, referenceContext, recent.id, signal); }
-        catch { signal.throwIfAborted(); this.log('[识图] 图片指向判断失败，不自动读取先前图片。'); }
-        this.log(`[识图] 图片指向${inspect ? '已确认' : '未确认'}。`);
-        if (inspect && !signal.aborted && this.senderCurrent(item)) {
-          this.log('[识图] 明确请求指向附近同用户图片，查询原消息。');
-          let data: unknown;
-          try { data = await this.options.lookup?.(recent.id, signal); }
-          catch { signal.throwIfAborted(); }
-          signal.throwIfAborted();
-          if (!this.senderCurrent(item)) return;
-          // Do not accept a different group, author or event even if get_msg returned an image.
-          message.quotedAttachments = isRecord(data) && data.message_type === 'group' &&
-            String(data.group_id) === message.groupId && String(data.message_id) === recent.id &&
-            isRecord(data.sender) && String(data.sender.user_id) === message.senderId
-            ? imageAttachments(data.message) : { imageCount: 1, images: [{}] };
-          if (!message.quotedAttachments.imageCount) message.quotedAttachments = { imageCount: 1, images: [{}] };
-        }
-      }
-    }
+    await prepareImageReference(message, context, signal, {
+      enabled: !!this.options.vision,
+      discussion: this.discussion,
+      imageRequest: this.options.imageRequest,
+      referenceHistory: this.options.referenceHistory,
+      lookup: this.options.lookup,
+      isCurrent: () => this.senderCurrent(item),
+      log: this.log,
+    });
     signal.throwIfAborted();
     if (!this.senderCurrent(item)) return;
     let controlHandled = false;
