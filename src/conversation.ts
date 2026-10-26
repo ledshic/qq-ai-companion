@@ -1,3 +1,4 @@
+import { generateExplicitReply } from './explicit-reply.js';
 import { handleConversationCommand } from './conversation-command.js';
 import { createReplyContextPreparer } from './reply-context.js';
 import type { EventMemoryPort } from './events/types.js';
@@ -610,42 +611,20 @@ export class Conversation {
       if (command) {
         controlHandled = command.bypassSendReview;
         reply.content = command.content;
-      } else if (content.length > MAX_TEXT) {
-        reply.content = '文字太长了，请缩短到 4000 个字符以内。';
-      } else if ((message.attachments?.imageCount ?? 0) + (message.quotedAttachments?.imageCount ?? 0) > 0) {
-        const count = (message.attachments?.imageCount ?? 0) + (message.quotedAttachments?.imageCount ?? 0);
-        if (count !== 1) reply.content = '目前一次只能看一张图，请单独发或引用一张。';
-        else if (!this.options.vision) reply.content = '当前没有启用图片理解，暂时看不了这张图。';
-        else {
-          const image = message.attachments?.images[0] ?? message.quotedAttachments!.images[0];
-          context = await this.prepareContext(context, content, [], signal, undefined, true);
-          reply.content = await this.options.vision(content, image, signal, context, this.options.resolveImage);
-          commit = delivered => this.options.memory.add(message.groupId, message.senderId, content + '\n[本次附带、引用或明确指向了一张图片；历史只保留文字回答，未保留原图。]', delivered);
-        }
-      } else if (message.replyMessageId && /图片|照片|截图|图里|图中|图上|这张图/.test(content)) {
-        reply.content = '没能从这条引用中取得可验证的图片，请重新发图或引用一条单图消息。';
-      } else if (awaitingContent) {
-        try {
-          context = await this.prepareContext(context, '', [], signal);
-          reply.content = await this.options.generate('', this.options.memory.get(message.groupId, message.senderId), signal, false, context);
-        } catch (error) {
-          if (signal.aborted || isAbort(error)) throw error;
-          this.log('[LLM] 空 @ 应声生成失败，使用简短备用回复。');
-          reply.content = '在，咋了？';
-        }
-      } else if (!content || content.length > MAX_TEXT) {
-        reply.content = '请在 @、引用或称呼后发送 1 至 4000 个字符的文字。';
       } else {
-        const history = this.options.memory.get(message.groupId, message.senderId);
-        this.log(`[记忆] 本次携带历史 ${history.length / 2} 轮。`);
-        try {
-          context = await this.prepareContext(context, content, history, signal);
-          reply.content = await this.options.generate(content, history, signal, true, context);
-          commit = delivered => this.options.memory.add(message.groupId, message.senderId, content, delivered);
-        } catch (error) {
-          if (signal.aborted || isAbort(error)) throw error;
-          console.error('[LLM] 请求失败或超时，请检查服务、密钥和余额。');
-          reply.content = '我暂时没能生成回复，请稍后再试。';
+        const draft = await generateExplicitReply(message, context, !!awaitingContent, signal, {
+          memory: this.options.memory,
+          prepareContext: this.prepareContext,
+          generate: this.options.generate,
+          vision: this.options.vision,
+          resolveImage: this.options.resolveImage,
+          log: this.log,
+        });
+        context = draft.context;
+        reply.content = draft.content;
+        if (draft.memoryPrompt !== undefined) {
+          const prompt = draft.memoryPrompt;
+          commit = delivered => this.options.memory.add(message.groupId, message.senderId, prompt, delivered);
         }
       }
     }
