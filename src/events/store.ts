@@ -1,3 +1,5 @@
+import { projectAttentions } from './attention-policy.js';
+import { extractionBudget, allowsInitiative } from './budget-policy.js';
 import { migrateEventPayloadsV2 } from './migrations/v2.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
@@ -76,9 +78,9 @@ export class EventStore {
         const siblings=rows.filter(r=>r.group_id===first.group_id&&r.owner_id===first.owner_id&&r.epoch===first.epoch);
         const last=siblings.at(-1)!;
         if(now-Number(last.received_at)<3000 && now-Number(first.received_at)<10000 && siblings.length<10)continue;
-        const hour=Math.floor(now/3_600_000)*3_600_000;
-        const calls=Number(this.db.prepare('SELECT COUNT(*) n FROM event_batches WHERE group_id=? AND created_at>=?').get(scope.groupId,hour)!.n);
-        if(calls>=12)continue;
+        const budget=extractionBudget(now);
+        const calls=Number(this.db.prepare('SELECT COUNT(*) n FROM event_batches WHERE group_id=? AND created_at>=?').get(scope.groupId,budget.since)!.n);
+        if(calls>=budget.limit)continue;
         const sources:Source[]=[];let length=0;
         for(const r of siblings.slice(0,10)) {
           const text=String(r.text);if(length+text.length>4000)break;length+=text.length;
@@ -141,19 +143,13 @@ export class EventStore {
         this.db.prepare(`INSERT INTO event_memories VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
           business_key=excluded.business_key,version=excluded.version,status=excluded.status,updated_at=excluded.updated_at,expires_at=excluded.expires_at,body=excluded.body`)
           .run(record.id,...key(batch),record.domain,record.businessKey,record.version,record.epoch,record.status,record.createdAt,now,record.expiresAt,JSON.stringify(record));
-        const domain=domains.find(d=>d.name===record.domain);
-        for(const draft of domain?.project(record)??[]) {
-          if(draft.expiresAt<=now)continue;
-          const old=previousPlans.find(a=>a.kind===draft.kind&&a.occurrenceAt===draft.occurrenceAt);
-          const attention:Attention={...draft,groupId:record.groupId,ownerId:record.ownerId,id:old?.id??randomUUID(),
-            eventId:record.id,eventVersion:record.version,epoch:record.epoch,tone:old?.tone??(['upbeat','wry','gentle'] as const)[Math.min(2,Math.max(0,Math.floor(random()*3)))],status:'pending'};
+        const projection=projectAttentions(record,previousPlans,domains,now,random,randomUUID);
+        for(const attention of projection.upserts) {
           this.db.prepare(`INSERT INTO attention_items VALUES(?,?,?,?,?,?,?) ON CONFLICT(event_id,kind,occurrence_at)
             DO UPDATE SET status=excluded.status,expires_at=excluded.expires_at,body=excluded.body`)
             .run(attention.id,record.id,attention.kind,attention.occurrenceAt,attention.status,attention.expiresAt,JSON.stringify(attention));
         }
-        // Unchanged opportunities keep tone; projections removed by corrections become cancelled.
-        const projected=domain?.project(record)??[];
-        for(const old of previousPlans)if(!projected.some(p=>p.kind===old.kind&&p.occurrenceAt===old.occurrenceAt))this.cancelAttention(old);
+        for(const old of projection.cancellations)this.cancelAttention(old);
         for(const id of m.evidenceIds){const s=batch.sources.find(s=>s.id===id)!;
           this.db.prepare('INSERT OR IGNORE INTO event_evidence VALUES(?,?,?,?,?,?,?)').run(s.id,...key(batch),s.messageId,s.sourceAt,m.excerpts?.[id]??s.text.slice(0,500),Math.min(m.expiresAt,now+30*DAY));}
       }
@@ -191,10 +187,7 @@ export class EventStore {
       if(!current||current.status!=='pending'||current.eventVersion!==item.eventVersion||this.epoch(item)!==item.epoch)return;
       const attempts=this.initiatives();
       if(attempts.some(a=>a.attentionId===item.id&&a.eventVersion===item.eventVersion))return;
-      // Observation budget, separate from extraction and any future sending budget.
-      const day=Math.floor((now+8*3600000)/86400000)*86400000-8*3600000;
-      if(attempts.filter(a=>a.groupId===item.groupId&&a.startedAt>now-3600000).length>=6||
-        attempts.some(a=>a.groupId===item.groupId&&a.ownerId===item.ownerId&&a.startedAt>=day))return;
+      if(!allowsInitiative(item,attempts,now))return;
       const attempt={groupId:item.groupId,ownerId:item.ownerId,attentionId:item.id,eventVersion:item.eventVersion,epoch:item.epoch,startedAt:now,contextVersion,opportunity:{occurrenceAt:item.occurrenceAt,notBefore:item.notBefore,expiresAt:item.expiresAt,tone:item.tone}};
       this.db.prepare('INSERT INTO attention_observations VALUES(?,?,?,?,?,?)').run(item.id,item.eventVersion,...key(item),now,JSON.stringify(attempt));
       return attempt;
