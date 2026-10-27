@@ -15,7 +15,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
-| [Web、CLI 与桌面手机客户端设计](MULTI-CLIENT-DESIGN.md) | 尚未实施；常驻主机上的统一 Agent 服务、在线客户端、指令集与构建计划 |
+| [Web、CLI 与桌面手机客户端设计](MULTI-CLIENT-DESIGN.md) | 阶段 A 已完成 Web、macOS 和 iOS 模拟器验证；后续以 CLI、Web 为主，App 迭代暂停 |
 
 ## 实施记录
 
@@ -23,6 +23,7 @@
 
 | 文档 | 记录的内容 |
 |---|---|
+| [多客户端阶段 A](MULTI-CLIENT-PHASE-A.md) | Web、Tauri、模拟 API 与各平台实际验证结果 |
 | [A–C 实施记录](AC-IMPLEMENTATION.md) | 统一群上下文、接续与插话分开、发送前复查 |
 | [联网搜索](SEARCH-IMPLEMENTATION.md) | 明确呼叫和连续对话中的搜索 |
 | [单图理解](VISION-IMPLEMENTATION.md) | 明确请求的一张图片 |

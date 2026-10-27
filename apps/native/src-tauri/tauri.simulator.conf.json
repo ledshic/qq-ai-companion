@@ -1,0 +1,9 @@
+{
+  "build": {
+    "devUrl": null,
+    "beforeDevCommand": {
+      "script": "pnpm --filter @companion/web build",
+      "wait": true
+    }
+  }
+}

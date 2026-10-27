@@ -1,0 +1,17 @@
+[package]
+name = "companion-phase-a"
+version = "0.1.0"
+description = "Online client connectivity proof for Companion"
+authors = ["Companion"]
+edition = "2021"
+
+[lib]
+name = "companion_phase_a_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }

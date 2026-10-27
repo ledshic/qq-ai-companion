@@ -19,7 +19,17 @@
     "replay": "node --import tsx src/app/replay.ts",
     "memes:index": "node --import tsx --env-file-if-exists=.env src/app/meme-index.ts",
     "replay:events": "node --import tsx src/app/event-replay.ts",
-    "observe:events": "node --import tsx --env-file-if-exists=.env src/app/event-observe-report.ts"
+    "observe:events": "node --import tsx --env-file-if-exists=.env src/app/event-observe-report.ts",
+    "mock:api": "pnpm --filter @companion/mock-api dev",
+    "web:dev": "pnpm --filter @companion/web dev",
+    "web:build": "pnpm --filter @companion/web build",
+    "native:dev": "pnpm --filter @companion/native dev",
+    "native:build": "pnpm --filter @companion/native build",
+    "typecheck:clients": "pnpm -r --if-present typecheck",
+    "test:clients": "node --import tsx --test \"packages/**/*.test.ts\" \"apps/mock-api/**/*.test.ts\"",
+    "test:web": "pnpm --filter @companion/web test:e2e",
+    "native:ios:open": "bash scripts/clients/native.sh ios dev --open --no-watch --features tauri/custom-protocol --config src-tauri/tauri.simulator.conf.json --no-dev-server",
+    "native:ios:sim": "bash scripts/clients/ios-simulator.sh"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

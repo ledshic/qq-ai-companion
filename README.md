@@ -459,3 +459,7 @@ MIT, see [LICENSE](LICENSE). The bundled character card is redistributed
 unchanged from
 [mtshang/make-your-qq-ai-group-member](https://github.com/mtshang/make-your-qq-ai-group-member)
 under its MIT license; see `config/personas/LICENSE.mtshang`.
+
+## 多客户端构建验证
+
+阶段 A 的 Web、Tauri 容器与模拟 API 已完成本轮构建验证。后续以 CLI 和 Web 为主，桌面端、iOS、Android 暂停迭代。运行方式和平台验收结果见[多客户端阶段 A 实施记录](docs/MULTI-CLIENT-PHASE-A.md)。模拟服务独立启动，不连接 QQ、模型或现有记忆。

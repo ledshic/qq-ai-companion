@@ -9,3 +9,16 @@ coverage/
 
 # Local QQ login sessions and NapCat configuration
 data/
+
+# Client/native build products and local validation tools
+.local-tools/
+artifacts/
+**/target/
+**/test-results/
+**/playwright-report/
+**/.gradle/
+**/build/
+**/.DS_Store
+
+# Tauri generated capability schemas
+apps/native/src-tauri/gen/schemas/

@@ -1,0 +1,13 @@
+{
+  "name": "@companion/mock-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@companion/contracts": "workspace:*"
+  }
+}
