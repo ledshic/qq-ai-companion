@@ -18,18 +18,3 @@ export interface ChatMessage extends ChatScope {
   replyMessageId?: string;
   isReplyToBot?: boolean;
 }
-
-export interface ChatReply extends ChatScope {
-  content: string;
-}
-
-export const handleChatMessage = (message: ChatMessage): ChatReply | null => {
-  if (!message.isMentioned && !message.isReplyToBot && !message.isCalledByName) {
-    return null;
-  }
-
-  return {
-    chatId: message.chatId,
-    content: '你好，我是 AI 群友。',
-  };
-};

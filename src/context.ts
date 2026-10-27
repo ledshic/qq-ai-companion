@@ -152,6 +152,18 @@ export class ChatContext {
     return Object.freeze({ ...base, messages: Object.freeze(this.state(chatId).nearby.map(m => Object.freeze({ ...m,
       mentions: Object.freeze([...m.mentions]) }))) });
   }
+  // Nearby lines outlive the short discussion TTL, so a later warmup can still
+  // see a topic after the chat has been quiet.
+  topicSnapshot(chatId: string, since: number): ChatSnapshot | undefined {
+    const state = this.state(chatId);
+    const messages = state.nearby.filter(message => message.at >= since);
+    if (!messages.length) return;
+    return Object.freeze({ chatId, version: state.version, incomingVersion: state.incomingVersion,
+      capturedAt: this.now(), messages: Object.freeze(messages.map(message => Object.freeze({ ...message,
+        mentions: Object.freeze([...message.mentions]) }))), participation: state.participation
+        ? Object.freeze({ ...state.participation, basisIds: Object.freeze([...state.participation.basisIds]) }) : undefined });
+  }
+
   snapshot(chatId: string): ChatSnapshot {
     const state = this.state(chatId);
     return Object.freeze({ chatId: chatId, version: state.version, incomingVersion: state.incomingVersion,

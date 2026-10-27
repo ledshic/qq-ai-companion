@@ -10,10 +10,11 @@ import { createReplyContextPreparer } from './reply-context.js';
 import type { EventMemoryPort } from './events/types.js';
 import type { PersonalityRuntime } from './personality-runtime.js';
 import type { MemeSendContext } from './meme-types.js';
-import { ChatContext, modelContext, renderContext, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
+import { ChatContext, modelContext, renderContext, type ChatSnapshot, type ReplyContext, type DeliveryTarget, type SendGuard } from './context.js';
 import { abortReason, isAbort } from './abort.js';
+import { FIXED_REPLY } from './fixed-reply.js';
+import { splitPersonaReply } from './delivery.js';
 import type { ChatMessage } from './message.js';
-import { handleChatMessage } from './message.js';
 import type { ChatTurn, ConversationMemory } from './memory.js';
 import type { VisionHandler, ImageResolver, ImageRequestJudge } from './vision-types.js';
 import type { ReferencedMessage, MessageLookup, HistoryLookup } from './channel.js';
@@ -31,7 +32,10 @@ export interface WarmupOptions {
   probability: number;
   hours: [number, number];
   cooldownMs: number;
+  // Someone spoke within this window. Older lines are not a reason to open.
   idleMs: number;
+  // The chat must have been quiet at least this long. Omitted means immediate.
+  quietMs?: number;
 }
 
 export interface ContextOptions {
@@ -87,6 +91,11 @@ const DEFAULT_CONTEXT: ContextOptions = { maxMessages: 60, ttlMs: 5 * 60_000 };
 const withinHours = (hour: number, [start, end]: [number, number]): boolean =>
   start === end ? true : start < end ? hour >= start && hour < end : hour >= start || hour < end;
 
+const concreteTopic = (text: string): boolean => {
+  const trimmed = text.trim();
+  return trimmed.length >= 2 && /[\p{L}\p{N}]/u.test(trimmed);
+};
+
 // Conversation windows are single-threaded tasks: dispatch() decides
 // synchronously, the loop yields at each await, and a superseded task is
 // aborted instead of completing and being discarded afterwards.
@@ -103,6 +112,9 @@ export class Conversation {
   private readonly proactiveBudget: ProactiveBudget;
   private readonly proactiveInFlight = new Set<string>();
   private readonly warmups = new Set<AbortController>();
+  private readonly warmupDeliveries = new Map<string, {
+    controller: AbortController; parts: string[]; confirmed: number; version: number;
+  }>();
   private lifecycle = 0;
   private background?: AbortController;
   private readonly awaitingInitial = new Map<string, number>();
@@ -219,7 +231,16 @@ export class Conversation {
 
   // Called only after an actual send acknowledgement, once per delivered part.
   acknowledged(chatId: string, text: string, messageId?: string, target?: DeliveryTarget): void {
+    const previousVersion = this.discussion.snapshot(chatId).version;
     this.discussion.delivered(chatId, text, messageId, target?.senderId, target?.replyTo);
+    const batch = this.warmupDeliveries.get(chatId);
+    // Delivery queues serialize each chat. Register only inside the send guard,
+    // after earlier queued sends finish, and recognize this batch's next part.
+    if (batch && !target && !batch.controller.signal.aborted && batch.version === previousVersion &&
+        text === batch.parts[batch.confirmed]) {
+      batch.confirmed++;
+      batch.version = previousVersion + 1;
+    }
     if(target)this.options.eventMemory?.delivered?.({chatId:chatId,ownerId:target.senderId},text,messageId,target.replyTo);
   }
 
@@ -265,7 +286,7 @@ export class Conversation {
     });
   }
 
-  // Called on a timer: occasionally open a topic in a chat that has been quiet.
+  // Called on a timer. Open only after a quiet gap, and only on a topic someone recently stated.
   tick(): void {
     const warmup = this.options.warmup;
     if (!warmup || !this.options.generate) return;
@@ -380,15 +401,21 @@ export class Conversation {
     } finally { if (this.options.unified) this.proactiveInFlight.delete(message.chatId); }
   }
 
+  private warmupSnapshot(chatId: string, warmup: WarmupOptions): ChatSnapshot | undefined {
+    if (isPrivateChat(chatId) || this.proactiveBudget.cooling('warmup', chatId, warmup.cooldownMs)) return;
+    const snapshot = this.discussion.topicSnapshot(chatId, this.now() - warmup.idleMs);
+    const last = snapshot?.messages.at(-1);
+    if (!snapshot || !last || last.at > this.now() - (warmup.quietMs ?? 0)) return;
+    if (!snapshot.messages.some(message => message.role === 'user' && concreteTopic(message.text))) return;
+    return snapshot;
+  }
+
   private pickWarmupChat(warmup: WarmupOptions): string | undefined {
-    const cutoff = this.now() - warmup.idleMs;
     let best: { chatId: string; at: number } | undefined;
     for (const key of this.sessions.keys()) {
       const [chatId] = JSON.parse(key) as [string, string];
-      if (isPrivateChat(chatId)) continue;
-      const last = this.discussion.snapshot(chatId).messages.at(-1);
-      if (!last || last.at < cutoff) continue;
-      if (this.proactiveBudget.cooling('warmup', chatId, warmup.cooldownMs)) continue;
+      const last = this.warmupSnapshot(chatId, warmup)?.messages.at(-1);
+      if (!last) continue;
       if (!best || last.at > best.at) best = { chatId, at: last.at };
     }
     return best?.chatId;
@@ -499,13 +526,29 @@ export class Conversation {
     let release: (() => void) | undefined;
     try {
       release = await this.slots.acquire(controller.signal);
-      const snapshot = this.discussion.snapshot(chatId);
+      const snapshot = this.warmupSnapshot(chatId, warmup);
+      if (!snapshot) return;
       const replyContext = await this.prepareContext({ kind: 'warmup', triggerIds: [], snapshot }, '', [], controller.signal);
       const context = renderContext(modelContext(replyContext).context.snapshot);
       if (!context) return;
-      const content = `最近群里的聊天：\n${context}\n\n（群里安静了一会儿。主动开一个轻松的话题暖场，一两句话，符合你的人设；不要说自己是AI，也不要解释你在暖场。）`;
+      const content = `最近群里的聊天：\n${context}\n\n（群里已经安静了一会儿。只接着上面已经出现的具体话题轻轻说一句，一两句话，符合你的人设。不要新开一个无关话题，不要说自己是AI，也不要解释你在暖场。）`;
       const answer = await this.options.generate!(content, [], controller.signal, false, replyContext);
-      const delivered = await this.options.send(chatId, answer, () => !controller.signal.aborted && (!this.options.unified || this.discussion.snapshot(chatId).incomingVersion === snapshot.incomingVersion));
+      const batch = { controller, parts: splitPersonaReply(answer), confirmed: 0, version: snapshot.version };
+      const stillQuiet = () => {
+        if (controller.signal.aborted) return false;
+        const current = this.discussion.snapshot(chatId);
+        if (current.version !== batch.version || current.incomingVersion !== snapshot.incomingVersion) return false;
+        if (!batch.confirmed) return !!this.warmupSnapshot(chatId, warmup);
+        return !this.proactiveBudget.cooling('warmup', chatId, warmup.cooldownMs) &&
+          snapshot.messages.some(message => message.role === 'user' && concreteTopic(message.text) &&
+            message.at >= this.now() - warmup.idleMs);
+      };
+      if (!stillQuiet()) return;
+      const delivered = await this.options.send(chatId, answer, () => {
+        if (!stillQuiet()) return false;
+        this.warmupDeliveries.set(chatId, batch);
+        return true;
+      });
       if (!delivered) return;
       this.delivered(chatId, delivered);
       this.proactiveBudget.record('warmup', chatId);
@@ -514,6 +557,7 @@ export class Conversation {
       if (isAbort(error)) this.log(`[取消] ${abortReason(error)}，暖场放弃。`);
       else this.log('[暖场] 生成或发送失败，本次跳过。');
     } finally {
+      if (this.warmupDeliveries.get(chatId)?.controller === controller) this.warmupDeliveries.delete(chatId);
       release?.();
       this.warmups.delete(controller);
     }
@@ -534,8 +578,7 @@ export class Conversation {
     }
     if (signal.aborted || !this.senderCurrent(item)) return;
     if (message.isCalledByName) this.log('[触发] 句首称呼命中（角色称呼）。');
-    const reply = handleChatMessage(message);
-    if (!reply) return;
+    if (!message.isMentioned && !message.isReplyToBot && !message.isCalledByName) return;
     const content = message.content.trim();
     let context = this.replyContext(item, 'explicit');
     await prepareImageReference(message, context, signal, {
@@ -551,6 +594,7 @@ export class Conversation {
     if (!this.senderCurrent(item)) return;
     let controlHandled = false;
     let commit: ((delivered: string) => void) | undefined;
+    let outbound = FIXED_REPLY;
     const awaitingContent = this.options.unified && message.isMentioned && !content && !message.hasMedia && !(message.quotedAttachments?.imageCount);
     if (this.options.generate) {
       const command = handleConversationCommand(message, {
@@ -562,7 +606,7 @@ export class Conversation {
       });
       if (command) {
         controlHandled = command.bypassSendReview;
-        reply.content = command.content;
+        outbound = command.content;
       } else {
         const draft = await generateExplicitReply(message, context, !!awaitingContent, signal, {
           memory: this.options.memory,
@@ -573,7 +617,7 @@ export class Conversation {
           log: this.log,
         });
         context = draft.context;
-        reply.content = draft.content;
+        outbound = draft.content;
         if (draft.memoryPrompt !== undefined) {
           const prompt = draft.memoryPrompt;
           commit = delivered => this.options.memory.add(message.chatId, message.senderId, prompt, delivered);
@@ -586,9 +630,9 @@ export class Conversation {
     }
     const guard = awaitingContent || controlHandled
       ? () => !signal.aborted && (controlHandled || this.senderCurrent(item))
-      : await this.sendApproval(item, context, reply.content, signal);
+      : await this.sendApproval(item, context, outbound, signal);
     if (!guard) return;
-    const delivered = await this.options.send(message.chatId, reply.content, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, reply.content, signal));
+    const delivered = await this.options.send(message.chatId, outbound, guard, { senderId: message.senderId, replyTo: message.messageId }, this.memeContext(item, context, outbound, signal));
     if (!delivered) return;
     this.delivered(message.chatId, delivered, { senderId: message.senderId, replyTo: message.messageId });
     if (awaitingContent) this.awaitingInitial.set(this.key(message), this.now() + (this.options.windowMs ?? 60_000));

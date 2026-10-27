@@ -1,13 +1,13 @@
 # TS bot A–C 实施与验证记录
 
-2026-10-23 已实现统一群上下文、独立的连续接话与主动插话，以及真正发送前的时机复查。运行模式为 unified；AstrBot 两个容器保持停止，TS bot 使用旧项目现有 NapCat。搜索、图片理解和表情包等 D–E 目标未纳入本次实现。
+阅读顺序见 [文档索引](README.md)。2026-10-23 已实现统一群上下文、独立的连续接话与主动插话，以及真正发送前的时机复查。运行模式为 unified；AstrBot 两个容器保持停止，当天 TS bot 使用旧项目现有 NapCat。搜索、图片理解、表情包和暖场不在这次改动里，后来的记录也在索引中。
 
 ## 实现结果
 
 | 阶段 | 实现内容 | 主要文件 |
 |---|---|---|
 | A：统一上下文 | 群消息保留发言者、昵称、时间、消息标识、提及与引用；可确认的同群引用补齐原文；机器人消息在送达回执后记录，保留回应对象与触发消息 | context.ts、message.ts、onebot.ts、napcat-client.ts |
-| A：判断与生成一致 | 使用同一份不可变讨论快照；个人历史继续按群和用户隔离，不将他人的话存进当前用户历史 | conversation.ts、deepseek.ts、group-judge.ts、follow-up.ts |
+| A：判断与生成一致 | 使用同一份不可变讨论快照；个人历史继续按群和用户隔离，不将他人的话存进当前用户历史 | conversation.ts、deepseek.ts、chat-judge.ts、follow-up.ts |
 | B：分开参与规则 | 明确呼叫优先；连续接话按 continue／pause／end／uncertain 分流；有效接续成功后续期，不占主动插话预算 | conversation.ts、observation.ts、napcat.ts |
 | B：限制主动参与 | 主动插话单独使用原有冷却和小时上限；同群只保留一个进行中的主动参与任务；原有 window／always 可用于回退 | conversation.ts、napcat.ts |
 | C：参与状态 | 记录话题、参与依据、是否有人回应；同话题未获回应时避免再次主动参与；断线保留去重与主动参与预算 | context.ts、conversation.ts |
@@ -63,9 +63,9 @@ pnpm replay 使用固定判断结果回放匿名场景，不连接 QQ 或模型�
 
 仅重载 TS 进程，未重启 NapCat。真实接口确认 QQ 在线且核心就绪，TS WebSocket 保持连接；AstrBot 两个容器保持停止。未向群里主动发送测试消息，真实群聊体验仍需后续观察。
 
-运行日志为旧项目 data/runtime/tsbot-ac.log，PID 为 data/runtime/tsbot.pid。需要回退参与策略时，在 .env 将 FOLLOW_UP_MODE 改为 always 或 window，再正常停止并启动 TS 进程；不要重复启动另一个实例，也不要同时启动 AstrBot 的 NapCat。
+当天运行日志为旧项目 data/runtime/tsbot-ac.log，PID 为 data/runtime/tsbot.pid。需要回退参与策略时，在 .env 将 FOLLOW_UP_MODE 改为 always 或 window，再正常停止并启动 TS 进程；不要重复启动另一个实例，也不要同时启动另一套 NapCat。当前仓库的停止和状态入口是 `pnpm bot:stop` 与 `pnpm bot:status`。
 
-系统级开机自启和异常守护仍属于 E 阶段，当前进程为独立后台运行。
+2026-10-26 补记：E 没有加入开机自启或进程异常后的系统级守护。运行入口是进程锁的状态、停止和启动，见 [短期目标大纲](SHORT-TERM-PLAN.md) 第 6 节。
 
 
 ## 纯 @ 回归补充

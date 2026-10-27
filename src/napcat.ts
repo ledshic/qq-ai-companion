@@ -4,12 +4,12 @@ import { PersonalityRuntime } from './personality-runtime.js';
 import { parsePersonalityMode } from './personality-policy.js';
 import { MemeManager, JsonMemeState, loadMemeCatalog } from './memes.js';
 import { createVisionReply, createImageRequestJudge } from './vision.js';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { createFollowUpJudge } from './follow-up.js';
 import { createChatJudge } from './chat-judge.js';
 import { connectNapCat } from './napcat-client.js';
 import { createDeepSeekReply } from './deepseek.js';
-import { acquireInstanceLock } from './lock.js';
+import { acquireInstanceLock, instanceDataDir, instanceLockPath } from './lock.js';
 import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
 
@@ -60,10 +60,10 @@ const readHours = (raw: string): [number, number] => {
 };
 
 const memoryPath = process.env.MEMORY_DB || 'data/memory.db';
-const dataDir = memoryPath === ':memory:' ? 'data' : dirname(memoryPath);
+const dataDir = instanceDataDir(memoryPath);
 let releaseLock: () => void;
 try {
-  releaseLock = acquireInstanceLock(join(dataDir, 'bot.lock'));
+  releaseLock = acquireInstanceLock(instanceLockPath(memoryPath));
 } catch (error) {
   fail(error instanceof Error ? error.message : '无法获取实例锁。');
 }
@@ -134,16 +134,20 @@ console.log(judgeEvery
 
 const warmupEnabled = llmEnabled && process.env.WARMUP_ENABLED === 'true';
 const warmupHours = readHours(process.env.WARMUP_HOURS || '20-23');
+const warmupIdleMinutes = readNumber('WARMUP_IDLE_MINUTES', 45, 1, 1440);
+const warmupQuietMinutes = readNumber('WARMUP_QUIET_MINUTES', 20, 0, 1440);
+if (warmupEnabled && warmupQuietMinutes > warmupIdleMinutes) fail('WARMUP_QUIET_MINUTES 不能大于 WARMUP_IDLE_MINUTES。');
 const warmup = warmupEnabled
   ? {
     probability: readNumber('WARMUP_PROBABILITY', 0.3, 0, 1),
     hours: warmupHours,
     cooldownMs: readNumber('WARMUP_COOLDOWN_MINUTES', 60, 0, 1440) * 60_000,
-    idleMs: readNumber('WARMUP_IDLE_MINUTES', 45, 1, 1440) * 60_000,
+    idleMs: warmupIdleMinutes * 60_000,
+    quietMs: warmupQuietMinutes * 60_000,
   }
   : undefined;
 console.log(warmup
-  ? `[暖场] 已启用：${warmupHours[0]} 点到 ${warmupHours[1]} 点之间，每轮 ${(warmup.probability * 100).toFixed(0)}% 概率，同群冷却 ${warmup.cooldownMs / 60_000} 分钟。`
+  ? `[暖场] 已启用：${warmupHours[0]} 点到 ${warmupHours[1]} 点之间，安静 ${warmupQuietMinutes} 分钟后，且 ${warmupIdleMinutes} 分钟内有具体话题，每轮 ${(warmup.probability * 100).toFixed(0)}% 概率，同群冷却 ${warmup.cooldownMs / 60_000} 分钟。`
   : '[暖场] 已关闭。');
 
 const eventMemory = createEventMemory(process.env);

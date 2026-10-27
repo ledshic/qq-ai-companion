@@ -4,15 +4,9 @@
 
 ## 当前开发方向
 
-A–C 已实施：`FOLLOW_UP_MODE=unified` 使用共享群上下文、独立接续与插话规则，并在每段发送前检查时机。实施与验证见 [A–C 实施记录](docs/AC-IMPLEMENTATION.md)。离线回放运行 `pnpm replay`，不连接 QQ 或模型。
+文档按用途列在 [文档索引](docs/README.md)。运行时结构见 [个人 Agent 架构](docs/PERSONAL-AGENT-ARCHITECTURE.md)。阶段 A–E 的交付和验收见 [短期目标大纲](docs/SHORT-TERM-PLAN.md)：统一调度、搜索、单图理解、表情包、具体话题暖场，以及进程锁的启动、停止和状态，都已落地。事件协议见 [参考文本驱动的通用事件模型](docs/EVENT-REFERENCE-MODEL.md)，只观察，不主动发送。
 
-已恢复 TS bot 作为开发主线，AstrBot 项目暂停。设计依据见 [QQ 群友机器人设计](docs/QQBOT-DESIGN.md)，后续任务与验收见 [短期目标大纲](docs/SHORT-TERM-PLAN.md)。搜索、明确请求的单图理解和表情包发送已实现。
-
-模块化人格首版已实现，默认保留原角色卡。启用、回退和验证范围见[人格首版实施记录](docs/PERSONALITY-IMPLEMENTATION.md)。
-
-事件记忆第一阶段支持按群采集已明确叫到机器人的发言，保存事件与关注事项。聊天追问可召回本群本人已保存的事件，详见[长期事件聊天召回](docs/EVENT-MEMORY-RECALL.md)。关注事项只支持 observe，不主动发送；配置、边界和回放见[事件记忆观察阶段实施记录](docs/EVENT-MEMORY-OBSERVE.md)。关注事项已接入[主动决策观察](docs/EVENT-INITIATIVE-OBSERVE.md)，用 `pnpm observe:events` 查看本地判断和草稿。离线验证运行 `pnpm replay:events`。
-
-A minimal Node.js and TypeScript foundation for a QQ AI companion.
+离线检查不连接 QQ 或模型：`pnpm replay` 回放调度，`pnpm replay:events` 回放事件，`pnpm observe:events` 查看本地观察草稿。模块化人格的代码默认仍是原角色卡，启用方式见 [人格首版实施记录](docs/PERSONALITY-IMPLEMENTATION.md)。
 
 ## Requirements
 
@@ -35,15 +29,45 @@ pnpm typecheck
 - `src/index.ts`: local simulation with mentioned and non-mentioned messages
 - `src/message.ts`: message types and reply rule
 - `src/store.ts`: SQLite session store behind the memory policy
-- `src/lock.ts`: single-instance lock for the NapCat bot
+- `src/lock.ts`: single-instance lock shared by the NapCat entry and the status commands
+- `src/instance.ts`: `status`, `stop`, and `start` for that lock
 - `package.json`: project metadata, scripts, and dependencies
 - `pnpm-lock.yaml`: reproducible dependency versions
 - `tsconfig.json`: strict TypeScript configuration
 - `.gitignore`: generated files and local secrets excluded from Git
 
-Only one bot process may run at a time: `pnpm napcat` takes `data/bot.lock`,
-refuses to start while another live instance holds it, and removes the lock on
-Ctrl+C. A lock left behind by a crashed process is reclaimed on the next start.
+Only one Node bot may answer this QQ account. `pnpm napcat` records its pid in
+`data/bot.lock`, or in `bot.lock` beside `MEMORY_DB` when that path is not the
+default. A second start exits while that pid is still alive. Ctrl+C, or
+`pnpm bot:stop` from another terminal, asks that process to shut down; it then
+deletes the lock. A lock whose pid is already gone is stale, and the next start
+removes it. This repo does not install a boot-time daemon.
+
+Check before every restart:
+
+```sh
+pnpm bot:status
+pnpm bot:stop
+pnpm bot:status
+pnpm bot:start
+```
+
+`pnpm bot:status` prints one of three process states: no lock, a stale lock
+with its old pid and recorded start time, or a live pid and start time. It does
+not open the OneBot WebSocket, ask whether QQ is online, or call the model. An
+HTTP 200 from the NapCat WebUI does not mean the bot can reply.
+
+`pnpm bot:stop` sends SIGTERM only when the recorded pid is alive, is not this
+command, and its OS start/command fingerprint matches the identity recorded at
+lock acquisition. A changed lock, an identity mismatch, or unavailable process
+inspection refuses the stop. Older locks without this fingerprint also require
+manual process verification. The command leaves the lock file in place so
+another process cannot take it during shutdown. If a later status still shows
+that same pid, verify the process before starting another copy.
+
+`pnpm bot:start` runs the same program as `pnpm napcat` after the same check.
+Use it for one foreground process. `docker compose down` stops NapCat and is
+separate from stopping the Node bot.
 
 ## Local Docker deployment
 
@@ -83,9 +107,10 @@ and the upstream whale persona; otherwise a fixed reply is used.
    bot. Expect `你好，我是 AI 群友。`. Plain text, mentions of other accounts,
    mentions of everyone and self messages produce no reply. Direct messages also
    receive replies without an @; NapCat must report private message events.
-5. Stop with Ctrl+C. Connection loss retries after 3 seconds. A send is only
-   reported successful after an API acknowledgement; unconfirmed sends are
-   not retried automatically.
+5. Stop the Node bot with Ctrl+C, or from another terminal with `pnpm bot:stop`.
+   Run `pnpm bot:status` before starting it again. Connection loss retries after
+   3 seconds. A send is only reported successful after an API acknowledgement;
+   unconfirmed sends are not retried automatically.
 
 Keep `.env` local; it is ignored by Git. For remote deployment use a protected
 connection such as an SSH tunnel or WSS. `127.0.0.1` refers to the machine
@@ -110,9 +135,10 @@ References: [NapCat configuration](https://napneko.github.io/config/basic),
 ## DeepSeek replies
 
 In `.env`, set `DEEPSEEK_API_KEY` privately, set `DEEPSEEK_MODEL` (default
-`deepseek-flash`), and set `LLM_ENABLED=true`. Restart only the Node bot with
-`pnpm napcat`; do not restart NapCat or log QQ out. Stop any previous bot
-process first to avoid duplicate replies. `LLM_ENABLED=false` keeps fixed replies.
+`deepseek-flash`), and set `LLM_ENABLED=true`. Restart only the Node bot:
+`pnpm bot:status`, `pnpm bot:stop` when a pid is running, then `pnpm bot:start`.
+Do not restart NapCat or log QQ out, and do not start a second bot process.
+`LLM_ENABLED=false` keeps fixed replies.
 
 The current mentioned text and up to 9 recent successful conversation turns
 from the same user in the same group are sent to DeepSeek. Account and group
@@ -350,12 +376,15 @@ message makes the bot chime in. It fires at most once per group per
 busy, and answers the recent context rather than the single message. Set it to
 `0` to disable interjection entirely.
 
-`WARMUP_ENABLED=true` makes the bot occasionally open a topic in a quiet group.
+`WARMUP_ENABLED=true` makes the bot continue a concrete topic in a quiet group.
 Every `WARMUP_INTERVAL_MINUTES` (default 30) inside `WARMUP_HOURS` (default
 `20-23`, wrap-around such as `22-2` works) it rolls `WARMUP_PROBABILITY`
-(default 0.3). On a hit it picks the most recently active group that has been
-quiet for `WARMUP_IDLE_MINUTES` (default 45) and has not been warmed up within
-`WARMUP_COOLDOWN_MINUTES` (default 60).
+(default 0.3). On a hit it picks the group whose latest line is at least
+`WARMUP_QUIET_MINUTES` old (default 20) and whose topic is still inside
+`WARMUP_IDLE_MINUTES` (default 45). A blank line, a private chat, or a group
+with no recent concrete wording is skipped. The same group is not warmed again
+within `WARMUP_COOLDOWN_MINUTES` (default 60). Quiet minutes cannot be greater
+than idle minutes. This budget does not block an explicit call or a follow-up.
 
 An interjection counts as a normal reply: it is written to that sender's memory
 and opens a follow-up window, so the conversation can continue. Warm-up messages
