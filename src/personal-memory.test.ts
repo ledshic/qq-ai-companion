@@ -11,6 +11,9 @@ import { parseChatMessage, matchesChat } from './onebot.js';
 import { ConversationMemory } from './memory.js';
 import { SqliteSessionStore } from './store.js';
 import { ChatContext, modelContext } from './context.js';
+import { profileDomain } from './events/domains/profile.js';
+import { createRecallSelector } from './events/recall.js';
+import type { RecallDocument } from './events/recall-types.js';
 
 const at=Date.parse('2026-10-26T10:00:00+08:00');
 const signal=()=>new AbortController().signal;
@@ -128,4 +131,61 @@ test('runtime accepts private addressed facts even though the group allowlist is
   runtime.ingest({chatId:'private:2',senderId:'2',content:'我明天考试',messageId:'p1',isMentioned:true,timestamp:at});
   assert.equal(store.claim(at+5000)?.chatId,'private:2');
   runtime.close();
+});
+
+function seedPrivateProfile(store: EventStore, text: string, value: string, time = at) {
+  const scope = { chatId: 'private:2', ownerId: '2' };
+  assert.equal(store.ingest({ ...scope, messageId: `profile-${time}`, text, sourceAt: time, receivedAt: time }), true);
+  const batch = store.claim(time + 4000)!;
+  const mutations = profileDomain.interpret([{ operation: time === at ? 'record' : 'correct', field: '职业',
+    value, source: 'source-1', quote: text }], { sources: batch.sources, existing: store.retainedRecords(scope, time), now: time + 4000 });
+  assert.equal(store.commit(batch, mutations, [profileDomain], time + 4000, () => 0), true);
+}
+
+for (const location of ['after-preview', 'earlier-evidence'] as const) {
+  test(`private disclosure checks mixed-topic evidence in ${location} before group generation`, async t => {
+    const store = new EventStore(':memory:'); t.after(() => store.close());
+    const secret = '未授权私事：我正在离婚';
+    const text = '我的职业是设计师。' + '职业背景介绍'.repeat(40) + secret;
+    assert.ok(text.indexOf(secret) > 200);
+    seedPrivateProfile(store, text, '设计师');
+    if (location === 'earlier-evidence') seedPrivateProfile(store, '更正，我的职业是程序员', '程序员', at + 10000);
+    let sawPrivateEvidence = false;
+    // Exercise the real selector's request formatting. This deterministic model
+    // refuses any candidate containing material outside the authorized topic.
+    const select = createRecallSelector('key', 'model', async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      const input = JSON.parse(body.messages[1].content);
+      assert.equal(input.privateTopic, '职业');
+      sawPrivateEvidence = JSON.stringify(input.records).includes(secret);
+      return Response.json({ choices: [{ message: { content: JSON.stringify({
+        ids: input.records.filter((record: RecallDocument) => !JSON.stringify(record).includes(secret)).map((record: RecallDocument) => record.id),
+      }) } }] });
+    });
+    const recall = createPersonalRecall(store, select, presentPersonalRecall, groups, async () => '职业', () => at + 20000);
+    const result = await recall(query('10', '2', '在群里说说我私聊提到的职业'), signal());
+    assert.equal(sawPrivateEvidence, true, 'the selector must inspect everything that could reach generation');
+    assert.equal(result.view.status, 'empty');
+    assert.doesNotMatch(JSON.stringify(result.view), /正在离婚/);
+  });
+}
+
+test('authorized private documents reach generation exactly as inspected, with freshness guards intact', async t => {
+  const store = new EventStore(':memory:'); t.after(() => store.close());
+  seedPrivateProfile(store, '我的职业是设计师。' + '职业背景介绍'.repeat(40), '设计师');
+  seedPrivateProfile(store, '更正，我的职业是程序员', '程序员', at + 10000);
+  let inspected: RecallDocument | undefined;
+  const recall = createPersonalRecall(store, async input => {
+    inspected = JSON.parse(JSON.stringify(input.records[0]));
+    assert.equal(inspected!.source, 'private_chat');
+    assert.equal(inspected!.evidence.length, 2);
+    assert.ok(inspected!.evidence[0].excerpt.length > 200);
+    return [inspected!.id];
+  }, presentPersonalRecall, groups, async () => '职业', () => at + 20000);
+  const result = await recall(query('10', '2', '接着说我私聊提到的职业'), signal());
+  assert.equal(result.view.status, 'matched');
+  assert.deepEqual(result.view.records[0], inspected);
+  assert.equal(result.isCurrent(), true);
+  store.clear({ chatId: 'private:2', ownerId: '2' });
+  assert.equal(result.isCurrent(), false);
 });

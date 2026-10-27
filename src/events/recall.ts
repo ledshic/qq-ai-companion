@@ -73,8 +73,11 @@ export const createMemoryRecall = (store: EventStore, select: RecallSelector, pr
     }
     if (!pairs.length) return { view: recallView('empty', captured), isCurrent: () => current() };
     const ids = await select({ text: query.text.slice(0, 4000), history: query.history.slice(-4),
-      now: new Date(captured).toISOString(), ...(permission.privateTopic ? { privateTopic: permission.privateTopic } : {}), records: pairs.map(({document}) => ({...document,
-        facts:JSON.stringify(document.facts).slice(0,700),evidence:document.evidence.slice(-1).map(e=>({...e,excerpt:e.excerpt.slice(0,200)}))})) }, signal);
+      now: new Date(captured).toISOString(), ...(permission.privateTopic ? { privateTopic: permission.privateTopic } : {}), records: pairs.map(({document}) =>
+        // Private disclosure is checked against exactly what generation will see:
+        // all presented facts and evidence, not a shorter preview expanded later.
+        document.source === 'private_chat' ? document : { ...document,
+          facts:JSON.stringify(document.facts).slice(0,700),evidence:document.evidence.slice(-1).map(e=>({...e,excerpt:e.excerpt.slice(0,200)})) }) }, signal);
     signal.throwIfAborted();
     // Validate injected selectors too; no provider can expand the local candidate set.
     if (ids.length > 3 || new Set(ids).size !== ids.length || ids.some(id => !pairs.some(p => p.document.id === id))) throw Error('recall_evidence');
