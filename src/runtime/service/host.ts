@@ -1,9 +1,9 @@
 import { APIError, type AcceptedMessage } from '@companion/contracts/service';
-import type { ChatTurn } from '../../memory/memory.js';
+import type { ConversationMessage } from '../../agent/contracts.js';
 import { ServiceStore } from './store.js';
 export type ConsoleGenerator = (
   content: string,
-  history: ChatTurn[],
+  history: ConversationMessage[],
   signal: AbortSignal,
 ) => Promise<string>;
 export class RunHost {
