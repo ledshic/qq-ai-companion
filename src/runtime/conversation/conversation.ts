@@ -50,6 +50,7 @@ export interface JudgeEveryOptions {
 }
 
 export interface ConversationOptions {
+  slots?: Semaphore;
   personality?: PersonalityRuntime;
   eventMemory?: EventMemoryPort;
   memory: ConversationMemory;
@@ -128,7 +129,7 @@ export class Conversation {
     this.context = options.context ?? DEFAULT_CONTEXT;
     this.discussion = new ChatContext(this.now, this.context.maxMessages, this.context.ttlMs);
     this.windows = new ObservationWindows(this.now, options.windowMs ?? 60_000, options.maxWindows ?? 6, options.unified ? Infinity : 2);
-    this.slots = new Semaphore(options.maxInflight ?? 2);
+    this.slots = options.slots ?? new Semaphore(options.maxInflight ?? 2);
     options.eventMemory?.attach(controller => {
       const release = this.slots.tryAcquire((options.maxInflight ?? 2) > 1 ? 1 : 0);
       if (!release) return;

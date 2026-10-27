@@ -1,3 +1,4 @@
+import type { Semaphore } from '../shared/semaphore.js';
 import type { EventMemoryPort } from '../memory/events/types.js';
 import type { PersonalityRuntime } from '../cognitive/personality/personality-runtime.js';
 import type { MemeManager } from '../tools/memes/memes.js';
@@ -11,6 +12,7 @@ import type { FollowUpJudge } from './participation/observation.js';
 import type { AgentChannelFactory } from '../channels/channel.js';
 
 export interface AgentOptions {
+  slots?: Semaphore;
   eventMemory?: EventMemoryPort;
   personality?: PersonalityRuntime;
   memes?: MemeManager;
@@ -39,9 +41,10 @@ export const createPersonalAgent = (createChannel: AgentChannelFactory,
   const log = options.log ?? console.log;
   const memory = options.memory ?? new ConversationMemory(new SqliteSessionStore(':memory:'));
   let stopped = false;
+  let online = false;
   const channel = createChannel({
-    connected: () => { if (!stopped) conversation.connected(); },
-    disconnected: () => { if (!stopped) conversation.disconnect(); },
+    connected: () => { if (!stopped) { online = true; conversation.connected(); } },
+    disconnected: () => { if (!stopped) { online = false; conversation.disconnect(); } },
     message: message => { if (!stopped) conversation.handle(message); },
     acknowledged: (chatId, content, messageId, target) => {
       if (!stopped) conversation.acknowledged(chatId, content, messageId, target);
@@ -64,11 +67,13 @@ export const createPersonalAgent = (createChannel: AgentChannelFactory,
   const stop = (): void => {
     if (stopped) return;
     stopped = true;
+    online = false;
     conversation.disconnect();
     try { channel.stop(); }
     finally { if (!options.memory) memory.close(); }
   };
   return {
+    status: () => online ? 'connected' as const : 'disconnected' as const,
     start: (): void => {
       if (started || stopped) return;
       started = true;

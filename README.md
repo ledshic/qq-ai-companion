@@ -8,6 +8,12 @@
 
 离线检查不连接 QQ 或模型：`pnpm replay` 回放调度，`pnpm replay:events` 回放事件，`pnpm observe:events` 查看本地观察草稿。模块化人格的代码默认仍是原角色卡，启用方式见 [人格首版实施记录](docs/PERSONALITY-IMPLEMENTATION.md)。
 
+## 常驻 Agent 服务
+
+阶段 B 已提供正式 API：`pnpm agent:serve`。默认监听 `127.0.0.1:4320`，QQ 可选，仍要求认证；启动会在数据目录生成权限为 0600 的拥有者凭据。运行方式、设备配对、接口与数据兼容说明见[阶段 B 实施记录](docs/MULTI-CLIENT-PHASE-B.md)。
+
+后续以 CLI 和 Web 为主。当前 Web 仍连接阶段 A 模拟 API；桌面端、iOS、Android 暂停迭代。
+
 ## Requirements
 
 - Node.js 22.13 or later (the built-in `node:sqlite` module must be available)
@@ -41,7 +47,7 @@ pnpm typecheck
 Tests live beside their modules. `pnpm test` recursively matches `src/**/*.test.ts`.
 See [the source layout](docs/PERSONAL-AGENT-ARCHITECTURE.md) for directory responsibilities.
 
-Only one Node bot may answer this QQ account. `pnpm napcat` records its pid in
+The Agent service and legacy QQ entry share one process lock for a data directory. Only one Node bot may answer this QQ account. `pnpm napcat` records its pid in
 `data/bot.lock`, or in `bot.lock` beside `MEMORY_DB` when that path is not the
 default. A second start exits while that pid is still alive. Ctrl+C, or
 `pnpm bot:stop` from another terminal, asks that process to shut down; it then

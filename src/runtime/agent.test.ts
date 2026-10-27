@@ -1,3 +1,5 @@
+import { Semaphore } from '../shared/semaphore.js';
+import { createConsoleReply } from '../channels/console/generator.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPersonalAgent } from './agent.js';
@@ -99,4 +101,20 @@ test('failed channel startup cleans up once and cannot be restarted', () => {
   agent.start(); agent.stop();
   assert.equal(starts, 1);
   assert.equal(stops, 1);
+});
+
+test('QQ and workbench share the host model budget; cancelled waiters never call the provider',async()=>{
+  const channel=fakeChannel(),slots=new Semaphore(1);let calls=0,qqCalls=0,releaseModel!:()=>void;
+  const blocked=new Promise<void>(resolve=>{releaseModel=resolve;});
+  const reply=createConsoleReply('key','model',9,false,async()=>{calls++;await blocked;return Response.json({choices:[{message:{content:'workbench reply'}}]});},slots);
+  const agent=createPersonalAgent(channel.create,async()=>{qqCalls++;return 'QQ reply';},undefined,{slots,log:()=>{}});
+  const pending=reply('console question',[],new AbortController().signal);
+  try {
+    agent.start();await settle(()=>calls===1);
+    channel.events.message({chatId:'group',senderId:'2',messageId:'shared-budget',content:'QQ question',isMentioned:true});
+    await new Promise(resolve=>setTimeout(resolve,20));assert.equal(qqCalls,0);
+    releaseModel();await pending;await settle(()=>channel.sent.length===1);assert.equal(qqCalls,1);
+    const release=await slots.acquire();const controller=new AbortController();
+    const waiting=reply('cancelled question',[],controller.signal);controller.abort();await assert.rejects(waiting);release();assert.equal(calls,1);
+  } finally {releaseModel();await pending;agent.stop();}
 });

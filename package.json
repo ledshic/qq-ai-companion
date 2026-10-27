@@ -29,7 +29,8 @@
     "test:clients": "node --import tsx --test \"packages/**/*.test.ts\" \"apps/mock-api/**/*.test.ts\"",
     "test:web": "pnpm --filter @companion/web test:e2e",
     "native:ios:open": "bash scripts/clients/native.sh ios dev --open --no-watch --features tauri/custom-protocol --config src-tauri/tauri.simulator.conf.json --no-dev-server",
-    "native:ios:sim": "bash scripts/clients/ios-simulator.sh"
+    "native:ios:sim": "bash scripts/clients/ios-simulator.sh",
+    "agent:serve": "tsx --env-file-if-exists=.env src/app/service.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
@@ -38,6 +39,8 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@companion/contracts": "workspace:*",
+    "fastify": "^5.12.7",
     "sharp": "^0.35.5",
     "ws": "^8.22.0"
   }

@@ -9,5 +9,5 @@ export const connectNapCat = (url: string, token: string,
   options: NapCatOptions = {}) => {
   const agent = createPersonalAgent(createQQChannel(url, token, options.log), generateReply, judgeFollowUp, options);
   agent.start();
-  return Object.assign(() => agent.stop(), { tick: () => agent.tick() });
+  return Object.assign(() => agent.stop(), { tick: () => agent.tick(), status: () => agent.status() });
 };

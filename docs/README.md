@@ -6,6 +6,7 @@
 
 | 文档 | 用它回答 |
 |---|---|
+| [多客户端阶段 B](MULTI-CLIENT-PHASE-B.md) | 常驻宿主、正式 API、认证、执行记录和事件恢复；后续接 CLI、Web |
 | [个人 Agent 架构](PERSONAL-AGENT-ARCHITECTURE.md) | 运行时如何装配，QQ 如何只做渠道，`chatId` 与旧库字段如何兼容 |
 | [参考文本驱动的通用事件模型](EVENT-REFERENCE-MODEL.md) | 事件协议。主题在 `config/event-memory/references/`，代码不按主题词分支，观察不发送 |
 | [短期目标大纲](SHORT-TERM-PLAN.md) | 阶段 A–E 的交付和验收。完成情况在文首和第 6 节 |
@@ -15,7 +16,7 @@
 
 | 文档 | 状态与用途 |
 |---|---|
-| [Web、CLI 与桌面手机客户端设计](MULTI-CLIENT-DESIGN.md) | 阶段 A 已完成 Web、macOS 和 iOS 模拟器验证；后续以 CLI、Web 为主，App 迭代暂停 |
+| [Web、CLI 与桌面手机客户端设计](MULTI-CLIENT-DESIGN.md) | 阶段 B 已实现服务与协议首版；后续接 CLI、Web，App 迭代暂停 |
 
 ## 实施记录
 
