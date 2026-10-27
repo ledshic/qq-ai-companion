@@ -7,7 +7,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startService } from './service.js';
 import { createServiceClient } from '../../packages/client/src/service.js';
-import { WebSocketServer } from 'ws';
 const port = async () => {
   const server = createServer().listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -16,21 +15,18 @@ const port = async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   return address.port;
 };
-test('real host survives QQ disconnect, client absence and restart; only one host owns data', async () => {
+test('service ignores invalid legacy QQ configuration and survives restart; only one host owns data', async () => {
   const root = mkdtempSync(join(tmpdir(), 'agent-host-'));
-  const ws = new WebSocketServer({ host: '127.0.0.1', port: 0 });
-  await once(ws, 'listening');
-  const qqPort = ws.address();
-  assert(qqPort && typeof qqPort !== 'string');
-  ws.on('connection', (socket) => {
-    socket.on('error', () => {});
-    socket.close();
-  });
   const env = {
     MEMORY_DB: join(root, 'memory.db'),
     LLM_ENABLED: 'false',
     AGENT_PORT: String(await port()),
-    NAPCAT_WS_URL: `ws://127.0.0.1:${qqPort.port}`,
+    NAPCAT_WS_URL: 'not-a-valid-qq-url',
+    PERSONALITY_MODE: 'invalid-legacy-mode',
+    WARMUP_HOURS: 'invalid-legacy-hours',
+    FOLLOW_UP_MODE: 'invalid-legacy-policy',
+    MEMES_ENABLED: 'true',
+    VISION_ENABLED: 'true',
   };
   let service: Awaited<ReturnType<typeof startService>> | undefined;
   try {
@@ -55,7 +51,7 @@ test('real host survives QQ disconnect, client absence and restart; only one hos
       (await client.run(accepted.runId)).result,
       'real host fixture:host lives',
     );
-    assert.equal((await client.status()).qq, 'disconnected');
+    assert.equal((await client.status()).qq, 'disabled');
     await assert.rejects(
       startService({ ...env, AGENT_PORT: String(await port()) }),
       /already active/,
@@ -79,8 +75,6 @@ test('real host survives QQ disconnect, client absence and restart; only one hos
     assert.equal((await client.run(accepted.runId)).state, 'completed');
   } finally {
     await service?.close();
-    for (const socket of ws.clients) socket.terminate();
-    await new Promise<void>((resolve) => ws.close(() => resolve()));
     rmSync(root, { recursive: true, force: true });
   }
 });

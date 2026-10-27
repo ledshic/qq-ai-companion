@@ -10,7 +10,9 @@
 
 ## 常驻 Agent 服务
 
-阶段 B 已提供正式 API：`pnpm agent:serve`。默认监听 `127.0.0.1:4320`，QQ 可选，仍要求认证；启动会在数据目录生成权限为 0600 的拥有者凭据。运行方式、设备配对、接口与数据兼容说明见[阶段 B 实施记录](docs/MULTI-CLIENT-PHASE-B.md)。
+阶段 B 已提供正式 API：`pnpm agent:serve`。默认监听 `127.0.0.1:4320`，独立于 QQ 运行且要求认证；启动会在数据目录生成权限为 0600 的拥有者凭据。运行方式、设备配对、接口与数据兼容说明见[阶段 B 实施记录](docs/MULTI-CLIENT-PHASE-B.md)。
+
+服务入口使用 `src/app/service-bootstrap.ts`，只读取服务所需的模型、并发和历史配置，不解析 QQ、暖场、群聊人格或图片配置，也不启动其连接、存储和计时器。API 的 `qq` 字段为兼容保留，固定返回 `disabled`。旧 QQ 入口 `pnpm napcat` 暂时保留，通过旧 `src/app/bootstrap.ts` 显式启动；两个入口共用数据目录锁，不能同时占用同一目录。已有数据不迁移、不删除。
 
 后续以 CLI 和 Web 为主。当前 Web 仍连接阶段 A 模拟 API；桌面端、iOS、Android 暂停迭代。
 

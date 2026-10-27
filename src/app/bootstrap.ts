@@ -13,20 +13,20 @@ import {
   createVisionReply,
   createImageRequestJudge,
 } from '../tools/vision/vision.js';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { createFollowUpJudge } from '../cognitive/follow-up.js';
 import { createChatJudge } from '../cognitive/chat-judge.js';
 import { connectNapCat } from '../channels/qq/napcat-client.js';
 import { createDeepSeekReply } from '../cognitive/models/deepseek.js';
 import {
-  acquireInstanceLock,
   instanceDataDir,
-  instanceLockPath,
 } from '../runtime/lock.js';
 import { ConversationMemory } from '../memory/memory.js';
 import { SqliteSessionStore } from '../memory/store.js';
 
-const heldLocks = new Set<string>();
+import { acquireHostLock } from './host-lock.js';
+
+// Legacy QQ composition. The HTTP service uses service-bootstrap.ts.
 
 export function bootstrapAgent(env: NodeJS.ProcessEnv = process.env) {
   const cleanup: (() => void)[] = [];
@@ -108,16 +108,7 @@ export function bootstrapAgent(env: NodeJS.ProcessEnv = process.env) {
     const dataDir = instanceDataDir(memoryPath);
     let releaseLock: () => void;
     try {
-      const path = resolve(instanceLockPath(memoryPath));
-      if (heldLocks.has(path))
-        throw Error('Agent host already active for this data directory');
-      releaseLock = acquireInstanceLock(path);
-      heldLocks.add(path);
-      const releaseFile = releaseLock;
-      releaseLock = () => {
-        heldLocks.delete(path);
-        releaseFile();
-      };
+      releaseLock = acquireHostLock(memoryPath);
     } catch (error) {
       fail(error instanceof Error ? error.message : '无法获取实例锁。');
     }

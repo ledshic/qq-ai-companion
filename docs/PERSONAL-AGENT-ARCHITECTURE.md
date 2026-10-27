@@ -44,7 +44,7 @@ src/
 
 进程和配置的组装留在 `app`，QQ 协议转换留在 `channels/qq`，会话任务的执行顺序由 `runtime` 管理。模型判断和表达放在 `cognitive`；记忆的来源、版本、可见范围及持久化放在 `memory`。
 
-目录重组保留原 QQ 接口。后续常驻服务通过 `app/bootstrap.ts` 共用资源装配。配置仍在根目录的 `config/`，既有 SQLite 表结构和会话键保持原样；服务新增 `service_` 前缀表保存工作台记录。`pnpm test` 使用递归文件匹配，覆盖所有子目录的 `.test.ts`。
+目录重组保留原 QQ 接口。常驻 HTTP 服务通过独立的 `app/service-bootstrap.ts` 装配服务配置、模型生成器与实例锁，不再初始化 QQ 资源。`app/bootstrap.ts` 仅保留为旧 QQ 入口的装配器。两者通过 `app/host-lock.ts` 共享同一数据目录的排他锁。配置仍在根目录的 `config/`，既有 SQLite 表结构和会话键保持原样；服务新增 `service_` 前缀表保存工作台记录。`pnpm test` 使用递归文件匹配，覆盖所有子目录的 `.test.ts`。
 
 ## 运行结构
 

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { bootstrapAgent } from './bootstrap.js';
+import { bootstrapService } from './service-bootstrap.js';
 import { instanceDataDir } from '../runtime/lock.js';
 import { ServiceStore } from '../runtime/service/store.js';
 import type { ConsoleGenerator } from '../runtime/service/host.js';
@@ -35,7 +35,7 @@ export async function startService(
     )
       throw Error('Invalid AGENT_WEB_ORIGINS');
   }
-  const bootstrap = bootstrapAgent(env);
+  const bootstrap = bootstrapService(env);
   let store: ServiceStore | undefined;
   let host: RunHost | undefined;
   let api: ReturnType<typeof createServiceAPI> | undefined;
@@ -79,7 +79,6 @@ export async function startService(
     );
     api = createServiceAPI({ store, host, origins, status: bootstrap.status });
     await api.listen({ host: '127.0.0.1', port });
-    bootstrap.start();
     let closing: Promise<void> | undefined;
     const close = () => (closing ??= dispose());
     return { api, close, credentialPath };
