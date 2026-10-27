@@ -6,6 +6,44 @@
 
 本文面向仓库维护者，描述本次已实现的运行时拆分。既有个人长期记忆继续保留来源和可见范围，群聊中的私聊资料披露规则沿用原实现。其余文档的阅读顺序见 [文档索引](README.md)。
 
+## 源码目录
+
+源码按职责归入五个主体目录。`app` 集中放运行入口，`shared` 只放多个领域共用的基础工具。目录使用小写，测试与被测模块放在一起。
+
+```text
+src/
+├── app/                    启动、实例管理、离线演示、回放和维护命令
+├── channels/
+│   ├── channel.ts          渠道接口与规范化引用契约
+│   └── qq/                 QQ 消息解析、连接、查询及发送适配
+├── runtime/
+│   ├── agent.ts            运行时装配与生命周期
+│   ├── message.ts          通用消息契约
+│   ├── chat-scope.ts       会话标识与旧私聊键兼容
+│   ├── lock.ts             本机实例锁与安全停止
+│   ├── conversation/       会话编排、上下文、引用和回复准备
+│   ├── participation/      窗口、参与规则与主动预算
+│   └── delivery/           分段发送、队列和发送前检查
+├── cognitive/
+│   ├── models/             模型请求封装与文字生成
+│   ├── personality/        人格规则、表达计划与提示组装
+│   └── *.ts                语境观察、接续与参与判断
+├── memory/
+│   ├── memory.ts           短期对话策略
+│   ├── store.ts            短期会话的 SQLite 存储
+│   └── events/             长期证据、个人资料、摘要、召回和观察
+├── tools/
+│   ├── builtin.ts          时间与骰子
+│   ├── search.ts           联网搜索
+│   ├── vision/             图片获取校验与单图理解
+│   └── memes/              表情资源、选择和状态
+└── shared/                 取消、并发控制与基础值校验
+```
+
+进程和配置的组装留在 `app`，QQ 协议转换留在 `channels/qq`，会话任务的执行顺序由 `runtime` 管理。模型判断和表达放在 `cognitive`；记忆的来源、版本、可见范围及持久化放在 `memory`。
+
+本次调整文件归属和导入路径，保留现有接口与调用关系。配置仍在根目录的 `config/`，SQLite 文件、表结构和会话键保持原样。`pnpm test` 使用递归文件匹配，覆盖所有子目录的 `.test.ts`。
+
 ## 运行结构
 
 ```mermaid
@@ -20,12 +58,12 @@ flowchart LR
 
 | 模块 | 职责 |
 | --- | --- |
-| `src/agent.ts` | 装配会话、记忆和发送流程，管理启动、停止与任务取消 |
-| `src/channel.ts` | 定义接收、连接状态、发送确认及可选查询能力 |
-| `src/qq-channel.ts` | 将查询能力映射为 OneBot（QQ 通信协议）的动作；区分群聊与私聊路由 |
-| `src/napcat-transport.ts` | 管理 WebSocket 连接、重连、请求匹配和发送确认 |
-| `src/napcat-client.ts` | 保留原调用接口，将 QQ 适配器交给个人 Agent |
-| `src/index.ts` | 使用进程内模拟渠道运行同一套 Agent，无需 QQ 与模型密钥 |
+| `src/runtime/agent.ts` | 装配会话、记忆和发送流程，管理启动、停止与任务取消 |
+| `src/channels/channel.ts` | 定义接收、连接状态、发送确认及可选查询能力 |
+| `src/channels/qq/qq-channel.ts` | 将查询能力映射为 OneBot（QQ 通信协议）的动作；区分群聊与私聊路由 |
+| `src/channels/qq/napcat-transport.ts` | 管理 WebSocket 连接、重连、请求匹配和发送确认 |
+| `src/channels/qq/napcat-client.ts` | 保留原调用接口，将 QQ 适配器交给个人 Agent |
+| `src/app/demo.ts` | 使用进程内模拟渠道运行同一套 Agent，无需 QQ 与模型密钥 |
 
 ## 接入约定
 
@@ -64,6 +102,6 @@ SQLite 的 `group_id` 列名保持不变，会话键仍为原会话标识与本�
 
 ## 验证方式
 
-`pnpm typecheck` 检查类型；`node --import tsx --test src/*.test.ts` 执行本地测试；`pnpm dev` 执行离线模拟。运行时专用测试覆盖群聊与私聊隔离、未确认发送不写记忆、停止后拒绝输入和断连取消生成。新增契约测试使用非数字账号和消息标识；QQ 适配器的 WebSocket 测试覆盖引用转换、图片历史去除附件地址、跨群拒绝和私聊不查群历史。原有引用和识图测试继续验证发送、取消与失败处理。
+`pnpm typecheck` 检查类型；`pnpm test` 执行本地测试；`pnpm dev` 执行离线模拟。运行时专用测试覆盖群聊与私聊隔离、未确认发送不写记忆、停止后拒绝输入和断连取消生成。新增契约测试使用非数字账号和消息标识；QQ 适配器的 WebSocket 测试覆盖引用转换、图片历史去除附件地址、跨群拒绝和私聊不查群历史。原有引用和识图测试继续验证发送、取消与失败处理。
 
 本次没有变更数据库结构，也没有连接真实 QQ 或模型提供商。真实账号与模型的端到端行为仍需单独验证。

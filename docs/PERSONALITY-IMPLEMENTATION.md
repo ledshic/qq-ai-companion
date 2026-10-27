@@ -23,13 +23,13 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/context-analysis.ts` | 有限枚举与依据校验、匿名分析输入、输入版本摘要、独立分析请求 |
-| `src/personality-policy.ts` | 从观察形成计划的纯函数；冲突优先级为支持回应、明确停止或认真要求、普通场景；图片任务另加保守限制 |
-| `src/personality-runtime.ts` | 校验并复用观察；按任务产生冻结计划，无跨轮人格状态 |
-| `src/conversation.ts` | 在现有并发名额内编排分析，给生成与媒体路径传递只读计划 |
-| `src/chat-judge.ts`、`src/follow-up.ts` | modular 下在既有请求中返回观察；观察字段无效不破坏有效的参与结果 |
-| `src/persona.ts`、`config/personas/dafeiyu/` | 保留原卡，拆出可信固定模块和本轮表达模块；保留原场景规则作为基础 |
-| `src/deepseek.ts`、`src/vision.ts` | 按本轮计划构建提示，保持原返回协议；工具循环和重复短句改写不重复分析 |
+| `src/cognitive/context-analysis.ts` | 有限枚举与依据校验、匿名分析输入、输入版本摘要、独立分析请求 |
+| `src/cognitive/personality/personality-policy.ts` | 从观察形成计划的纯函数；冲突优先级为支持回应、明确停止或认真要求、普通场景；图片任务另加保守限制 |
+| `src/cognitive/personality/personality-runtime.ts` | 校验并复用观察；按任务产生冻结计划，无跨轮人格状态 |
+| `src/runtime/conversation/conversation.ts` | 在现有并发名额内编排分析，给生成与媒体路径传递只读计划 |
+| `src/cognitive/chat-judge.ts`、`src/cognitive/follow-up.ts` | modular 下在既有请求中返回观察；观察字段无效不破坏有效的参与结果 |
+| `src/cognitive/personality/persona.ts`、`config/personas/dafeiyu/` | 保留原卡，拆出可信固定模块和本轮表达模块；保留原场景规则作为基础 |
+| `src/cognitive/models/deepseek.ts`、`src/tools/vision/vision.ts` | 按本轮计划构建提示，保持原返回协议；工具循环和重复短句改写不重复分析 |
 
 输入摘要绑定当前请求、目标、触发消息、实际群快照及个人历史；额外的参与原因和表达计划不参与版本计算。摘要只在本地校验，不发送给模型。不同输入、群或目标的观察不能复用；不匹配时回到 neutral，不补发分析。
 

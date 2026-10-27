@@ -26,15 +26,20 @@ pnpm typecheck
 
 ## Files
 
-- `src/index.ts`: local simulation with mentioned and non-mentioned messages
-- `src/message.ts`: message types and reply rule
-- `src/store.ts`: SQLite session store behind the memory policy
-- `src/lock.ts`: single-instance lock shared by the NapCat entry and the status commands
-- `src/instance.ts`: `status`, `stop`, and `start` for that lock
+- `src/app/`: process entry points, offline demo, replay and maintenance commands
+- `src/channels/`: channel contracts and the QQ adapter
+- `src/runtime/`: Agent lifecycle, conversations, participation, delivery and instance locks
+- `src/cognitive/`: context judgments, persona plans and model generation
+- `src/memory/`: short-term sessions and evidence-backed personal memory
+- `src/tools/`: time, dice, search, image understanding and memes
+- `src/shared/`: cancellation, concurrency and value validation
 - `package.json`: project metadata, scripts, and dependencies
 - `pnpm-lock.yaml`: reproducible dependency versions
 - `tsconfig.json`: strict TypeScript configuration
 - `.gitignore`: generated files and local secrets excluded from Git
+
+Tests live beside their modules. `pnpm test` recursively matches `src/**/*.test.ts`.
+See [the source layout](docs/PERSONAL-AGENT-ARCHITECTURE.md) for directory responsibilities.
 
 Only one Node bot may answer this QQ account. `pnpm napcat` records its pid in
 `data/bot.lock`, or in `bot.lock` beside `MEMORY_DB` when that path is not the
@@ -154,7 +159,7 @@ Official API: https://api-docs.deepseek.com/api/create-chat-completion/
 ## Tools
 
 Explicit calls (@, name call or a verified reply) may use two function tools,
-executed locally by `src/tools.ts`:
+executed locally by `src/tools/builtin.ts`:
 
 - `get_current_time` — current date and time in a timezone, default Asia/Shanghai
 - `roll_dice` — one to ten dice with two to a hundred sides
@@ -418,7 +423,7 @@ mock models; naturalness and real-provider latency remain unverified.
 
 `config/personas/dafeiyu.md` is an adaptation of the upstream QQ group-friend character card
 from mtshang/make-your-qq-ai-group-member, retained under its MIT license
-(`config/personas/LICENSE.mtshang`). `src/persona.ts` loads it from the project,
+(`config/personas/LICENSE.mtshang`). `src/cognitive/personality/persona.ts` loads it from the project,
 independent of the shell's current directory. Restart the Node bot after edits.
 
 The prior forced self-name prompt was removed: the QQ nickname remains 大肥鱼,

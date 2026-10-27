@@ -6,7 +6,7 @@
 
 上一版虽然把休假拆到独立模块，仍然固定了主题类型、复工字段和假期后续规则。本版删除该主题模块，所有生活事件使用同一结构。休假、考试、旅行和个人计划的理解方式保存为参考文本，模型依据原文与参考提出结构化建议。
 
-当前协议以 `src/events/domains/event.ts` 为准。原设计中的 VacationEvent、resumeOn 和 vacation_followup 是历史草案，不再用于新事件提取。
+当前协议以 `src/memory/events/domains/event.ts` 为准。原设计中的 VacationEvent、resumeOn 和 vacation_followup 是历史草案，不再用于新事件提取。
 
 ## 三层分工
 

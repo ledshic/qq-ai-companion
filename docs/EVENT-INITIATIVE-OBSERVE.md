@@ -35,9 +35,9 @@ flowchart LR
 
 | 文件 | 责任 |
 |---|---|
-| `src/events/runtime.ts` | 通用资格检查、任务取消、版本复查、调用观察接口；没有主题或人格分支 |
-| `src/events/store.ts` | 事务认领、持久去重、观察预算、结果保存与清空 |
-| `src/events/initiative.ts` | 应用层的时机判断、人格方案和独立草稿审查 |
+| `src/memory/events/runtime.ts` | 通用资格检查、任务取消、版本复查、调用观察接口；没有主题或人格分支 |
+| `src/memory/events/store.ts` | 事务认领、持久去重、观察预算、结果保存与清空 |
+| `src/memory/events/initiative.ts` | 应用层的时机判断、人格方案和独立草稿审查 |
 | `config/event-memory/initiative.md` | 通用交流判断、输出协议、态度倾向与资料边界 |
 | `config/event-memory/initiative-references.md` | 具体主题的公开交流范围、表达示例与不能推断的事实 |
 | `config/event-memory/references/` | 事件理解参考，继续供主题理解使用 |

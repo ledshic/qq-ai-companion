@@ -27,11 +27,11 @@
 
 | 文件 | 责任 |
 |---|---|
-| `src/events/recall.ts` | 查询隔离、证据检查、候选选择、错误状态与发送有效性检查 |
-| `src/events/domains/event-recall.ts` | 将通用事件转换为聊天事实资料，不提供关注建议、偏好或待确认提议 |
-| `src/events/application.ts` | 注册召回接口，运行时不包含具体主题规则 |
-| `src/conversation.ts` | 在聊天生成前取得一次资料，工具调用期间复用，发送前检查有效性 |
-| `src/deepseek.ts`、`src/vision.ts` | 将资料交给回答模型，约束来源、未知信息及指令边界 |
+| `src/memory/events/recall.ts` | 查询隔离、证据检查、候选选择、错误状态与发送有效性检查 |
+| `src/memory/events/domains/event-recall.ts` | 将通用事件转换为聊天事实资料，不提供关注建议、偏好或待确认提议 |
+| `src/memory/events/application.ts` | 注册召回接口，运行时不包含具体主题规则 |
+| `src/runtime/conversation/conversation.ts` | 在聊天生成前取得一次资料，工具调用期间复用，发送前检查有效性 |
+| `src/cognitive/models/deepseek.ts`、`src/tools/vision/vision.ts` | 将资料交给回答模型，约束来源、未知信息及指令边界 |
 | `config/event-memory/recall.md` | 保存资料使用规则；具体主题示例仍在 `references/` 中 |
 
 资料中的文字不作为系统指令执行。召回沿用版本 2 的事件库，无需数据库迁移或新增环境变量；初始化失败时正常聊天仍可继续。启动日志增加 `recall=enabled`，查询日志只记录状态、数量和耗时。

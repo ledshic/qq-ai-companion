@@ -9,17 +9,17 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/app/demo.ts",
     "typecheck": "tsc --noEmit",
-    "napcat": "tsx --env-file-if-exists=.env src/napcat.ts",
-    "bot:status": "tsx --env-file-if-exists=.env src/instance.ts status",
-    "bot:stop": "tsx --env-file-if-exists=.env src/instance.ts stop",
-    "bot:start": "tsx --env-file-if-exists=.env src/instance.ts start",
-    "test": "tsx --test src/*.test.ts",
-    "replay": "node --import tsx src/replay.ts",
-    "memes:index": "node --import tsx --env-file-if-exists=.env src/meme-index.ts",
-    "replay:events": "node --import tsx src/event-replay.ts",
-    "observe:events": "node --import tsx --env-file-if-exists=.env src/event-observe-report.ts"
+    "napcat": "tsx --env-file-if-exists=.env src/app/napcat.ts",
+    "bot:status": "tsx --env-file-if-exists=.env src/app/instance.ts status",
+    "bot:stop": "tsx --env-file-if-exists=.env src/app/instance.ts stop",
+    "bot:start": "tsx --env-file-if-exists=.env src/app/instance.ts start",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "replay": "node --import tsx src/app/replay.ts",
+    "memes:index": "node --import tsx --env-file-if-exists=.env src/app/meme-index.ts",
+    "replay:events": "node --import tsx src/app/event-replay.ts",
+    "observe:events": "node --import tsx --env-file-if-exists=.env src/app/event-observe-report.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

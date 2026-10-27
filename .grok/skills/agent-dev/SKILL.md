@@ -24,7 +24,7 @@ Read `docs/README.md` first when the task is to read or update project docs. It 
 | Persona | `docs/PERSONALITY-IMPLEMENTATION.md` |
 | Search, vision, memes | the matching `docs/*-IMPLEMENTATION.md` |
 
-`docs/EVENT-MEMORY-PROACTIVITY-DESIGN.md` is a historical draft for the vacation-shaped model. The live protocol is `src/events/domains/event.ts` plus `config/event-memory/references/`. Do not add a topic module, `VacationEvent`, or `resumeOn`.
+`docs/EVENT-MEMORY-PROACTIVITY-DESIGN.md` is a historical draft for the vacation-shaped model. The live protocol is `src/memory/events/domains/event.ts` plus `config/event-memory/references/`. Do not add a topic module, `VacationEvent`, or `resumeOn`.
 
 If code and a doc disagree, trust the code. Update `docs/PERSONAL-AGENT-ARCHITECTURE.md` in the same change only when that change makes one of its statements false. Do not add a new design doc unless the user asks.
 
@@ -32,20 +32,22 @@ If code and a doc disagree, trust the code. Update `docs/PERSONAL-AGENT-ARCHITEC
 
 | Layer | Home | Put here |
 | --- | --- | --- |
-| Runtime assembly | `src/agent.ts`, `src/index.ts` | `createPersonalAgent`: start, tick, stop, one channel |
-| Channel contract | `src/channel.ts` | `ChatMessage` in, delivery capture and lookups out |
-| QQ adapter | `src/qq-channel.ts`, `src/onebot.ts`, `src/napcat-transport.ts`, `src/napcat-client.ts`, `src/napcat.ts` | OneBot parse, WebSocket, process entry |
-| Participation | `src/conversation.ts`, `src/participation-policy.ts`, `src/observation.ts`, `src/follow-up.ts`, `src/explicit-reply.ts`, `src/send-review.ts`, `src/proactive-budget.ts` | Whether to speak, and whether a draft is still valid |
-| Memory | `src/memory.ts`, `src/store.ts`, `src/events/` | Short-term turns and evidence-backed events |
-| Expression | `src/persona.ts`, `src/personality-runtime.ts`, `config/personas/` | How a reply sounds |
-| Tools | `src/tools.ts`, `src/search.ts`, `src/vision.ts`, `src/memes.ts` | Time, dice, search, one requested image, one meme |
+| Process assembly | `src/app/` | QQ process entry, instance commands, offline demo, replay and maintenance |
+| Runtime assembly | `src/runtime/agent.ts` | `createPersonalAgent`: start, tick, stop, one channel |
+| Channel contract | `src/channels/channel.ts` | `ChatMessage` in, delivery capture and lookups out |
+| QQ adapter | `src/channels/qq/` | OneBot parsing, WebSocket, lookups and channel wiring; process entry stays in `src/app/napcat.ts` |
+| Participation | `src/runtime/conversation/conversation.ts`, `src/runtime/participation/participation-policy.ts`, `src/runtime/participation/observation.ts`, `src/cognitive/follow-up.ts`, `src/runtime/conversation/explicit-reply.ts`, `src/runtime/delivery/send-review.ts`, `src/runtime/participation/proactive-budget.ts` | Whether to speak, and whether a draft is still valid |
+| Memory | `src/memory/memory.ts`, `src/memory/store.ts`, `src/memory/events/` | Short-term turns and evidence-backed events |
+| Expression | `src/cognitive/personality/persona.ts`, `src/cognitive/personality/personality-runtime.ts`, `config/personas/` | How a reply sounds |
+| Tools | `src/tools/builtin.ts`, `src/tools/search.ts`, `src/tools/vision/vision.ts`, `src/tools/memes/memes.ts` | Time, dice, search, one requested image, one meme |
+| Shared primitives | `src/shared/` | Cancellation, concurrency and value validation only; no business policy |
 
 A new platform field parsed in `conversation.ts` is in the wrong layer. Parse it in the adapter and pass `chatId`, `ReferencedMessage`, or `ReferenceHistory`.
 
 ## Rules that the refactor keeps
 
-- Core identifiers are strings: `chatId`, `messageId`, `senderId`. Private chats use `private:<user id>` from `src/chat-scope.ts`.
-- SQLite column `group_id` and stored JSON key `groupId` stay. `src/events/storage-scope.ts` maps them to `chatId`. Do not bump a schema or rewrite `data/memory.db`.
+- Core identifiers are strings: `chatId`, `messageId`, `senderId`. Private chats use `private:<user id>` from `src/runtime/chat-scope.ts`.
+- SQLite column `group_id` and stored JSON key `groupId` stay. `src/memory/events/storage-scope.ts` maps them to `chatId`. Do not bump a schema or rewrite `data/memory.db`.
 - Session keys stay `[chatId, senderId]`: the second key identifies the sender/memory owner, never the bot's `selfId`. One runtime binds one channel.
 - Participation kinds stay separate: explicit call, follow-up, interjection, warmup. An explicit call outranks the others. Warmup and interjection budgets must not block an active follow-up.
 - A turn enters short-term memory only after the channel acknowledges the send. A failed, cancelled, or unconfirmed send does not.
@@ -63,7 +65,7 @@ pnpm typecheck
 pnpm test
 ```
 
-`pnpm test` runs `src/*.test.ts` with `tsx`. Add a colocated `src/<module>.test.ts`. Use synthetic string ids. Cover the new rule and the adjacent rule it could break: chat isolation, unconfirmed send, stop rejecting input, or private-memory refusal.
+`pnpm test` recursively runs `src/**/*.test.ts` with Node and the `tsx` loader. Keep each test beside its module in the corresponding domain directory. Use synthetic string ids. Cover the new rule and the adjacent rule it could break: chat isolation, unconfirmed send, stop rejecting input, or private-memory refusal.
 
 Do not run `pnpm napcat`, `docker compose`, or a model call unless the user asks for a live check. Do not read or write `.env` or `data/`.
 

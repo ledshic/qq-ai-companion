@@ -152,8 +152,8 @@ flowchart TD
 | 群聊判断、限频、暖场、等待窗口 | astrbot-qqbot/data/astrbot/config/astrbot_plugin_group_chat_plus_config.json |
 | 判断提示词与概率分支 | 群聊插件 utils/decision_ai.py、main.py |
 | 表情包策略 | AstrBot meme_manager 配置的 generation、semantic、auto_collect |
-| TS 调度与上下文 | qq-ai-companion/src/conversation.ts |
-| TS 判断、接续、记忆、发送 | 取证时为 src/group-judge.ts；该文件现为 src/chat-judge.ts。其余为 follow-up.ts、observation.ts、memory.ts、delivery.ts、napcat-client.ts |
-| TS 模型和工具 | src/deepseek.ts、tools.ts、persona.ts |
+| TS 调度与上下文 | qq-ai-companion/src/runtime/conversation/conversation.ts |
+| TS 判断、接续、记忆、发送 | 取证时为 src/group-judge.ts；该文件现为 src/cognitive/chat-judge.ts。其余为 follow-up.ts、observation.ts、memory.ts、delivery.ts、napcat-client.ts |
+| TS 模型和工具 | src/cognitive/models/deepseek.ts、tools.ts、persona.ts |
 
 团队记忆工具在本会话不可用，本文依据本机实际配置与代码。未抄录凭证、用户账号或真实群聊内容。

@@ -12,15 +12,15 @@
 
 | 模块 | 责任 |
 |---|---|
-| `src/events/runtime.ts` | 通用采集、批次执行、取消、观察；通过注入接口运行领域模块 |
-| `src/events/store.ts` | SQLite 新表、事务、去重、来源、版本、保留期、关注事项与清空 |
-| `src/events/extractor.ts` | 统一模型请求与匿名资料；不解释休假日期 |
-| `src/events/observe-policy.ts` | 通用时间窗口、出现条件、版本检查；不生成台词 |
-| `src/events/domains/event.ts` | 通用事件、区间、时间点、里程碑及有依据的后续建议；不按主题分支 |
+| `src/memory/events/runtime.ts` | 通用采集、批次执行、取消、观察；通过注入接口运行领域模块 |
+| `src/memory/events/store.ts` | SQLite 新表、事务、去重、来源、版本、保留期、关注事项与清空 |
+| `src/memory/events/extractor.ts` | 统一模型请求与匿名资料；不解释休假日期 |
+| `src/memory/events/observe-policy.ts` | 通用时间窗口、出现条件、版本检查；不生成台词 |
+| `src/memory/events/domains/event.ts` | 通用事件、区间、时间点、里程碑及有依据的后续建议；不按主题分支 |
 | `config/event-memory/references/` | 保存生活事件的理解参考与例子；新增主题不要求修改代码 |
-| `src/events/time.ts` | 日期与自然日规则，由业务模块调用，不由引擎推断 |
-| `src/events/domains/contact.ts` | 明确的称呼、调侃与主动联系偏好 |
-| `src/events/application.ts`、`controls.ts` | 注册领域模块、解释用户命令、应用偏好限制 |
+| `src/memory/events/time.ts` | 日期与自然日规则，由业务模块调用，不由引擎推断 |
+| `src/memory/events/domains/contact.ts` | 明确的称呼、调侃与主动联系偏好 |
+| `src/memory/events/application.ts`、`controls.ts` | 注册领域模块、解释用户命令、应用偏好限制 |
 
 新增生活主题只需补充参考文本；EventDomain 仅保留为不同数据协议的扩展接口，不给每个主题注册模块。测试验证了任意新主题共用同一解析与关注投影逻辑。
 
