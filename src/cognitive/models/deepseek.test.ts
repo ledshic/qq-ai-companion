@@ -117,3 +117,13 @@ test('a repeated short reply gets one model rephrase, never an unbounded retry',
     assert.equal(calls, 2);
   }
 });
+
+test('returns optional provider reasoning separately from the answer', async () => {
+  const reasoning: string[] = [];
+  const reply = createDeepSeekReply('key', undefined, async () => Response.json({ choices: [{ message: { content: '结果', reasoning_content: '先分析问题' } }] }));
+  assert.equal(await reply('问题', [], undefined, true, undefined, text => reasoning.push(text)), '结果');
+  assert.deepEqual(reasoning, ['先分析问题']);
+  const plain = createDeepSeekReply('key', undefined, async () => Response.json({ choices: [{ message: { content: '普通回答' } }] }));
+  assert.equal(await plain('问题', [], undefined, true, undefined, text => reasoning.push(text)), '普通回答');
+  assert.deepEqual(reasoning, ['先分析问题']);
+});

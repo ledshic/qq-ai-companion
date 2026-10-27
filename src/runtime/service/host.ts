@@ -5,6 +5,7 @@ export type ConsoleGenerator = (
   content: string,
   history: ConversationMessage[],
   signal: AbortSignal,
+  onReasoning?: (text: string) => void,
 ) => Promise<string>;
 export class RunHost {
   private active = new Map<
@@ -73,8 +74,11 @@ export class RunHost {
         controller.abort();
       }, 120_000);
       timer.unref();
+      let reasoning: string | undefined;
       void Promise.resolve()
-        .then(() => this.generate(run.input, history, controller.signal))
+        .then(() => this.generate(run.input, history, controller.signal, (text) => {
+          if (!controller.signal.aborted) reasoning = text.slice(0, 32000);
+        }))
         .then((result) => {
           if (!this.closed && !controller.signal.aborted) {
             if (
@@ -83,7 +87,7 @@ export class RunHost {
               result.length > 16000
             )
               throw Error('invalid_result');
-            this.store.finish(ownerId, run.id, result, null);
+            this.store.finish(ownerId, run.id, result, null, reasoning);
           }
         })
         .catch((error) => {

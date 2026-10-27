@@ -182,3 +182,27 @@ test('shutdown prevents promises from touching a closed database', async () => {
   finish('late');
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
+
+test('completed reasoning is saved with its assistant message and excluded from model history', async () => {
+  const store = new ServiceStore(':memory:');
+  const host = new RunHost(store, async (_content, _history, _signal, onReasoning) => {
+    onReasoning?.('先分析问题');
+    return '最终回答';
+  });
+  try {
+    const c = store.createConversation('owner', 'Reasoning');
+    const run = host.submit('owner', c.id, 'first', '问题');
+    await settle(() => store.run('owner', run.runId).state === 'completed');
+    const messages = store.messages('owner', c.id, 0, 50).messages;
+    assert.equal(messages[1]?.reasoning, '先分析问题');
+    assert.equal(messages[0]?.reasoning, undefined);
+    assert.deepEqual(store.history('owner', c.id), [
+      { role: 'user', content: '问题' },
+      { role: 'assistant', content: '最终回答' },
+    ]);
+    assert.throws(() => store.messages('other', c.id, 0, 50), /not_found/);
+  } finally {
+    host.stop();
+    store.close();
+  }
+});

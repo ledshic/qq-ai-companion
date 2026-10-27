@@ -108,6 +108,7 @@ export function createServiceClient(
         'POST',
         { claimSecret },
       ),
+    devices: () => call<{ devices: { id: string; name: string; admin: boolean; revoked: boolean }[] }>('/devices'),
     revokeDevice: (id: string) =>
       call(`/devices/${encodeURIComponent(id)}`, 'DELETE'),
     conversations: (after = '') =>
