@@ -4,9 +4,12 @@ import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createServiceClient } from '../../packages/client/src/service.js';
 import { APIError } from '@companion/contracts/service';
+import type { Readable, Writable } from 'node:stream';
+import { runInteractiveChat } from './interactive-cli.js';
 import { instanceDataDir } from '../runtime/lock.js';
 
 const help = `Usage: pnpm agent:cli <command>
+  chat [conversationId]
   status
   conversations
   new <title>
@@ -21,7 +24,7 @@ Environment: AGENT_URL, AGENT_CREDENTIAL_FILE, MEMORY_DB
 Credentials are read from a local file, never from command arguments.
 Ctrl+C stops observation; use cancel to stop a remote run.`;
 const arity: Record<string, [number, number]> = {
-  status: [0, 0], conversations: [0, 0], new: [1, 1], send: [2, 3], run: [1, 1], cancel: [1, 1],
+  chat: [0, 1], status: [0, 0], conversations: [0, 0], new: [1, 1], send: [2, 3], run: [1, 1], cancel: [1, 1],
   watch: [0, 1], sources: [1, 1], 'grant-sources': [2, 9], 'clear-sources': [1, 1],
 };
 interface CLIOptions {
@@ -30,6 +33,8 @@ interface CLIOptions {
   out?: (line: string) => void;
   error?: (line: string) => void;
   request?: typeof fetch;
+  input?: Readable;
+  terminalOutput?: Writable;
 }
 export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<number> {
   const out = options.out ?? console.log, error = options.error ?? console.error;
@@ -41,7 +46,8 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     error('invalid_arguments\n' + help); return 2;
   }
   const env = options.env ?? process.env;
-  const signal = options.signal ?? new AbortController().signal;
+  const lifetime = new AbortController();
+  const signal = options.signal ? AbortSignal.any([options.signal, lifetime.signal]) : lifetime.signal;
   let token: string;
   try {
     const path = env.AGENT_CREDENTIAL_FILE || join(instanceDataDir(env.MEMORY_DB || 'data/memory.db'), 'service-owner.json');
@@ -59,6 +65,7 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     const client = createServiceClient(env.AGENT_URL || 'http://127.0.0.1:4320', { token, request });
     const print = (value: unknown) => out(JSON.stringify(value));
     switch (command) {
+      case 'chat': return await runInteractiveChat({ client, signal, input: options.input ?? process.stdin, output: options.terminalOutput ?? process.stdout, out, error, conversationId: args[0] });
       case 'status': print(await client.status()); break;
       case 'conversations': {
         let after = '';
@@ -96,7 +103,7 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     // Do not print exception stacks, credential content or upstream response bodies.
     error(failure instanceof APIError ? failure.code : 'request_failed');
     return 1;
-  }
+  } finally { lifetime.abort(); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const controller = new AbortController();

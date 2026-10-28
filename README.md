@@ -57,6 +57,7 @@ pnpm agent:stop
 
 ```sh
 pnpm agent:cli status
+pnpm agent:cli chat
 pnpm agent:cli conversations
 pnpm agent:cli new "我的计划"
 pnpm agent:cli send <conversationId> "帮我梳理今天的安排"
@@ -65,7 +66,9 @@ pnpm agent:cli watch
 pnpm agent:cli cancel <runId>
 ```
 
-发送前会输出 clientMessageId；网络结果不确定时，用相同正文和该标识作为 send 的最后一个参数重试。watch 输出逐行 JSON 事件，Ctrl+C 只停止观察。来源管理及完整用法见[CLI 实施记录](docs/AGENT-CLI.md)。
+`chat` 提供连续聊天，可用 /list、/new、/use、/history、/retry、/resume、/cancel 和 /exit。首条消息自动创建会话，也可用 `chat <conversationId>` 连接已有会话。历史与执行均由服务端管理，/cancel 才取消远程任务；Ctrl+C 或退出只停止本地观察。
+
+发送前会输出 clientMessageId；网络结果不确定时，交互模式用 /retry，单次命令用相同正文和该标识作为 send 的最后一个参数重试。watch 输出逐行 JSON 事件。来源管理及完整用法见[CLI 实施记录](docs/AGENT-CLI.md)。
 
 ## 验证与文档
 
