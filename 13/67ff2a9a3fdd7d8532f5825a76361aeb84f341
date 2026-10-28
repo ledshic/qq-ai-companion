@@ -1,0 +1,42 @@
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_3add2d37178133 165,168,173,176-177,179-180,184,188-189,201,210-211,214,221-234
+  s_0e006fc6de5952::t_687702e95a9ea0 1-157,164,166,174,186,194-195,199-200,202
+  s_0e006fc6de5952::t_20ca8b6ad0f99b 158-163,167,169-172,175,178,181-183,185,187,190-193,196-198,203-209,212-213,215-220
+src/app/cli.ts
+  s_0e006fc6de5952::t_17de76857dc3c7 7-8,12,27,36-37,49-50,68,106
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_3add2d37178133 183,196-198
+  s_0e006fc6de5952::t_687702e95a9ea0 12,91,93,95-96,104,130-131,134-136,138,187,226
+  s_0e006fc6de5952::t_17de76857dc3c7 1-11,13-90,92,94,97-101,103,105-129,132-133,137,139-182,184,186,188-194,199-218,220-225,227-232
+  s_0e006fc6de5952::t_9d846ae852d5f9 102,185,195,219
+docs/README.md
+  s_0e006fc6de5952::t_ccac3b8a94971e 13
+README.md
+  s_0e006fc6de5952::t_ccac3b8a94971e 60,69-71
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_c93efd9a897eab 29
+  s_0e006fc6de5952::t_ccac3b8a94971e 28,65-67
+docs/PERSONAL-AGENT-ARCHITECTURE.md
+  s_0e006fc6de5952::t_ccac3b8a94971e 58
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_85b04a3df4f5fe 3,9,11-49,56-57,59-62,64,66,68,70,72,74,76
+  s_0e006fc6de5952::t_c93efd9a897eab 78
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_ccac3b8a94971e 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1367ff2a9a3fdd7d8532f5825a76361aeb84f341",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
