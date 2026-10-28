@@ -10,6 +10,7 @@
 | [二期执行核心记录](AGENT-REFACTOR-PHASE-2.md) | 模型与工具契约、预算和取消；供应商文件在四期移到 infrastructure |
 | [三期身份、记忆与人格记录](AGENT-REFACTOR-PHASE-3.md) | 元数据、来源召回、授权和表达开关 |
 | [四期归档记录](AGENT-REFACTOR-PHASE-4.md) | 归档范围、兼容策略、恢复方式和验证 |
+| [CLI 实施记录](AGENT-CLI.md) | 正式客户端命令、凭据、重试和事件观察 |
 
 ## 历史资料
 

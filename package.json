@@ -25,7 +25,8 @@
     "agent:serve": "tsx --env-file-if-exists=.env src/app/service.ts",
     "agent:status": "tsx --env-file-if-exists=.env src/app/instance.ts status",
     "agent:stop": "tsx --env-file-if-exists=.env src/app/instance.ts stop",
-    "agent:start": "tsx --env-file-if-exists=.env src/app/instance.ts start"
+    "agent:start": "tsx --env-file-if-exists=.env src/app/instance.ts start",
+    "agent:cli": "node --import tsx --env-file-if-exists=.env src/app/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

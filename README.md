@@ -1,6 +1,6 @@
 # Personal Agent
 
-本机常驻的个人 Agent 服务，提供认证会话、持久任务、可选来源记忆、时间与骰子工具，以及按配置启用的搜索。Web 工作台已接入正式 API。CLI 聊天程序待后续实现，桌面、iOS 和 Android 暂停迭代。
+本机常驻的个人 Agent 服务，提供认证会话、持久任务、可选来源记忆、时间与骰子工具，以及按配置启用的搜索。Web 工作台和命令行已接入正式 API；桌面、iOS 和 Android 暂停迭代。
 
 旧 QQ 适配器、群聊调度、事件记忆、配图及相关配置已归档到 [legacy/qq](legacy/qq/README.md)，默认构建和测试不扫描归档。已有数据库、拥有者凭据和锁路径不迁移、不删除。
 
@@ -48,6 +48,22 @@ pnpm agent:stop
 `pnpm dev` 与 `agent:serve` 都直接启动正式服务；`agent:start` 先检查锁，再以前台子进程运行同一入口。状态只检查本机锁，不能代表 HTTP 或上游模型可用。停止命令验证进程身份后发送 SIGTERM，由宿主退出时释放锁；无法验证身份时拒绝发送信号。
 
 数据目录保留 `bot.lock` 兼容路径，API 继续保留固定为 disabled 的 `qq` 字段。原 `napcat`、`bot:*`、回放和表情索引脚本已退出默认命令。
+
+## 命令行
+
+`pnpm agent:cli --help` 查看命令。默认从数据目录的 service-owner.json 读取凭据；AGENT_CREDENTIAL_FILE 可指定已有设备凭据 JSON，AGENT_URL 可指定正式服务地址。CLI 不创建凭据或启动服务。
+
+```sh
+pnpm agent:cli status
+pnpm agent:cli conversations
+pnpm agent:cli new "我的计划"
+pnpm agent:cli send <conversationId> "帮我梳理今天的安排"
+pnpm agent:cli run <runId>
+pnpm agent:cli watch
+pnpm agent:cli cancel <runId>
+```
+
+发送前会输出 clientMessageId；网络结果不确定时，用相同正文和该标识作为 send 的最后一个参数重试。watch 输出逐行 JSON 事件，Ctrl+C 只停止观察。来源管理及完整用法见[CLI 实施记录](docs/AGENT-CLI.md)。
 
 ## 验证与文档
 
