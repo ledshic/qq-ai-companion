@@ -11,6 +11,7 @@ import {
   type ServiceStatus,
 } from '@companion/contracts/service';
 import { ServiceStore } from '../../runtime/service/store.js';
+import { ServiceMemory } from '../../runtime/service/memory.js';
 import { RunHost } from '../../runtime/service/host.js';
 import { newToken } from './credentials.js';
 
@@ -230,6 +231,15 @@ export function createServiceAPI(options: {
           text(body.title, 120),
         ),
       );
+  });
+  app.get('/api/v1/conversations/:id/memory-sources', async (request) =>
+    new ServiceMemory(store).policy(authenticate(request).principal.ownerId, routeId(request)),
+  );
+  app.post('/api/v1/conversations/:id/memory-sources', async (request) => {
+    const principal = admin(request);
+    const body = object(request.body, ['sourceConversationIds']);
+    if (!Array.isArray(body.sourceConversationIds)) throw new APIError(400, 'invalid_memory_sources');
+    return new ServiceMemory(store).setSources(principal.ownerId, routeId(request), body.sourceConversationIds as string[]);
   });
   app.get('/api/v1/conversations/:id/messages', async (request) => {
     const q = query(request, ['after', 'limit']);

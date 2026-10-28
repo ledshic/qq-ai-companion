@@ -390,3 +390,25 @@ test('pairing expiry and failed claims are bounded, provider errors stay private
     store.close();
   }
 });
+test('memory source grants require owner administration and cannot forge identity or authorize foreign conversations', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('owner', 'Target');
+    const b = f.store.createConversation('owner', 'Source');
+    const foreign = f.store.createConversation('other', 'Foreign');
+    f.store.exec('INSERT INTO service_devices(id,owner_id,name,token_hash,admin) VALUES(?,?,?,?,0)', 'ordinary', 'owner', 'Ordinary', tokenHash('ordinary-token'));
+    const url = `/api/v1/conversations/${a.id}/memory-sources`;
+    const grant = (payload: unknown, auth = headers) => f.api.inject({ method: 'POST', url, headers: auth, payload: payload as Record<string, unknown> });
+    assert.equal((await grant({ sourceConversationIds: [b.id] }, { authorization: 'Bearer ordinary-token' })).statusCode, 403);
+    assert.equal((await grant({ sourceConversationIds: [b.id], ownerId: 'other' })).statusCode, 400);
+    assert.equal((await grant({ sourceConversationIds: [foreign.id] })).statusCode, 404);
+    assert.equal((await grant({ sourceConversationIds: [b.id, b.id] })).statusCode, 400);
+    assert.equal((await grant({ sourceConversationIds: [12] })).statusCode, 400);
+    assert.equal((await grant({ sourceConversationIds: [b.id] })).statusCode, 200);
+    const policy = (await f.api.inject({ url, headers })).json();
+    assert.deepEqual(policy.sourceConversationIds, [b.id]); assert.equal(policy.revision, 1);
+    assert.equal((await grant({ sourceConversationIds: [] })).statusCode, 200);
+    assert.deepEqual((await f.api.inject({ url, headers })).json().sourceConversationIds, []);
+    assert.equal((await f.api.inject({ url: `/api/v1/conversations/${foreign.id}/memory-sources`, headers })).statusCode, 404);
+  } finally { await f.close(); }
+});

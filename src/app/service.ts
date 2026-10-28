@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootstrapService } from './service-bootstrap.js';
 import { instanceDataDir } from '../runtime/lock.js';
+import { ServiceMemory } from '../runtime/service/memory.js';
 import { ServiceStore } from '../runtime/service/store.js';
 import type { ConsoleGenerator } from '../runtime/service/host.js';
 import { RunHost } from '../runtime/service/host.js';
@@ -70,7 +71,7 @@ export async function startService(
     host = new RunHost(
       store,
       dependencies.generate ??
-        bootstrap.generate ??
+        bootstrap.createGenerator(new ServiceMemory(store)) ??
         (async () => {
           throw new APIError(503, 'model_not_configured');
         }),

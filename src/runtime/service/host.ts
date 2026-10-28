@@ -1,11 +1,18 @@
 import { APIError, type AcceptedMessage } from '@companion/contracts/service';
 import type { ConversationMessage } from '../../agent/contracts.js';
+import type { ExecutionScope } from '../../agent/scope.js';
+import { ServiceMemory } from './memory.js';
 import { ServiceStore } from './store.js';
+export interface GenerationContext {
+  scope: ExecutionScope;
+  onMemoryGuard(guard: () => boolean): void;
+}
 export type ConsoleGenerator = (
   content: string,
   history: ConversationMessage[],
   signal: AbortSignal,
   onReasoning?: (text: string) => void,
+  context?: GenerationContext,
 ) => Promise<string>;
 export class RunHost {
   private active = new Map<
@@ -75,12 +82,26 @@ export class RunHost {
       }, 120_000);
       timer.unref();
       let reasoning: string | undefined;
+      let memoryGuard = () => true;
       void Promise.resolve()
-        .then(() => this.generate(run.input, history, controller.signal, (text) => {
-          if (!controller.signal.aborted) reasoning = text.slice(0, 32000);
-        }))
+        .then(() => {
+          controller.signal.throwIfAborted();
+          return this.generate(
+            run.input,
+            history,
+            controller.signal,
+            (text) => {
+              if (!controller.signal.aborted) reasoning = text.slice(0, 32000);
+            },
+            {
+              scope: new ServiceMemory(this.store).scope(ownerId, run.conversationId),
+              onMemoryGuard: guard => { memoryGuard = guard; },
+            },
+          );
+        })
         .then((result) => {
           if (!this.closed && !controller.signal.aborted) {
+            if (!memoryGuard()) throw new APIError(409, 'memory_context_changed');
             if (
               typeof result !== 'string' ||
               !result.trim() ||

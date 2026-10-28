@@ -206,3 +206,21 @@ test('completed reasoning is saved with its assistant message and excluded from 
     store.close();
   }
 });
+test('host supplies authenticated scope and checks memory freshness at final commit', async () => {
+  const store = new ServiceStore(':memory:'); let finish!: (text: string) => void; let current = true;
+  const host = new RunHost(store, (_content, _history, _signal, reasoning, context) => {
+    assert(context); assert.equal(context.scope.ownerId, 'non-numeric-owner');
+    assert.equal(context.scope.participantId, 'non-numeric-owner'); assert.equal(context.scope.kind, 'direct');
+    context.onMemoryGuard(() => current); reasoning?.('do not save this reasoning');
+    return new Promise(resolve => { finish = resolve; });
+  });
+  try {
+    const c = store.createConversation('non-numeric-owner', 'Guarded');
+    const run = host.submit('non-numeric-owner', c.id, 'first', 'question');
+    await settle(() => !!finish); current = false; finish('stale answer');
+    await settle(() => store.run('non-numeric-owner', run.runId).state === 'failed');
+    assert.equal(store.run('non-numeric-owner', run.runId).error, 'memory_context_changed');
+    assert.equal(store.messages('non-numeric-owner', c.id, 0, 50).messages.some(m => m.role === 'assistant'), false);
+    assert.equal(store.one('SELECT COUNT(*) n FROM service_reasoning')?.n, 0);
+  } finally { host.stop(); store.close(); }
+});

@@ -41,6 +41,7 @@ export class ServiceStore {
         CREATE TABLE IF NOT EXISTS service_runs(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,conversation_id TEXT NOT NULL,client_message_id TEXT NOT NULL,state TEXT NOT NULL,input TEXT NOT NULL,result TEXT,error TEXT,revision INTEGER NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,accepted_event INTEGER,UNIQUE(owner_id,conversation_id,client_message_id));
         CREATE INDEX IF NOT EXISTS service_runs_state ON service_runs(state,created_at);
         CREATE TABLE IF NOT EXISTS service_messages(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT UNIQUE NOT NULL,conversation_id TEXT NOT NULL,run_id TEXT NOT NULL,role TEXT NOT NULL,content TEXT NOT NULL,created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS service_memory_policies(conversation_id TEXT PRIMARY KEY,sources TEXT NOT NULL,revision INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS service_reasoning(message_id TEXT PRIMARY KEY,content TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS service_messages_conversation ON service_messages(conversation_id,seq);
         CREATE TABLE IF NOT EXISTS service_events(id INTEGER PRIMARY KEY AUTOINCREMENT,owner_id TEXT NOT NULL,conversation_id TEXT NOT NULL,run_id TEXT NOT NULL,type TEXT NOT NULL,time TEXT NOT NULL,data TEXT NOT NULL);

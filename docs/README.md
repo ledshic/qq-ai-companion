@@ -6,7 +6,9 @@
 
 | 文档 | 用它回答 |
 |---|---|
-| [Agent 重构交接与后续计划](AGENT-REFACTOR-HANDOFF.md) | 后续 Codex 优先阅读：产品方向、一期未提交状态、验证限制、二至四期边界和验收标准 |
+| [Agent 重构交接与后续计划](AGENT-REFACTOR-HANDOFF.md) | 后续 Codex 优先阅读：当前提交、验证记录、归档边界与后续迭代 |
+| [执行核心实施记录](AGENT-REFACTOR-PHASE-2.md) | 通用模型与工具契约、预算和取消 |
+| [身份、记忆与人格实施记录](AGENT-REFACTOR-PHASE-3.md) | 明确身份、来源召回、跨会话授权和人格开关 |
 | [多客户端阶段 B](MULTI-CLIENT-PHASE-B.md) | 常驻宿主、正式 API、认证、执行记录和事件恢复；后续接 CLI、Web |
 | [个人 Agent 架构](PERSONAL-AGENT-ARCHITECTURE.md) | 运行时如何装配，QQ 如何只做渠道，`chatId` 与旧库字段如何兼容 |
 | [参考文本驱动的通用事件模型](EVENT-REFERENCE-MODEL.md) | 事件协议。主题在 `config/event-memory/references/`，代码不按主题词分支，观察不发送 |

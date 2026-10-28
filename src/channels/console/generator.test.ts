@@ -67,3 +67,40 @@ for (const mode of ['empty', 'failed']) test(`search ${mode} stays explainable`,
   });
   assert.match(await reply('search', [], new AbortController().signal), mode === 'empty' ? /没有找到结果/ : /联网搜索失败/);
 });
+test('optional memory and personality prepare scoped context before model execution', async () => {
+  const { ServiceStore } = await import('../../runtime/service/store.js');
+  const { ServiceMemory } = await import('../../runtime/service/memory.js');
+  const store = new ServiceStore(':memory:'); const memory = new ServiceMemory(store);
+  try {
+    const source = store.createConversation('letters-owner', 'Source'), target = store.createConversation('letters-owner', 'Target');
+    const run = store.accept('letters-owner', source.id, 'source', '考试安排在周五');
+    store.start('letters-owner', run.runId); store.finish('letters-owner', run.runId, 'assistant speculation', null, 'never recall reasoning');
+    memory.setSources('letters-owner', target.id, [source.id]);
+    let guard = () => true;
+    const reply = createConsoleReply('test', 'test', 9, false, async (_url, options) => {
+      const body = JSON.parse(String(options?.body)); const context = JSON.parse(body.messages[1].content);
+      assert.equal(context.memory.status, 'available');
+      assert.equal(context.memory.records[0].quote, '考试安排在周五');
+      assert.equal(context.memory.records[0].source.messageId, run.messageId);
+      assert.doesNotMatch(JSON.stringify(body.messages), /assistant speculation|never recall reasoning|DeepSeek 小鲸鱼/);
+      assert.equal(context.personality.status, 'disabled');
+      return Response.json({ choices: [{ message: { content: '根据你之前的说法，考试在周五。' } }] });
+    }, undefined, { memory });
+    assert.match(await reply('考试安排', [], new AbortController().signal, undefined, {
+      scope: memory.scope('letters-owner', target.id), onMemoryGuard: value => { guard = value; },
+    }), /周五/);
+    assert.equal(guard(), true); memory.setSources('letters-owner', target.id, []); assert.equal(guard(), false);
+  } finally { store.close(); }
+});
+test('revoking memory during a model wait blocks the answer and subsequent tool calls', async () => {
+  let current = true, resolve!: (value: Response) => void; let started!: () => void; let calls = 0;
+  const ready = new Promise<void>(r => { started = r; });
+  const reply = createConsoleReply('test', 'test', 9, false, async () => { calls++; started(); return new Promise(r => { resolve = r; }); }, undefined,
+    { memory: { recall: async () => ({ records: [], isCurrent: () => current }) } });
+  const pending = reply('question', [], new AbortController().signal, undefined, {
+    scope: { ownerId: 'owner', participantId: 'owner', participantIds: ['owner'], conversationId: 'c', channelId: 'console', kind: 'direct', memorySourceConversationIds: [] }, onMemoryGuard: () => {},
+  });
+  await ready; current = false;
+  resolve(Response.json({ choices: [{ message: { tool_calls: [{ id: '1', function: { name: 'roll_dice', arguments: '{}' } }] } }] }));
+  await assert.rejects(pending, /Memory context changed/); assert.equal(calls, 1);
+});

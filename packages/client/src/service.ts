@@ -117,6 +117,10 @@ export function createServiceClient(
       ),
     createConversation: (title: string) =>
       call<Conversation>('/conversations', 'POST', { title }),
+    memorySources: (id: string) =>
+      call<{ sourceConversationIds: string[]; revision: number }>(`/conversations/${encodeURIComponent(id)}/memory-sources`),
+    setMemorySources: (id: string, sourceConversationIds: string[]) =>
+      call<{ sourceConversationIds: string[]; revision: number }>(`/conversations/${encodeURIComponent(id)}/memory-sources`, 'POST', { sourceConversationIds }),
     messages: (id: string, after = 0) =>
       call<{ messages: Message[]; nextCursor: number }>(
         `/conversations/${encodeURIComponent(id)}/messages?after=${after}`,

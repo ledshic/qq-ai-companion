@@ -1,4 +1,6 @@
 import { createConsoleReply } from '../channels/console/generator.js';
+import type { MemoryReader } from '../capabilities/memory/contracts.js';
+import { whalePersonality } from '../capabilities/personality/prompt.js';
 import { acquireHostLock } from './host-lock.js';
 import { readServiceConfig } from './service-config.js';
 
@@ -8,14 +10,17 @@ export function bootstrapService(env: NodeJS.ProcessEnv = process.env) {
   const config = readServiceConfig(env);
   const close = acquireHostLock(config.memoryPath);
   try {
-    const generate = config.llmEnabled
-      ? createConsoleReply(config.apiKey, config.model, config.memoryTurns, config.searchEnabled)
+    const createGenerator = (memory?: MemoryReader) => config.llmEnabled
+      ? createConsoleReply(config.apiKey, config.model, config.memoryTurns, config.searchEnabled, fetch, undefined, {
+          memory: config.memoryEnabled ? memory : undefined,
+          personality: config.persona === 'whale' ? whalePersonality : undefined,
+        })
       : undefined;
     return {
       memoryPath: config.memoryPath,
       memoryTurns: config.memoryTurns,
       maxInflight: config.maxInflight,
-      generate,
+      createGenerator,
       close,
       status: () => ({
         model: config.llmEnabled ? 'configured' as const : 'not-configured' as const,

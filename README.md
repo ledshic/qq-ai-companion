@@ -14,7 +14,9 @@
 
 服务入口使用 `src/app/service-bootstrap.ts`，只读取服务所需的模型、并发和历史配置，不解析 QQ、暖场、群聊人格或图片配置，也不启动其连接、存储和计时器。API 的 `qq` 字段为兼容保留，固定返回 `disabled`。旧 QQ 入口 `pnpm napcat` 暂时保留，通过旧 `src/app/bootstrap.ts` 显式启动；两个入口共用数据目录锁，不能同时占用同一目录。已有数据不迁移、不删除。
 
-后续以 CLI 和 Web 为主。当前 Web 仍连接阶段 A 模拟 API；桌面端、iOS、Android 暂停迭代。
+当前 Web 默认连接正式服务，支持认证直聊、活动与服务管理；`?lab` 保留阶段 A 模拟连接验证。CLI 可执行程序尚未实现；桌面端、iOS、Android 暂停迭代。
+
+服务传递明确的拥有者、参与者和会话元数据。可用 `AGENT_MEMORY_ENABLED=true` 开启有消息来源的历史摘录召回；默认只读当前会话，跨会话需拥有者显式授权。`AGENT_PERSONA=none` 可关闭角色表达。旧 QQ 数据不导入，配置、授权接口和限制见[三期实施记录](docs/AGENT-REFACTOR-PHASE-3.md)。
 
 ## Requirements
 
