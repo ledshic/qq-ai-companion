@@ -1,0 +1,56 @@
+docs/PERSONAL-AGENT-ARCHITECTURE.md
+  s_0e006fc6de5952::t_b91ce01f53c949 58
+apps/web/src/App.tsx
+  s_0e006fc6de5952::t_3a092810958c5e 5,23,35
+  s_0e006fc6de5952::t_e6bf4c192e63aa 91
+src/runtime/service/memory.ts
+  s_0e006fc6de5952::t_48134b46bcdaf7 23-25,30-31
+packages/client/src/service.test.ts
+  s_0e006fc6de5952::t_3a092810958c5e 63-76
+docs/README.md
+  s_0e006fc6de5952::t_b91ce01f53c949 14
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_48134b46bcdaf7 122-125
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_b0ffcb4e3e5291 28
+  s_0e006fc6de5952::t_b91ce01f53c949 27,62-64
+apps/web/src/MemorySources.tsx
+  s_0e006fc6de5952::t_e6bf4c192e63aa 27-28,31,48-50,52,54-59,65,67
+  s_0e006fc6de5952::t_6ccd5a53a935a1 1-26,29-30,32-46,60-63,66,68-123
+  s_0e006fc6de5952::t_2f3d39a7f1e293 47,51,53,64
+README.md
+  s_0e006fc6de5952::t_b91ce01f53c949 40-41
+docs/AGENT-SOURCE-PERMISSIONS-UI.md
+  s_0e006fc6de5952::t_b0ffcb4e3e5291 45-46
+  s_0e006fc6de5952::t_d6a6b706a277a1 1-44
+apps/web/tests/memory-sources.spec.ts
+  s_0e006fc6de5952::t_3a092810958c5e 1-51,55-64,69-91,93-138,163
+  s_0e006fc6de5952::t_6ccd5a53a935a1 52-54,92,139-162
+  s_0e006fc6de5952::t_e6bf4c192e63aa 65-68
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_b91ce01f53c949 49-50
+docs/AGENT-REFACTOR-PHASE-3.md
+  s_0e006fc6de5952::t_b91ce01f53c949 55
+apps/web/src/workspace.css
+  s_0e006fc6de5952::t_3a092810958c5e 327-355
+src/app/server/api.ts
+  s_0e006fc6de5952::t_48134b46bcdaf7 240,242-244
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_3a092810958c5e 415-429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a2e861e6fb1a3109d1d5e13b323b5051294b82af",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
