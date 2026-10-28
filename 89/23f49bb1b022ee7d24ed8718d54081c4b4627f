@@ -1,0 +1,67 @@
+docs/README.md
+  s_0e006fc6de5952::t_c9e8c93e84943c 9-11
+README.md
+  s_0e006fc6de5952::t_c9e8c93e84943c 17-19
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_13c8b24102d0f7 3,5,7,9,11,13-16,18,20-25,27,29,31-38,40,42,44,46,48,50,52-55,57,59
+docs/PERSONAL-AGENT-ARCHITECTURE.md
+  s_0e006fc6de5952::t_c9e8c93e84943c 7,16,74
+docs/AGENT-REFACTOR-PHASE-3.md
+  s_0e006fc6de5952::t_75cb267a6d7bc1 1-86
+.env.example
+  s_0e006fc6de5952::t_9b54625c5282c9 5-8
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_6866be7ca17f5a 120-123
+src/agent/scope.ts
+  s_0e006fc6de5952::t_fd6006167e1e3a 1-18
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_8d35ecef827934 393-414
+src/app/server/api.ts
+  s_0e006fc6de5952::t_887350ef242609 14,235-243
+src/app/service-bootstrap.test.ts
+  s_0e006fc6de5952::t_972924b4ce5af6 20,51-87
+src/app/service-bootstrap.ts
+  s_0e006fc6de5952::t_7c08ef21c7090d 2-3,13-17,23
+src/app/service-config.ts
+  s_0e006fc6de5952::t_104e0036ea4ebb 12-14,16-17
+src/app/service.ts
+  s_0e006fc6de5952::t_229df577028944 5,74
+src/capabilities/memory/contracts.ts
+  s_0e006fc6de5952::t_90a4d866977f5b 1-18
+src/capabilities/personality/prompt.ts
+  s_0e006fc6de5952::t_5ddd1a6df4e91a 1-8
+src/capabilities/prepare.test.ts
+  s_0e006fc6de5952::t_ad6704a885dc85 1-78
+src/capabilities/prepare.ts
+  s_0e006fc6de5952::t_8b3a780c07c5ed 1-76
+src/channels/console/generator.test.ts
+  s_0e006fc6de5952::t_9a4a85c20cf052 70-106
+src/channels/console/generator.ts
+  s_0e006fc6de5952::t_9179312fd16c18 2-5,19,22-23,27-30,32-40,43
+src/runtime/service/host.test.ts
+  s_0e006fc6de5952::t_f46141bf823493 209-226
+src/runtime/service/host.ts
+  s_0e006fc6de5952::t_56767da4c447cb 3-4,6-9,15,85,87-101,104
+src/runtime/service/memory.test.ts
+  s_0e006fc6de5952::t_77dd1506d9ec20 1-75
+src/runtime/service/memory.ts
+  s_0e006fc6de5952::t_d0dd2e42006eea 1-80
+src/runtime/service/store.ts
+  s_0e006fc6de5952::t_52c685915cba45 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8923f49bb1b022ee7d24ed8718d54081c4b4627f",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
