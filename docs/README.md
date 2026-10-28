@@ -11,6 +11,7 @@
 | [三期身份、记忆与人格记录](AGENT-REFACTOR-PHASE-3.md) | 元数据、来源召回、授权和表达开关 |
 | [四期归档记录](AGENT-REFACTOR-PHASE-4.md) | 归档范围、兼容策略、恢复方式和验证 |
 | [CLI 实施记录](AGENT-CLI.md) | 正式客户端命令、凭据、重试和事件观察 |
+| [来源授权管理界面](AGENT-SOURCE-PERMISSIONS-UI.md) | 会话来源选择、撤销、设备权限和版本冲突 |
 
 ## 历史资料
 

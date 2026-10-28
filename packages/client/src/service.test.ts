@@ -60,3 +60,17 @@ test('run and event payloads are checked before entering client state', async ()
   await assert.rejects(client.run('run-id'), /Invalid run/);
   await assert.rejects(client.events(), /Invalid service event/);
 });
+test('source updates carry an optional revision and never silently retry writes', async () => {
+  const bodies: unknown[] = [];
+  const client = createServiceClient('http://localhost', { request: async (_url, options) => {
+    bodies.push(JSON.parse(String(options?.body)));
+    return Response.json({ sourceConversationIds: [], revision: 3 });
+  } });
+  await client.setMemorySources('target', ['source'], 2);
+  await client.setMemorySources('target', []);
+  assert.deepEqual(bodies, [{ sourceConversationIds: ['source'], expectedRevision: 2 }, { sourceConversationIds: [] }]);
+  let calls = 0;
+  const unavailable = createServiceClient('http://localhost', { request: async () => { calls++; throw Error('connection reset'); } });
+  await assert.rejects(unavailable.setMemorySources('target', [], 2));
+  assert.equal(calls, 1);
+});

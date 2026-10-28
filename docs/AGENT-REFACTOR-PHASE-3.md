@@ -52,7 +52,7 @@ await service.setMemorySources(targetConversationId, [sourceConversationId]);
 await service.setMemorySources(targetConversationId, []);
 ```
 
-新增 `service_memory_policies` 表保存列表和递增版本；服务消息、旧 QQ 表和服务模式版本保持兼容。授权重启后继续有效。本期没有新增授权管理界面；使用共享客户端或正式 API 管理。
+新增 `service_memory_policies` 表保存列表和递增版本；服务消息、旧 QQ 表和服务模式版本保持兼容。授权重启后继续有效。三期之后已增加[授权管理界面](AGENT-SOURCE-PERMISSIONS-UI.md)，也可继续通过共享客户端或正式 API 管理。
 
 ### 来源有效性与取消
 

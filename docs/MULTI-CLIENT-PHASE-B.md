@@ -46,6 +46,8 @@ console.log(await service.status());
 
 来源列表只允许同一拥有者的受支持直聊会话，最多 8 项。服务配置必须同时启用记忆才会召回，完整规则见[三期记录](AGENT-REFACTOR-PHASE-3.md)。
 
+来源更新可携带 expectedRevision 非负整数；版本在事务内比较，不匹配返回 409 memory_policy_conflict，非法版本返回 400。工作台管理界面携带读取到的版本，不自动覆盖其他设备的修改。旧调用不提供此字段时仍保持原整体替换行为，见[界面记录](AGENT-SOURCE-PERMISSIONS-UI.md)。
+
 错误为 `{error: {code}}`，不公开模型密钥、上游响应或数据库细节。模型关闭时仍可接受任务，但执行会失败为 model_not_configured。兼容字段 qq 固定为 disabled；configured 只表示模型配置启用，不表示已探测上游可用性。
 
 ## 执行与恢复

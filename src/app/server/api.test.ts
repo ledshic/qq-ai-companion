@@ -412,3 +412,18 @@ test('memory source grants require owner administration and cannot forge identit
     assert.equal((await f.api.inject({ url: `/api/v1/conversations/${foreign.id}/memory-sources`, headers })).statusCode, 404);
   } finally { await f.close(); }
 });
+test('source policy revision conflicts cannot overwrite concurrent grants or revoke a newer list', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('owner', 'Target'), b = f.store.createConversation('owner', 'Source B'), c = f.store.createConversation('owner', 'Source C');
+    const url = `/api/v1/conversations/${a.id}/memory-sources`;
+    const post = (sourceConversationIds: string[], expectedRevision: unknown) => f.api.inject({ method: 'POST', url, headers, payload: { sourceConversationIds, expectedRevision } });
+    assert.equal((await post([b.id], 0)).statusCode, 200);
+    assert.equal((await post([c.id], 0)).statusCode, 409);
+    assert.equal((await post([], 0)).json().error.code, 'memory_policy_conflict');
+    assert.deepEqual((await f.api.inject({ url, headers })).json(), { sourceConversationIds: [b.id], revision: 1 });
+    for (const revision of [-1, 1.5, '1', null]) assert.equal((await post([], revision)).statusCode, 400);
+    assert.equal((await post([], 1)).statusCode, 200);
+    assert.deepEqual((await f.api.inject({ url, headers })).json(), { sourceConversationIds: [], revision: 2 });
+  } finally { await f.close(); }
+});

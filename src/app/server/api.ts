@@ -237,9 +237,11 @@ export function createServiceAPI(options: {
   );
   app.post('/api/v1/conversations/:id/memory-sources', async (request) => {
     const principal = admin(request);
-    const body = object(request.body, ['sourceConversationIds']);
+    const body = object(request.body, ['sourceConversationIds', 'expectedRevision']);
     if (!Array.isArray(body.sourceConversationIds)) throw new APIError(400, 'invalid_memory_sources');
-    return new ServiceMemory(store).setSources(principal.ownerId, routeId(request), body.sourceConversationIds as string[]);
+    if (body.expectedRevision !== undefined && (typeof body.expectedRevision !== 'number' || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0))
+      throw new APIError(400, 'invalid_memory_revision');
+    return new ServiceMemory(store).setSources(principal.ownerId, routeId(request), body.sourceConversationIds as string[], body.expectedRevision as number | undefined);
   });
   app.get('/api/v1/conversations/:id/messages', async (request) => {
     const q = query(request, ['after', 'limit']);

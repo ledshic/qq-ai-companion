@@ -20,11 +20,15 @@ export class ServiceMemory implements MemoryReader {
     if (!Array.isArray(ids) || ids.length > 8 || ids.some(id => typeof id !== 'string' || !id)) throw Error('Invalid stored memory policy');
     return { sourceConversationIds: ids as string[], revision: Number(row?.revision ?? 0) };
   }
-  setSources(ownerId: string, conversationId: string, ids: string[]) {
+  setSources(ownerId: string, conversationId: string, ids: string[], expectedRevision?: number) {
+    if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0))
+      throw new APIError(400, 'invalid_memory_revision');
     if (!Array.isArray(ids) || ids.length > 8 || ids.some(id => typeof id !== 'string' || !id.trim() || id.length > 80 || id === conversationId) || new Set(ids).size !== ids.length)
       throw new APIError(400, 'invalid_memory_sources');
     return this.store.transaction(() => {
       const previous = this.policy(ownerId, conversationId);
+      if (expectedRevision !== undefined && previous.revision !== expectedRevision)
+        throw new APIError(409, 'memory_policy_conflict');
       for (const id of ids) this.conversation(ownerId, id);
       this.store.exec('INSERT INTO service_memory_policies(conversation_id,sources,revision) VALUES(?,?,?) ON CONFLICT(conversation_id) DO UPDATE SET sources=excluded.sources,revision=excluded.revision', conversationId, JSON.stringify(ids), previous.revision + 1);
       return this.policy(ownerId, conversationId);
