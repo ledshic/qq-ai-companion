@@ -1,0 +1,69 @@
+README.md
+  s_0e006fc6de5952::t_f393b957fab6a8 1,3,5,7,9,12-13,16,18,21,24,26,28-36,38,40,42-46,48,50,52,56,58-60,63,65
+src/tools/agent-tools.test.ts
+  s_0e006fc6de5952::t_ba33c0e6067c30 1-30
+src/app/instance.test.ts
+  s_0e006fc6de5952::t_4fdfce110cb33d 21-22,26,32,34,48,50,53,60,64
+legacy/qq/.env.example
+  s_0e006fc6de5952::t_4fdfce110cb33d 1-96
+src/runtime/service/memory.test.ts
+  s_0e006fc6de5952::t_cf26b6d9c6a935 8,59,73
+legacy/qq/src/tools/search.test.ts
+  s_0e006fc6de5952::t_4fdfce110cb33d 1-80
+tsconfig.json
+  s_0e006fc6de5952::t_4fdfce110cb33d 6-11,16-22
+legacy/qq/package.original.json
+  s_0e006fc6de5952::t_4fdfce110cb33d 1-47
+docs/README.md
+  s_0e006fc6de5952::t_f393b957fab6a8 3,5-12,14,16,18
+package.json
+  s_0e006fc6de5952::t_4fdfce110cb33d 5,12,25-28,37
+legacy/qq/README.md
+  s_0e006fc6de5952::t_f393b957fab6a8 1-18
+src/tools/search.ts
+  s_0e006fc6de5952::t_4fdfce110cb33d 8
+docs/AGENT-REFACTOR-PHASE-4.md
+  s_0e006fc6de5952::t_f358c69c451a91 1-40
+  s_0e006fc6de5952::t_1398331f3f3062 41-43
+  s_0e006fc6de5952::t_626c56d4d43c83 44
+src/runtime/lock.test.ts
+  s_0e006fc6de5952::t_ba33c0e6067c30 49,52
+legacy/qq/ARCHIVE-MANIFEST.json
+  s_0e006fc6de5952::t_4fdfce110cb33d 1-146
+src/testing/legacy-storage.ts
+  s_0e006fc6de5952::t_cf26b6d9c6a935 1-17
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_f358c69c451a91 1,3,7,9,11,13-14,19,21,23,25,29-49,53,55,57,59,61,63,65,67,69,71
+src/architecture.test.ts
+  s_0e006fc6de5952::t_ba33c0e6067c30 1-44
+legacy/qq/README.original.md
+  s_0e006fc6de5952::t_4fdfce110cb33d 1-475
+src/runtime/lock.ts
+  s_0e006fc6de5952::t_ba33c0e6067c30 29-30,39,61,129,162-163
+src/runtime/service/host.test.ts
+  s_0e006fc6de5952::t_cf26b6d9c6a935 8,19,69
+src/app/instance.ts
+  s_0e006fc6de5952::t_4fdfce110cb33d 12-13,36,38,61
+src/channels/console/generator.ts
+  s_0e006fc6de5952::t_4fdfce110cb33d 7,22
+.env.example
+  s_0e006fc6de5952::t_f393b957fab6a8 1,3,6,10,12,17-20
+docs/PERSONAL-AGENT-ARCHITECTURE.md
+  s_0e006fc6de5952::t_f393b957fab6a8 3,5,9-14,17,19-30,32,34,36,38,40,42,44,46,48,50,52,54,56,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "009c7f79a8dc4835a4ef974b75868ec17d53b636",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
