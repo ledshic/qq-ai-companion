@@ -1,0 +1,41 @@
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_02561237b5ff26 1-42
+  s_0e006fc6de5952::t_ef6ff74aa96b57 43-46
+README.md
+  s_0e006fc6de5952::t_4c01688768678b 3,52-66
+  s_0e006fc6de5952::t_fc372384ebafcf 67
+src/app/cli.ts
+  s_0e006fc6de5952::t_5149223e2f02cc 1-17,19-106
+  s_0e006fc6de5952::t_02561237b5ff26 18
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_ef6ff74aa96b57 27
+  s_0e006fc6de5952::t_30518eedd72248 25-26,29,46,48
+  s_0e006fc6de5952::t_4c01688768678b 61-63
+src/app/cli.test.ts
+  s_0e006fc6de5952::t_49eba1ed3c6f6b 1-117
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_02561237b5ff26 3
+package.json
+  s_0e006fc6de5952::t_6f44e964546ae2 29
+  s_0e006fc6de5952::t_5149223e2f02cc 28
+docs/README.md
+  s_0e006fc6de5952::t_4c01688768678b 13
+docs/PERSONAL-AGENT-ARCHITECTURE.md
+  s_0e006fc6de5952::t_02561237b5ff26 5,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9ca70f6b78d345e24436ec3db85762a1c735778",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
