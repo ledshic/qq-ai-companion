@@ -1,51 +1,18 @@
 # 文档索引
 
-先看现行说明，再按任务打开一篇实施记录。标成历史草案的文章保留取舍，不能当作当前协议去改代码。代码与文档不一致时，以代码为准。
+当前文档面向常驻个人 Agent。旧 QQ 群聊、人格、事件、识图和表情说明已归档，不能作为活动服务的能力承诺。
 
-## 现行说明
+| 文档 | 用途 |
+| --- | --- |
+| [重构交接与后续计划](AGENT-REFACTOR-HANDOFF.md) | 当前阶段、提交、验证和后续迭代边界 |
+| [个人 Agent 架构](PERSONAL-AGENT-ARCHITECTURE.md) | 职责、依赖方向、任务和数据边界 |
+| [正式 API 与常驻服务](MULTI-CLIENT-PHASE-B.md) | 启动、认证、接口和恢复 |
+| [二期执行核心记录](AGENT-REFACTOR-PHASE-2.md) | 模型与工具契约、预算和取消；供应商文件在四期移到 infrastructure |
+| [三期身份、记忆与人格记录](AGENT-REFACTOR-PHASE-3.md) | 元数据、来源召回、授权和表达开关 |
+| [四期归档记录](AGENT-REFACTOR-PHASE-4.md) | 归档范围、兼容策略、恢复方式和验证 |
 
-| 文档 | 用它回答 |
-|---|---|
-| [Agent 重构交接与后续计划](AGENT-REFACTOR-HANDOFF.md) | 后续 Codex 优先阅读：当前提交、验证记录、归档边界与后续迭代 |
-| [执行核心实施记录](AGENT-REFACTOR-PHASE-2.md) | 通用模型与工具契约、预算和取消 |
-| [身份、记忆与人格实施记录](AGENT-REFACTOR-PHASE-3.md) | 明确身份、来源召回、跨会话授权和人格开关 |
-| [多客户端阶段 B](MULTI-CLIENT-PHASE-B.md) | 常驻宿主、正式 API、认证、执行记录和事件恢复；后续接 CLI、Web |
-| [个人 Agent 架构](PERSONAL-AGENT-ARCHITECTURE.md) | 运行时如何装配，QQ 如何只做渠道，`chatId` 与旧库字段如何兼容 |
-| [参考文本驱动的通用事件模型](EVENT-REFERENCE-MODEL.md) | 事件协议。主题在 `config/event-memory/references/`，代码不按主题词分支，观察不发送 |
-| [短期目标大纲](SHORT-TERM-PLAN.md) | 阶段 A–E 的交付和验收。完成情况在文首和第 6 节 |
-| [README](../README.md) | 安装、一个实例的启动停止、配置项和离线检查命令 |
+## 历史资料
 
-## 后续设计
+[客户端阶段 A](MULTI-CLIENT-PHASE-A.md)记录模拟连接和原生端构建；[多客户端原始设计](MULTI-CLIENT-DESIGN.md)保留当时的方向。当前 Web 默认使用正式 API，桌面与移动端暂停迭代。
 
-| 文档 | 状态与用途 |
-|---|---|
-| [Web、CLI 与桌面手机客户端设计](MULTI-CLIENT-DESIGN.md) | 阶段 B 已实现服务与协议首版；后续接 CLI、Web，App 迭代暂停 |
-
-## 实施记录
-
-这些文章记录已经落地的行为边界和当天验证，不代替上面的现行说明。
-
-| 文档 | 记录的内容 |
-|---|---|
-| [多客户端阶段 A](MULTI-CLIENT-PHASE-A.md) | Web、Tauri、模拟 API 与各平台实际验证结果 |
-| [A–C 实施记录](AC-IMPLEMENTATION.md) | 统一群上下文、接续与插话分开、发送前复查 |
-| [联网搜索](SEARCH-IMPLEMENTATION.md) | 明确呼叫和连续对话中的搜索 |
-| [单图理解](VISION-IMPLEMENTATION.md) | 明确请求的一张图片 |
-| [表情包](MEMES-IMPLEMENTATION.md) | 分类选图，每条至多一张 |
-| [模块化人格首版](PERSONALITY-IMPLEMENTATION.md) | 语境观察和只读表达计划；代码默认仍是 legacy |
-| [群聊玩笑与认真回应](SOCIAL-BEHAVIOR.md) | 角色卡里事实回答和玩笑表演的分工 |
-| [事件记忆观察](EVENT-MEMORY-OBSERVE.md) | 采集、保存、更正；不主动发送 |
-| [长期事件聊天召回](EVENT-MEMORY-RECALL.md) | 明确呼叫或接续时读取本群本人的事件 |
-| [主动决策观察](EVENT-INITIATIVE-OBSERVE.md) | 到期关注事项只生成本地草稿 |
-
-## 对照材料
-
-[QQ 群友机器人设计说明](QQBOT-DESIGN.md) 采集于 2026-10-23。产品原则可以继续用。其中“现状”“当前”和参数是当天快照，不是现在的默认配置。
-
-## 历史草案
-
-| 文档 | 不要照着做的部分 |
-|---|---|
-| [事件记忆、关注事项与主动决策设计](EVENT-MEMORY-PROACTIVITY-DESIGN.md) | 休假专用结构、`VacationEvent`、`resumeOn`，以及主动发送。现行协议是通用事件模型 |
-| [模块化人格变更设计](PERSONALITY-DESIGN.md) | 初版方案。无状态首版以人格实施记录为准 |
-| [人格运行时与决策引擎升级评估](PERSONALITY-RUNTIME-EVOLUTION.md) | 阶段 1 以后的升级。阶段 1 已有实施记录，其余尚未实施 |
+旧 QQ 资料和源码见[归档说明](../legacy/qq/README.md)。归档入口、配置和依赖不属于当前运行命令。

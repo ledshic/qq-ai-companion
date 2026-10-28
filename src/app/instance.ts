@@ -9,8 +9,8 @@ import {
   requestInstanceStop,
 } from '../runtime/lock.js';
 
-// Operator entry for the NapCat process lock. This file does not connect to QQ
-// or a model. Start does not hold the lock; src/app/napcat.ts acquires it.
+// Operator entry for the Agent process lock. Status/stop do not call a model.
+// Start does not hold the lock; service.ts acquires it.
 const lockPath = instanceLockPath(process.env.MEMORY_DB || 'data/memory.db');
 const command = process.argv[2];
 
@@ -33,9 +33,9 @@ if (command === 'status') {
   }
   if (state.kind !== 'missing') console.log(describeInstanceLock(state));
   // A direct Node child receives shutdown signals itself; signaling a pnpm/tsx
-  // launcher can leave its bot descendant alive after the launcher has exited.
+  // launcher can leave its service descendant alive after the launcher has exited.
   const child = spawn(process.execPath, ['--import', 'tsx', '--env-file-if-exists=.env',
-    fileURLToPath(new URL('./napcat.ts', import.meta.url))], { stdio: 'inherit' });
+    fileURLToPath(new URL('./service.ts', import.meta.url))], { stdio: 'inherit' });
   let stopping: NodeJS.Signals | undefined;
   const stop = (signal: NodeJS.Signals): void => {
     if (stopping) return;
@@ -58,6 +58,6 @@ if (command === 'status') {
     process.exit(code ?? 1);
   });
 } else {
-  console.error('用法：pnpm bot:status、pnpm bot:stop 或 pnpm bot:start。');
+  console.error('用法：pnpm agent:status、pnpm agent:stop 或 pnpm agent:start。');
   process.exit(1);
 }

@@ -18,20 +18,20 @@ const waitForFile = async (path: string, child: ChildProcess): Promise<void> => 
 };
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-  test(`start forwards ${signal} to the bot and waits for cleanup`, { timeout: 8000 }, async () => {
-    const root = mkdtempSync(join(tmpdir(), 'qq-start-signals-'));
+  test(`start forwards ${signal} to the service and waits for cleanup`, { timeout: 8000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), 'agent-start-signals-'));
     const source = join(root, 'src', 'app'); mkdirSync(source, { recursive: true });
     const runtime = join(root, 'src', 'runtime'); mkdirSync(runtime);
     const lockPath = join(root, 'bot.lock');
-    // Copy the exact CLI under test beside a harmless bot fixture. This tests
+    // Copy the exact CLI under test beside a harmless service fixture. This tests
     // real process signaling without loading .env secrets, QQ or model code.
     copyFileSync(new URL('./instance.ts', import.meta.url), join(source, 'instance.ts'));
     symlinkSync(fileURLToPath(new URL('../runtime/lock.ts', import.meta.url)), join(runtime, 'lock.ts'));
     symlinkSync(fileURLToPath(new URL('../../node_modules', import.meta.url)), join(root, 'node_modules'));
     writeFileSync(join(root, 'package.json'), JSON.stringify({ type: 'module',
-      scripts: { napcat: 'node --import tsx src/app/napcat.ts' },
+      scripts: { 'agent:serve': 'node --import tsx src/app/service.ts' },
     }));
-    writeFileSync(join(source, 'napcat.ts'), `
+    writeFileSync(join(source, 'service.ts'), `
       import { writeFileSync, unlinkSync } from 'node:fs';
       for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => {
         writeFileSync('stopping', signal);
@@ -45,23 +45,23 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     });
     let errors = ''; child.stderr?.on('data', chunk => { errors += String(chunk); });
     const exited = once(child, 'exit');
-    let botPid: number | undefined;
+    let servicePid: number | undefined;
     try {
-      await waitForFile(lockPath, child); botPid = Number(readFileSync(lockPath, 'utf8'));
+      await waitForFile(lockPath, child); servicePid = Number(readFileSync(lockPath, 'utf8'));
       child.kill(signal);
       await waitForFile(join(root, 'stopping'), child);
-      assert.equal(child.exitCode, null, 'wrapper must wait for bot shutdown');
+      assert.equal(child.exitCode, null, 'wrapper must wait for service shutdown');
       assert.equal(child.signalCode, null);
       assert.equal(readFileSync(join(root, 'stopping'), 'utf8'), signal);
       const [code, endedBy] = await exited;
       assert.equal(code, 0, errors); assert.equal(endedBy, null);
       assert.equal(existsSync(lockPath), false);
       assert.equal(readFileSync(join(root, 'stopped'), 'utf8'), signal);
-      assert.throws(() => process.kill(botPid!, 0), /ESRCH/);
+      assert.throws(() => process.kill(servicePid!, 0), /ESRCH/);
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       await exited;
-      if (botPid) { try { process.kill(botPid, 'SIGKILL'); } catch { /* already exited */ } }
+      if (servicePid) { try { process.kill(servicePid, 'SIGKILL'); } catch { /* already exited */ } }
       rmSync(root, { recursive: true, force: true });
     }
   });

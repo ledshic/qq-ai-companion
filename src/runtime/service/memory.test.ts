@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { ServiceStore } from './store.js';
 import { ServiceMemory } from './memory.js';
-import { SqliteSessionStore } from '../../memory/store.js';
+import { writeLegacySession, readLegacySession } from '../../testing/legacy-storage.js';
 function completed(store: ServiceStore, owner: string, conversation: string, id: string, text: string) {
   const accepted = store.accept(owner, conversation, id, text);
   store.start(owner, accepted.runId); store.finish(owner, accepted.runId, 'assistant invented secret', null, 'private reasoning');
@@ -56,7 +56,7 @@ test('explicit grants are directional, revocable and invalidated by source chang
 });
 test('additive policy storage survives restart without importing or changing legacy QQ data', async () => {
   const root = mkdtempSync(join(tmpdir(), 'agent-phase3-')); const path = join(root, 'memory.db');
-  const legacy = new SqliteSessionStore(path); legacy.save('legacy', 'private:123', '123', [{ role: 'user', content: '考试 QQ 私密资料' }], Date.now()); legacy.close();
+  writeLegacySession(path, 'legacy', '考试 QQ 私密资料');
   let store = new ServiceStore(path);
   try {
     let memory = new ServiceMemory(store);
@@ -70,6 +70,6 @@ test('additive policy storage survives restart without importing or changing leg
     // Recall's short deadline must not expire the returned source guard.
     const deadlineResult = await memory.recall({ scope: memory.scope('owner-with-letters', a.id), text: '考试', history: [] }, AbortSignal.timeout(5));
     await new Promise(resolve => setTimeout(resolve, 10)); assert.equal(deadlineResult.isCurrent(), true);
-    const reader = new SqliteSessionStore(path); assert.equal(reader.load('legacy')?.turns[0]?.content, '考试 QQ 私密资料'); reader.close();
+    assert.equal(JSON.parse(String(readLegacySession(path, 'legacy')?.turns))[0]?.content, '考试 QQ 私密资料');
   } finally { store.close(); rmSync(root, { recursive: true, force: true }); }
 });

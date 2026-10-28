@@ -26,8 +26,8 @@ export interface LockInspectOptions {
   signal?: (pid: number, signal: NodeJS.Signals) => void;
 }
 
-/** Process lock only. WebSocket, QQ online, and the model are separate checks. */
-export const INSTANCE_STATUS_SCOPE = '状态只报告本机进程锁，不检查 WebSocket、QQ 是否在线或模型是否可用。';
+/** Process lock only. HTTP readiness and model availability are separate checks. */
+export const INSTANCE_STATUS_SCOPE = '状态只报告本机进程锁，不检查 HTTP 是否就绪或模型是否可用。';
 
 export const instanceDataDir = (memoryPath: string): string =>
   memoryPath === ':memory:' ? 'data' : dirname(memoryPath);
@@ -36,7 +36,7 @@ export const instanceLockPath = (memoryPath = 'data/memory.db'): string =>
   join(instanceDataDir(memoryPath), 'bot.lock');
 
 const runningMessage = (pid: number, started: string): string =>
-  `另一个实例正在运行（pid ${pid}，启动于 ${started}）。先停止它，避免重复回复。`;
+  `另一个实例正在运行（pid ${pid}，启动于 ${started}）。先停止它，避免重复占用数据目录。`;
 
 const readLockFile = (path: string): { kind: 'missing' } | { kind: 'unreadable' } | { kind: 'record'; record: LockRecord } => {
   let text: string;
@@ -58,7 +58,7 @@ const readLockFile = (path: string): { kind: 'missing' } | { kind: 'unreadable' 
   }
 };
 
-// pid 1 is init, not this bot. Treating it as alive would block restart and a
+// pid 1 is init, not an Agent host. Treating it as alive would block restart and a
 // stop command must never signal it. The current process is not "another" instance.
 const defaultAlive = (pid: number): boolean => {
   if (!Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return false;
@@ -126,7 +126,7 @@ const stopRefusal = (state: Exclude<InstanceLockState, { kind: 'running' }>): st
   }
 };
 
-// The NapCat process releases the lock while handling SIGTERM. Deleting the
+// The owning host releases the lock while handling SIGTERM. Deleting the
 // file here would let a second start overlap that shutdown.
 export const requestInstanceStop = (path: string, options?: LockInspectOptions): StopOutcome => {
   const state = readInstanceLock(path, options);
@@ -159,9 +159,8 @@ export const requestInstanceStop = (path: string, options?: LockInspectOptions):
   };
 };
 
-// Two bot processes answering the same QQ account produce duplicate replies, so
-// the NapCat entry point takes an exclusive lock. A lock left by a crashed
-// process is reclaimed on the next start.
+// Each data directory has one owning host. A lock left by a crashed process
+// is reclaimed on the next start.
 export const acquireInstanceLock = (path: string, options?: LockInspectOptions): (() => void) => {
   mkdirSync(dirname(path), { recursive: true });
   for (let attempt = 0; attempt < 2; attempt++) {

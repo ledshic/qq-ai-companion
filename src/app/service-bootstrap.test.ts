@@ -4,7 +4,6 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { bootstrapService } from './service-bootstrap.js';
-import { bootstrapAgent } from './bootstrap.js';
 import { readServiceConfig } from './service-config.js';
 
 test('service ignores legacy configuration and allocates only its ownership lock', () => {
@@ -25,19 +24,6 @@ test('service ignores legacy configuration and allocates only its ownership lock
     const restarted = bootstrapService({ MEMORY_DB: join(root, 'memory.db') });
     restarted.close();
   } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('legacy QQ host and service host share in-process data ownership', () => {
-  const root = mkdtempSync(join(tmpdir(), 'service-ownership-'));
-  const env = { MEMORY_DB: join(root, 'memory.db'), LLM_ENABLED: 'false' };
-  const legacy = bootstrapAgent(env);
-  try {
-    assert.throws(() => bootstrapService(env), /already active/);
-  } finally { legacy.close(); }
-  const service = bootstrapService(env);
-  try {
-    assert.throws(() => bootstrapAgent(env), /already active/);
-  } finally { service.close(); rmSync(root, { recursive: true, force: true }); }
 });
 
 test('service validates its own configuration before acquiring resources', () => {

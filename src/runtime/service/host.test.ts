@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ServiceStore } from './store.js';
 import { RunHost } from './host.js';
-import { SqliteSessionStore } from '../../memory/store.js';
+import { writeLegacySession, readLegacySession } from '../../testing/legacy-storage.js';
 const settle = async (predicate: () => boolean) => {
   for (let i = 0; i < 200; i++) {
     if (predicate()) return;
@@ -16,15 +16,7 @@ const settle = async (predicate: () => boolean) => {
 test('idempotency, completed history and legacy storage stay isolated', async () => {
   const root = mkdtempSync(join(tmpdir(), 'agent-service-')),
     path = join(root, 'memory.db');
-  const legacy = new SqliteSessionStore(path);
-  legacy.save(
-    'private-key',
-    'private:123',
-    '123',
-    [{ role: 'user', content: 'private secret' }],
-    Date.now(),
-  );
-  legacy.close();
+  writeLegacySession(path, 'private-key', 'private secret');
   const store = new ServiceStore(path);
   let calls = 0;
   const histories: unknown[] = [];
@@ -74,12 +66,7 @@ test('idempotency, completed history and legacy storage stay isolated', async ()
     const other = store.createConversation('other', 'Other');
     assert.throws(() => store.messages('owner', other.id, 0, 50), /not_found/);
     assert.equal(store.events('other', 0).events.length, 0);
-    const reader = new SqliteSessionStore(path);
-    assert.equal(
-      reader.load('private-key')?.turns[0]?.content,
-      'private secret',
-    );
-    reader.close();
+    assert.equal(JSON.parse(String(readLegacySession(path, 'private-key')?.turns))[0]?.content, 'private secret');
   } finally {
     host.stop();
     store.close();

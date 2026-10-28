@@ -5,7 +5,7 @@ export interface SearchSource { title: string; url: string; summary: string; dat
 export type SearchResult = { status: 'ok' | 'empty'; sources: SearchSource[]; retrievedAt: string }
   | { status: 'failed'; reason: string; sources: [] };
 export const searchSpec = { type: 'function', function: {
-  name: 'web_search', description: '搜索公开互联网。用户要求搜索、近期事实或需核实的信息时使用；不要搜索群友个人资料或发送完整群聊。',
+  name: 'web_search', description: '搜索公开互联网。用户要求搜索、近期事实或需核实的信息时使用；不发送用户的私密会话资料。',
   parameters: { type: 'object', properties: { query: { type: 'string', description: '简短公开信息检索词，最多128字符' } }, required: ['query'], additionalProperties: false },
 } };
 const cut = (value: string, limit: number) => Array.from(value).slice(0, limit).join('');

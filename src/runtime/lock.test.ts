@@ -46,10 +46,10 @@ test('status distinguishes a missing lock, a stale pid, a live pid, and an unrea
     const decision = decideInstanceStart(running);
     assert.equal(decision.action, 'refuse');
     if (decision.action === 'refuse') {
-      assert.equal(decision.message, `另一个实例正在运行（pid 2147483646，启动于 ${started}）。先停止它，避免重复回复。`);
+      assert.equal(decision.message, `另一个实例正在运行（pid 2147483646，启动于 ${started}）。先停止它，避免重复占用数据目录。`);
     }
     assert.match(describeInstanceLock(running), /正在运行（pid 2147483646，启动于 2026-10-26T09:00:00.000Z）/);
-    assert.match(INSTANCE_STATUS_SCOPE, /不检查 WebSocket、QQ 是否在线或模型是否可用/);
+    assert.match(INSTANCE_STATUS_SCOPE, /不检查 HTTP 是否就绪或模型是否可用/);
 
     writeFileSync(path, '{');
     const unreadable = readInstanceLock(path);

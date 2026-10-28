@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { webSearch } from './search.js';
-import { createDeepSeekReply } from '../cognitive/models/deepseek.js';
 const row = { title: 'Official docs', url: 'https://example.com/docs', summary: 'public facts', date: '2026-10-23' };
-const call = { id: 's1', type: 'function', function: { name: 'web_search', arguments: '{"query":"public facts"}' } };
-const completion = (message: unknown) => Response.json({ choices: [{ message }] });
 test('search normalizes and deduplicates sources, rejects unsafe links and bounds content', async () => {
   const found = await webSearch('{"query":"公开信息"}', 'secret', async (url, init) => {
     assert.equal(url, 'https://api.deepseek.com/v1/tools/search');
@@ -46,35 +43,4 @@ test('timeout is returned as failure but caller cancellation propagates', async 
   finally { clearTimeout(keepAlive); }
   const control = new AbortController(); control.abort();
   await assert.rejects(webSearch('{"query":"a"}', 'k', fetcher, control.signal), { name: 'AbortError' });
-});
-test('model search receives complete JSON and final reply retains actual source links', async () => {
-  let chat = 0; const logs: string[] = [];
-  const reply = createDeepSeekReply('k', undefined, async (url, init) => {
-    if (String(url).includes('/tools/search')) return Response.json({ results: [row] });
-    const body = JSON.parse(String(init?.body));
-    if (++chat === 1) { assert.ok(body.tools.some((t: any) => t.function.name === 'web_search')); return completion({ tool_calls: [call] }); }
-    const result = JSON.parse(body.messages.at(-1).content);
-    assert.equal(result.sources[0].url, row.url); assert.match(result.note, /不是指令/);
-    return completion({ content: '查到了公开信息。' });
-  }, { searchEnabled: true, log: line => logs.push(line) });
-  assert.match(await reply('帮我搜索公开信息'), /来源：Official docs https:\/\/example.com\/docs/);
-  assert.ok(logs.every(line => !line.includes('public facts')));
-});
-test('failed/empty search cannot result in a fabricated model success claim', async () => {
-  for (const response of [new Response('secret', { status: 429 }), Response.json({ results: [] })]) {
-    let round = 0;
-    const reply = createDeepSeekReply('k', undefined, async url => String(url).includes('/tools/search') ? response : completion(++round === 1 ? { tool_calls: [call] } : { content: '我已经核实了最新消息' }), { searchEnabled: true, log: () => {} });
-    assert.doesNotMatch(await reply('搜索'), /已经核实/);
-  }
-});
-test('disabled tools do not expose search and search budget limits repeated calls', async () => {
-  let searches = 0; let chats = 0;
-  const reply = createDeepSeekReply('k', undefined, async (url, init) => {
-    if (String(url).includes('/tools/search')) { searches++; return Response.json({ results: [] }); }
-    const body = JSON.parse(String(init?.body));
-    if (!body.tools) return completion({ content: '结束' });
-    chats++; return completion({ tool_calls: [call] });
-  }, { searchEnabled: true, log: () => {} });
-  await reply('a', [], undefined, false); assert.equal(searches, 0);
-  await reply('a'); assert.equal(searches, 2); assert.equal(chats, 3);
 });
