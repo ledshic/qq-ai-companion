@@ -522,3 +522,23 @@ test('task summaries paginate by creation, isolate owners and never expose promp
     f.store.revoke('owner', 'list-device'); assert.equal((await get('', device)).statusCode, 401);
   } finally { await f.close(); }
 });
+test('conversation task filtering checks ownership, scoped cursors, empty owned conversations and pagination', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('owner', 'A'), b = f.store.createConversation('owner', 'B');
+    const empty = f.store.createConversation('owner', 'Empty'), foreign = f.store.createConversation('other', 'Private');
+    const add = (id: string, key: string, completed = true) => { const run = f.store.accept('owner', id, key, 'secret body'); if (completed) { f.store.start('owner', run.runId); f.store.finish('owner', run.runId, 'secret answer', null); } return run.runId; };
+    const a1 = add(a.id, 'a1'), other = add(b.id, 'b', false), a2 = add(a.id, 'a2');
+    const get = (suffix: string) => f.api.inject({ url: '/api/v1/runs?' + suffix, headers });
+    const first = (await get('conversationId=' + a.id + '&limit=1')).json(); assert.deepEqual(first.runs.map((r: any) => r.id), [a2]);
+    add(a.id, 'a3'); const next = (await get('conversationId=' + a.id + '&limit=1&before=' + first.nextCursor)).json();
+    assert.deepEqual(next.runs.map((r: any) => r.id), [a1]); assert.equal(next.nextCursor, null);
+    assert.deepEqual((await get('conversationId=' + a.id + '&status=active')).json(), { runs: [], nextCursor: null });
+    assert.deepEqual((await get('conversationId=' + b.id + '&status=active')).json().runs.map((r: any) => r.id), [other]);
+    assert.deepEqual((await get('conversationId=' + empty.id)).json(), { runs: [], nextCursor: null });
+    for (const query of ['conversationId=' + foreign.id, 'conversationId=missing', 'conversationId=' + a.id + '&before=' + other]) assert.equal((await get(query)).statusCode, 404);
+    for (const query of ['conversationId=', 'conversationId=' + a.id + '&conversationId=' + b.id]) assert.equal((await get(query)).statusCode, 400);
+    assert.equal((await f.api.inject('/api/v1/runs?conversationId=' + a.id)).statusCode, 401);
+    assert.equal((await f.api.inject({ url: '/api/v1/runs?conversationId=' + a.id, headers: { ...headers, origin: 'https://evil.example' } })).statusCode, 403);
+  } finally { await f.close(); }
+});

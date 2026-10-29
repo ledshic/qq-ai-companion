@@ -36,7 +36,7 @@ export interface Run {
 }
 export type RunSummary = Pick<Run, 'id' | 'conversationId' | 'state' | 'error' | 'createdAt' | 'updatedAt'> & { conversationTitle: string };
 export interface RunPage { runs: RunSummary[]; nextCursor: string | null }
-export interface RunListOptions { status?: 'active' | 'all'; before?: string; limit?: number }
+export interface RunListOptions { status?: 'active' | 'all'; before?: string; limit?: number; conversationId?: string }
 export function parseRunPage(value: unknown): RunPage {
   if (!isRecord(value) || !Array.isArray(value.runs) || value.runs.length > 200 ||
     !(value.nextCursor === null || isString(value.nextCursor))) throw Error('Invalid run page');

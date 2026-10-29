@@ -13,6 +13,7 @@
 | [CLI 实施记录](AGENT-CLI.md) | 交互式聊天、单次命令、凭据、重试和任务观察 |
 | [CLI 多行编辑](AGENT-CLI-EDITOR.md) | 多行按键、粘贴、草稿刷新、管道输入及真实终端验证 |
 | [CLI 任务列表与恢复](AGENT-CLI-TASKS.md) | 按拥有者分页查询、编号选择、状态复核及来源检查 |
+| [任务会话筛选与单次命令](AGENT-CLI-TASK-FILTERS.md) | 当前或指定会话筛选、单页 JSON、会话内游标与参数校验 |
 | [真实流式输出](AGENT-STREAMING.md) | 模型增量、任务快照、SDK、Web 与 CLI，及认证、取消、来源检查 |
 | [来源授权管理界面](AGENT-SOURCE-PERMISSIONS-UI.md) | 会话来源选择、撤销、设备权限和版本冲突 |
 

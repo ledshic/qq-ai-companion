@@ -74,6 +74,8 @@ pnpm agent:cli cancel <runId>
 
 退出后可用 `/tasks` 找回未完成任务，`/resume #序号` 恢复观察；`/tasks all` 查看全部状态，`/tasks more` 翻页。完整标识入口继续可用，终态不会重新执行；详见[任务列表与恢复](docs/AGENT-CLI-TASKS.md)。
 
+任务列表支持 `--here` 限定当前会话，或 `--conversation` 指定本人会话。单次 `pnpm agent:cli tasks` 输出一页 JSON，可配合状态、会话、游标和页长选项；完整用法见[任务会话筛选与单次命令](docs/AGENT-CLI-TASK-FILTERS.md)。
+
 ## 验证与文档
 
 ```sh

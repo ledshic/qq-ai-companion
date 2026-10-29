@@ -6,12 +6,14 @@ import { createServiceClient } from '../../packages/client/src/service.js';
 import { APIError } from '@companion/contracts/service';
 import type { Readable, Writable } from 'node:stream';
 import { runInteractiveChat } from './interactive-cli.js';
+import { parseTaskArguments } from './task-arguments.js';
 import { instanceDataDir } from '../runtime/lock.js';
 
 const help = `Usage: pnpm agent:cli <command>
   chat [conversationId]
   status
   conversations
+  tasks [active|all] [--conversation <conversationId>] [--before <runId>] [--limit <1..200>]
   new <title>
   send <conversationId> <content> [clientMessageId]
   run <runId>
@@ -24,7 +26,7 @@ Environment: AGENT_URL, AGENT_CREDENTIAL_FILE, MEMORY_DB
 Credentials are read from a local file, never from command arguments.
 Ctrl+C stops observation; use cancel to stop a remote run.`;
 const arity: Record<string, [number, number]> = {
-  chat: [0, 1], status: [0, 0], conversations: [0, 0], new: [1, 1], send: [2, 3], run: [1, 1], cancel: [1, 1],
+  chat: [0, 1], status: [0, 0], conversations: [0, 0], tasks: [0, 7], new: [1, 1], send: [2, 3], run: [1, 1], cancel: [1, 1],
   watch: [0, 1], sources: [1, 1], 'grant-sources': [2, 9], 'clear-sources': [1, 1],
 };
 interface CLIOptions {
@@ -45,6 +47,9 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     command === 'watch' && args[0] !== undefined && (!/^\d+$/.test(args[0]) || !Number.isSafeInteger(Number(args[0])))) {
     error('invalid_arguments\n' + help); return 2;
   }
+  let taskArgs: ReturnType<typeof parseTaskArguments> | undefined;
+  try { if (command === 'tasks') taskArgs = parseTaskArguments(args, false); }
+  catch { error('invalid_arguments\n' + help); return 2; }
   const env = options.env ?? process.env;
   const lifetime = new AbortController();
   const signal = options.signal ? AbortSignal.any([options.signal, lifetime.signal]) : lifetime.signal;
@@ -67,6 +72,7 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     switch (command) {
       case 'chat': return await runInteractiveChat({ client, signal, input: options.input ?? process.stdin, output: options.terminalOutput ?? process.stdout, out, error, conversationId: args[0] });
       case 'status': print(await client.status()); break;
+      case 'tasks': print(await client.runs(taskArgs!.query)); break;
       case 'conversations': {
         let after = '';
         for (;;) {

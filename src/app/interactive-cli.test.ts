@@ -382,7 +382,7 @@ for (const revoke of ['before', 'during']) test(`numbered recovery checks real s
     }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } }), undefined, { memory });
     const accepted = f.host.submit('text-owner', target.id, 'earlier', '考试安排'); await settle(() => !!f.host.output('text-owner', accepted.runId).text);
     const s = f.connect(); let output = ''; s.output.on('data', chunk => { output += String(chunk); }); await settle(() => s.text().includes('已连接'));
-    s.line('/tasks'); await settle(() => s.text().includes('#1  运行中'));
+    s.line('/tasks --conversation ' + target.id); await settle(() => s.text().includes('#1  运行中'));
     if (revoke === 'before') memory.setSources('text-owner', target.id, []);
     s.line('/resume #1');
     if (revoke === 'during') { await settle(() => output.includes('已授权草稿')); memory.setSources('text-owner', target.id, []); }
@@ -404,5 +404,40 @@ test('long task browsing continues past the selection cache limit without reassi
     s.line('/resume #1'); await settle(() => s.error().includes('序号不可用'));
     s.line('/resume #205'); await settle(() => s.text().includes('answer-0')); s.line('/tasks more'); await settle(() => s.text().includes('列表末尾'));
     s.line('/exit'); assert.equal(await s.result, 0); assert(!f.calls.some(call => call.method === 'POST'));
+  } finally { await f.close(); }
+});
+test('conversation task pages retain their scope after switching conversation and reset numbers on a new filter', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('text-owner', 'Scope A'), b = f.store.createConversation('text-owner', 'Scope B');
+    for (let i = 0; i < 23; i++) { const run = f.store.accept('text-owner', a.id, 'a-' + i, 'question'); f.store.start('text-owner', run.runId); f.store.finish('text-owner', run.runId, 'scope-a-answer-' + i, null); }
+    const rb = f.store.accept('text-owner', b.id, 'b', 'question'); f.store.start('text-owner', rb.runId); f.store.finish('text-owner', rb.runId, 'scope-b-answer', null);
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks --here'); await settle(() => s.error().includes('尚未选择会话')); assert(!f.calls.some(call => call.path.startsWith('/api/v1/runs?')));
+    s.line('/tasks all --conversation ' + a.id); await settle(() => s.text().includes('#20 ')); assert(!s.text().includes('Scope B'));
+    s.line('/use ' + b.id); await settle(() => s.text().includes('历史：Scope B'));
+    s.line('/tasks more'); await settle(() => s.text().includes('#23 '));
+    const request = f.calls.filter(call => call.path.startsWith('/api/v1/runs?')).at(-1)!;
+    assert.equal(new URL(request.path, 'http://localhost').searchParams.get('conversationId'), a.id);
+    s.line('/resume #21'); await settle(() => s.text().includes('scope-a-answer-2'));
+    s.line('/tasks all --here'); await settle(() => f.calls.filter(call => call.path.startsWith('/api/v1/runs?')).length === 3);
+    s.line('/tasks all --conversation ' + b.id); await settle(() => s.text().includes('会话 ' + b.id));
+    s.line('/resume #21'); await settle(() => s.error().includes('序号不可用'));
+    s.line('/resume #1'); await settle(() => s.text().split('scope-b-answer').length >= 3);
+    s.line('/exit'); assert.equal(await s.result, 0); assert(!f.calls.some(call => call.method === 'POST'));
+  } finally { await f.close(); }
+});
+test('a denied conversation filter clears old numbered choices and invalid options do not send requests', async () => {
+  const f = fixture();
+  try {
+    const own = f.store.createConversation('text-owner', 'Own'), foreign = f.store.createConversation('other', 'Private');
+    const run = f.store.accept('text-owner', own.id, 'own', 'question'); f.store.start('text-owner', run.runId); f.store.finish('text-owner', run.runId, 'answer', null);
+    const s = f.connect(); await settle(() => s.text().includes('已连接')); s.line('/tasks all'); await settle(() => s.text().includes('#1 '));
+    s.line('/tasks all --conversation ' + foreign.id); await settle(() => s.error().includes('not_found'));
+    s.line('/resume #1'); await settle(() => s.error().includes('序号不可用'));
+    const before = f.calls.length;
+    s.line('/tasks more --here'); s.line('/tasks --here --conversation ' + own.id); s.line('/tasks --limit 1');
+    await settle(() => s.error().split('命令或参数无效').length >= 4); assert.equal(f.calls.length, before);
+    s.line('/exit'); assert.equal(await s.result, 0);
   } finally { await f.close(); }
 });

@@ -266,10 +266,11 @@ export function createServiceAPI(options: {
       );
   });
   app.get('/api/v1/runs', async request => {
-    const q = query(request, ['status', 'before', 'limit']);
+    const q = query(request, ['status', 'before', 'limit', 'conversationId']);
     if (q.status !== undefined && q.status !== 'active' && q.status !== 'all') throw new APIError(400, 'invalid_request');
     return store.runs(authenticate(request).principal.ownerId, q.status === 'active' ? 'active' : 'all',
-      q.before === undefined ? undefined : text(q.before, 80), pageLimit(q.limit));
+      q.before === undefined ? undefined : text(q.before, 80), pageLimit(q.limit),
+      q.conversationId === undefined ? undefined : text(q.conversationId, 80));
   });
   app.get('/api/v1/runs/:id/output', async (request, reply) => {
     query(request, []);

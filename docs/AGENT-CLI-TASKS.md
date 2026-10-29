@@ -50,6 +50,8 @@ interface RunPage {
 
 SDK 使用 `client.runs({ status, before, limit })`；检查状态、日期、任务标识、重复项、摘要字段和游标一致性，拒绝夹带正文的响应。任务恢复仍使用 `client.run(id)` 与 `client.watchRun(id)`；既有 `client.resume()` 继续只用于恢复接收请求。
 
+后续已增加 conversationId 筛选、交互式 `--here` 和单次 tasks 命令，SDK 用法、会话游标约束与最新验证见[会话筛选记录](AGENT-CLI-TASK-FILTERS.md)。本页保留任务列表首次交付记录。
+
 实现直接查询原有任务与会话表，没有数据库迁移或新的持久任务副本。旧生命周期事件不作为列表来源，因此事件保留期不会影响发现任务。
 
 ## 验证与交付
@@ -71,4 +73,4 @@ SDK 使用 `client.runs({ status, before, limit })`；检查状态、日期、�
 node --import tsx src/testing/cli-pty-smoke.ts artifacts/cli-tasks
 ```
 
-文档已检查标题、术语、敏感信息、链接和实现事实。后续可按实际需求增加会话筛选或单次命令入口，继续使用同一列表接口；自动重跑、后台观察和历史导出不在本期范围。
+文档已检查标题、术语、敏感信息、链接和实现事实。会话筛选和单次命令入口已在后续交付，继续使用同一列表接口；自动重跑、后台观察和历史导出仍未实现。

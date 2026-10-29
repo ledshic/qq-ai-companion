@@ -1,0 +1,29 @@
+import type { RunListOptions } from '@companion/contracts/service';
+// Shared CLI grammar; parsing performs no I/O, including credential reads.
+export function parseTaskArguments(args: string[], interactive: boolean): { query: RunListOptions; here: boolean; more: boolean } {
+  if (interactive && args[0] === 'more') {
+    if (args.length !== 1) throw Error('invalid_arguments');
+    return { query: {}, here: false, more: true };
+  }
+  const rest = [...args], query: RunListOptions = { status: 'active' }; let here = false;
+  if (rest[0] === 'all' || rest[0] === 'active') query.status = rest.shift() as 'all' | 'active';
+  const seen = new Set<string>();
+  while (rest.length) {
+    const flag = rest.shift()!;
+    if (seen.has(flag)) throw Error('invalid_arguments');
+    seen.add(flag);
+    if (flag === '--here' && interactive) { if (query.conversationId) throw Error('invalid_arguments'); here = true; continue; }
+    if (flag !== '--conversation' && (interactive || !['--before', '--limit'].includes(flag))) throw Error('invalid_arguments');
+    const value = rest.shift();
+    if (!value || value.startsWith('--')) throw Error('invalid_arguments');
+    if (flag === '--limit') {
+      if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1 || Number(value) > 200) throw Error('invalid_arguments');
+      query.limit = Number(value);
+    } else {
+      if (!/^[\w][\w-]{0,79}$/.test(value)) throw Error('invalid_arguments');
+      if (flag === '--conversation') { if (here) throw Error('invalid_arguments'); query.conversationId = value; }
+      else query.before = value;
+    }
+  }
+  return { query, here, more: false };
+}

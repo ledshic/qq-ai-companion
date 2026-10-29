@@ -104,3 +104,17 @@ test('task SDK encodes bounded queries and validates metadata-only pages and cur
     const invalid = createServiceClient('http://localhost', { request: async () => Response.json(body) }); await assert.rejects(invalid.runs(), /Invalid run/);
   }
 });
+test('task SDK carries conversation filters and rejects a response outside the selected scope', async () => {
+  const run = { id: 'run', conversationId: 'selected', conversationTitle: 'Title', state: 'running', error: null, createdAt: '2026-10-29T00:00:00Z', updatedAt: '2026-10-29T00:00:00Z' };
+  let url = '';
+  const client = createServiceClient('http://localhost', { request: async input => { url = String(input); return Response.json({ runs: [run], nextCursor: null }); } });
+  assert.equal((await client.runs({ conversationId: 'selected', status: 'active', before: 'cursor', limit: 1 })).runs[0]?.id, 'run');
+  const query = new URL(url).searchParams; assert.equal(query.get('conversationId'), 'selected'); assert.equal(query.get('before'), 'cursor');
+  await assert.rejects(client.runs({ conversationId: 'other&ownerId=foreign' }), /conversation mismatch/);
+  assert.equal(new URL(url).searchParams.get('conversationId'), 'other&ownerId=foreign'); assert.equal(new URL(url).searchParams.has('ownerId'), false);
+  let reply!: (response: Response) => void;
+  const deferred = createServiceClient('http://localhost', { request: () => new Promise(resolve => { reply = resolve; }) });
+  const options = { conversationId: 'selected' }, pending = deferred.runs(options);
+  options.conversationId = 'changed-after-request'; reply(Response.json({ runs: [run], nextCursor: null }));
+  assert.equal((await pending).runs[0]?.conversationId, 'selected');
+});

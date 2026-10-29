@@ -1,5 +1,6 @@
 import { createInterface, type Interface } from 'node:readline';
 import { TerminalEditor } from './terminal-editor.js';
+import { parseTaskArguments } from './task-arguments.js';
 import type { Readable, Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { stripVTControlCharacters } from 'node:util';
@@ -16,6 +17,7 @@ Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时
 /help                 查看帮助
 /list                 列出会话
 /tasks [active|all]   列出本人任务（默认未完成）；/tasks more 读取下一页
+  --here             限定当前会话；--conversation <会话标识> 限定指定会话
 /new [标题]           创建并切换到新会话
 /use <会话标识>       切换会话并读取最近消息
 /history              查看当前会话最近 20 条消息（不含推理）
@@ -37,7 +39,7 @@ export async function runInteractiveChat(options: {
   let active: ObservedRun | undefined;
   let uncertain: Attempt | undefined;
   let submitting: Attempt | undefined;
-  let taskList: (RunPage & { status: 'active' | 'all'; offset: number }) | undefined;
+  let taskList: (RunPage & { status: 'active' | 'all'; offset: number; conversationId?: string }) | undefined;
   let closed = false;
   let reader: Interface | undefined;
   let editor: TerminalEditor | undefined;
@@ -88,22 +90,23 @@ export async function runInteractiveChat(options: {
     for (const message of recent) print(`${message.role === 'assistant' ? '助手' : '你'}：${message.content}`);
     if (!recent.length) print('暂无消息。');
   }
-  async function listTasks(mode: 'active' | 'all' | 'more') {
+  async function listTasks(mode: 'active' | 'all' | 'more', requestedConversation?: string) {
     const previous = taskList;
     if (mode === 'more' && !previous) { print('请先 /tasks 或 /tasks all。'); return; }
     if (mode === 'more' && previous!.nextCursor === null) { print('已到任务列表末尾。'); return; }
     const status = mode === 'more' ? previous!.status : mode;
+    const conversationId = mode === 'more' ? previous!.conversationId : requestedConversation;
     taskList = undefined; // Failed reads cannot leave apparently current numbered choices.
-    const page = await client.runs({ status, limit: 20, ...(mode === 'more' ? { before: previous!.nextCursor! } : {}) });
+    const page = await client.runs({ status, limit: 20, ...(conversationId ? { conversationId } : {}), ...(mode === 'more' ? { before: previous!.nextCursor! } : {}) });
     if (closed || signal.aborted) return;
     const earlier = mode === 'more' ? previous!.runs : [];
     const offset = mode === 'more' ? previous!.offset : 0;
     if (page.runs.some(run => earlier.some(item => item.id === run.id))) throw Error('task_page_repeated');
     const combined = [...earlier, ...page.runs], dropped = Math.max(0, combined.length - 200);
-    taskList = { status, offset: offset + dropped, runs: combined.slice(dropped), nextCursor: page.nextCursor };
+    taskList = { status, offset: offset + dropped, runs: combined.slice(dropped), nextCursor: page.nextCursor, conversationId };
     const states = { queued: '排队中', running: '运行中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' };
     const oneLine = (text: string) => Array.from(terminalText(text).replace(/\s+/gu, ' ')).slice(0, 120).join('');
-    print(`任务列表（${status === 'active' ? '未完成' : '全部'}，按创建顺序从新到旧）：`);
+    print(`任务列表（${status === 'active' ? '未完成' : '全部'}，${conversationId ? '会话 ' + conversationId : '本人全部会话'}，按创建顺序从新到旧）：`);
     for (const [index, run] of page.runs.entries()) {
       print(`#${offset + earlier.length + index + 1}  ${states[run.state]}${active?.id === run.id ? ' · 当前观察' : ''}  ${run.id}\n  会话：${oneLine(run.conversationTitle)}（${run.conversationId}）\n  更新：${oneLine(run.updatedAt)}${run.error ? ' · ' + oneLine(run.error) : ''}`);
     }
@@ -202,9 +205,12 @@ export async function runInteractiveChat(options: {
         if (parts.length) break;
         for (const item of await conversations()) print(`${item.id}  ${item.title}`);
         return;
-      case '/tasks':
-        if (parts.length > 1 || parts.length && !['active', 'all', 'more'].includes(arg)) break;
-        await listTasks((arg || 'active') as 'active' | 'all' | 'more'); return;
+      case '/tasks': {
+        let parsed: ReturnType<typeof parseTaskArguments>;
+        try { parsed = parseTaskArguments(parts, true); } catch { break; }
+        if (parsed.here && !current) { taskList = undefined; print('尚未选择会话，请先 /use，或使用 --conversation 指定会话。', true); return; }
+        await listTasks(parsed.more ? 'more' : parsed.query.status!, parsed.here ? current!.id : parsed.query.conversationId); return;
+      }
       case '/new': {
         if (!requireIdle()) return;
         const created = await client.createConversation(arg || 'CLI 对话');

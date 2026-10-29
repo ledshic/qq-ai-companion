@@ -103,6 +103,9 @@ test('CLI process authenticates and Ctrl+C ends SSE observation without cancelli
     assert.equal(JSON.parse(result.stdout).environment, 'service'); assert.doesNotMatch(result.stdout + result.stderr, /fixture-token/);
     const c = f.store.createConversation('cli-owner', 'Watch'); const run = f.host.submit('cli-owner', c.id, 'watch', 'pending');
     await settle(() => !!finish);
+    const tasks = await promisify(execFile)(process.execPath, ['--import', 'tsx', cli, 'tasks', '--conversation', c.id, '--limit', '1'], { env, timeout: 4000 });
+    assert.deepEqual(JSON.parse(tasks.stdout).runs.map((item: any) => item.id), [run.runId]);
+    assert.equal(f.store.run('cli-owner', run.runId).state, 'running'); assert.doesNotMatch(tasks.stdout + tasks.stderr, /fixture-token/);
     child = spawn(process.execPath, ['--import', 'tsx', cli, 'watch'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     const exited = once(child, 'exit'); let stdout = '', stderr = '';
     child.stdout!.on('data', chunk => { stdout += String(chunk); }); child.stderr!.on('data', chunk => { stderr += String(chunk); });
@@ -114,4 +117,36 @@ test('CLI process authenticates and Ctrl+C ends SSE observation without cancelli
     if (child && child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await once(child, 'exit'); }
     await f.close();
   }
+});
+test('single task command returns one metadata page with scoped cursor and never mutates tasks', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('cli-owner', 'A'), b = f.store.createConversation('cli-owner', 'B');
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) { const run = f.store.accept('cli-owner', a.id, 'task-' + i, 'private input'); f.store.start('cli-owner', run.runId); f.store.finish('cli-owner', run.runId, 'private result', null); ids.push(run.runId); }
+    f.store.accept('cli-owner', b.id, 'other', 'other input');
+    const calls: { method: string; url: string }[] = []; const network: typeof fetch = (url, init) => { calls.push({ method: init?.method ?? 'GET', url: String(url) }); return f.request(url, init); };
+    const first = await f.invoke(['tasks', 'all', '--conversation', a.id, '--limit', '1'], network);
+    assert.equal(first.code, 0); assert.equal(first.output.length, 1); assert.equal(first.output[0].runs[0].id, ids[2]); assert.equal(first.output[0].nextCursor, ids[2]);
+    assert(!JSON.stringify(first.output).includes('private'));
+    const next = await f.invoke(['tasks', 'all', '--conversation', a.id, '--before', first.output[0].nextCursor, '--limit', '2'], network);
+    assert.deepEqual(next.output[0].runs.map((run: any) => run.id), [ids[1], ids[0]]); assert.equal(next.output[0].nextCursor, null);
+    const active = await f.invoke(['tasks'], network); assert.equal(active.output[0].runs[0].conversationId, b.id);
+    const empty = await f.invoke(['tasks', '--conversation', a.id], network); assert.deepEqual(empty.output, [{ runs: [], nextCursor: null }]);
+    assert(calls.every(call => call.method === 'GET')); assert.equal(calls.length, 4);
+    const foreign = f.store.createConversation('other', 'Foreign'); assert.equal((await f.invoke(['tasks', '--conversation', foreign.id])).code, 1);
+    assert.equal((await f.invoke(['tasks', 'all', '--conversation', a.id, '--before', f.store.accept('cli-owner', b.id, 'next-other', 'other').runId])).code, 1);
+  } finally { await f.close(); }
+});
+test('task argument errors are rejected before reading credentials or making requests', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-args-')); let requested = false;
+  try {
+    for (const args of [['--here'], ['more'], ['all', 'active'], ['--conversation'], ['--conversation', '--limit', '1'], ['--conversation', 'a', '--conversation', 'b'],
+      ['--limit', '0'], ['--limit', '201'], ['--limit', '1.2'], ['--limit', '1', '--limit', '2'], ['--before'], ['--unknown', 'a'], ['--before', 'a&ownerId=b']]) {
+      const errors: string[] = [];
+      assert.equal(await runCLI(['tasks', ...args], { env: { AGENT_CREDENTIAL_FILE: join(root, 'missing.json') }, request: async () => { requested = true; throw Error(); }, error: text => errors.push(text) }), 2);
+      assert(errors[0]?.startsWith('invalid_arguments')); assert(!errors.join('').includes('credential_unavailable'));
+    }
+    assert.equal(requested, false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
