@@ -1,4 +1,5 @@
-import { createInterface, clearLine, cursorTo, type Interface } from 'node:readline';
+import { createInterface, type Interface } from 'node:readline';
+import { TerminalEditor } from './terminal-editor.js';
 import type { Readable, Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { stripVTControlCharacters } from 'node:util';
@@ -9,6 +10,9 @@ type Client = ReturnType<typeof createServiceClient>;
 interface Attempt { conversationId: string; content: string; clientMessageId: string }
 interface ObservedRun { id: string; conversation: Conversation; controller: AbortController; preview: string }
 const instructions = `普通输入发送消息；每次等待一个任务。// 开头可发送以 / 开头的正文。
+终端：Enter 发送，Ctrl+J / Alt+Enter 换行；方向键移动，Home/End 行首尾，Ctrl+G 清空输入。
+Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时退出。
+粘贴多行后等待 Enter 确认；管道：/edit 开始多行，/send 发送，/discard 丢弃。
 /help                 查看帮助
 /list                 列出会话
 /new [标题]           创建并切换到新会话
@@ -34,13 +38,14 @@ export async function runInteractiveChat(options: {
   let submitting: Attempt | undefined;
   let closed = false;
   let reader: Interface | undefined;
+  let editor: TerminalEditor | undefined;
+  let multiline: string[] | undefined, multilineOverflow = false, queuedMessages = 0;
   let commands = Promise.resolve();
   const tty = !!(options.input as Readable & { isTTY?: boolean }).isTTY && !!(options.output as Writable & { isTTY?: boolean }).isTTY;
   function print(text: string, error = false) {
     if (closed) return;
-    if (reader && tty) { clearLine(options.output, 0); cursorTo(options.output, 0); }
-    (error ? options.error : options.out)(terminalText(text));
-    if (reader && tty) reader.prompt(true);
+    const write = () => (error ? options.error : options.out)(terminalText(text));
+    if (editor) editor.message(write); else write();
   }
   function requireIdle() {
     if (active) { print(`任务 ${active.id} 尚未结束，请等待、/resume ${active.id} 或 /cancel。`, true); return false; }
@@ -84,6 +89,7 @@ export async function runInteractiveChat(options: {
   function finish(task: ObservedRun, run: Run) {
     if (closed || active !== task) return;
     active = undefined; task.controller.abort();
+    editor?.setDraft('');
     if (task.preview && run.state !== 'completed') print('\n草稿已清除，未作为回答保存。');
     task.preview = '';
     if (run.state === 'completed' && run.result?.trim()) print(`助手（${task.conversation.title}）：\n${run.result}`);
@@ -105,22 +111,20 @@ export async function runInteractiveChat(options: {
           const safe = terminalText(snapshot.text);
           if (safe !== task.preview) {
             const change = safe.startsWith(task.preview) ? safe.slice(task.preview.length) : '\n[草稿已替换或清除]\n' + safe;
-            if (reader && tty) {
-              // Keep readline's input and prompt intact without erasing prior tokens.
-              if (!task.preview) print('草稿（未提交）：');
-              print(change);
-            } else {
+            if (editor) editor.setDraft(safe);
+            else {
               if (!task.preview) options.output.write('草稿（未提交）：\n');
               options.output.write(change);
             }
             task.preview = safe;
           }
-          if (terminal(latest)) { if (task.preview) options.output.write('\n'); finish(task, latest); return; }
+          if (terminal(latest)) { if (task.preview && !editor) options.output.write('\n'); finish(task, latest); return; }
         }
       } catch (error) {
         if (closed || active !== task || task.controller.signal.aborted || signal.aborted) return;
         task.preview = ''; task.controller.abort();
-        options.output.write('\n[输出连接中断，草稿不作为已提交回答]\n');
+        editor?.setDraft('');
+        if (!editor) options.output.write('\n[输出连接中断，草稿不作为已提交回答]\n');
         print(`观察失败：${failureCode(error)}。任务可能仍在运行，可 /resume ${task.id} 或 /cancel。`, true);
       }
     })();
@@ -145,14 +149,16 @@ export async function runInteractiveChat(options: {
     // Acceptance provides an id, not a guessed run state. Query the service.
     observe(accepted.runId, current);
   }
-  async function handle(line: string) {
+  async function handle(line: string, forcedLiteral = false) {
     const lineText = line.trim();
-    const literal = lineText.startsWith('//');
-    const text = literal ? lineText.slice(1) : lineText;
-    if (!text || closed || signal.aborted) return;
-    if (!text.startsWith('/') || literal) {
+    const escaped = !forcedLiteral && !line.includes('\n') && lineText.startsWith('//');
+    const commandInput = !forcedLiteral && !escaped && !line.includes('\n') && lineText.startsWith('/');
+    const text = escaped ? line.replace(/^(\s*)\//, '$1') : commandInput ? lineText : line;
+    if (!text.trim() || closed || signal.aborted) return;
+    if (!commandInput) {
       if (!requireIdle()) return;
       if (text.length > 8000) { print('消息最多 8000 字符。', true); return; }
+      if (tty) print(`你：\n${text}`);
       if (!current) {
         const created = await client.createConversation(text.slice(0, 40));
         if (closed) return;
@@ -222,7 +228,40 @@ export async function runInteractiveChat(options: {
     if (active) print(`退出本地观察；远程任务未取消：${active.id}`);
     const pending = uncertain ?? submitting;
     if (pending) print(`保留重试标识：${pending.clientMessageId}；会话：${pending.conversationId}。重新连接后可用 send 的相同标识和正文确认结果。`);
-    closed = true; active?.controller.abort(); reader?.close(); resolveClosed(code);
+    if (multiline) print('未发送的多行内容已丢弃。');
+    multiline = undefined;
+    closed = true; active?.controller.abort();
+    try { reader?.close(); } catch { code = 1; }
+    try { editor?.close(); } catch { code = 1; }
+    resolveClosed(code);
+  }
+  function enqueue(line: string, literal = false) {
+    const message = literal || line.includes('\n') || !line.trim().startsWith('/') || line.trim().startsWith('//');
+    if (tty && message && (queuedMessages || !requireIdle())) {
+      if (queuedMessages) print('上一条输入仍在处理，编辑内容已保留。', true);
+      return false;
+    }
+    if (message) queuedMessages++;
+    commands = commands.then(() => handle(line, literal)).catch(error => { if (!closed && !signal.aborted) print(`操作失败：${failureCode(error)}`, true); })
+      .finally(() => { if (message) queuedMessages--; });
+    return true;
+  }
+  function receiveLine(line: string) {
+    if (multiline) {
+      if (line === '/discard') { multiline = undefined; multilineOverflow = false; print('多行输入已丢弃。'); return; }
+      if (line === '/send') {
+        if (multilineOverflow) { print('多行输入超限，请 /discard 后重新输入。', true); return; }
+        if (!requireIdle()) return;
+        if (queuedMessages) { print('上一条输入仍在处理，多行内容已保留。', true); return; }
+        const text = multiline.join('\n'); if (text.trim()) { multiline = undefined; enqueue(text, true); } return;
+      }
+      const text = /^\/{2,}(?:send|discard)$/.test(line) ? line.slice(1) : line;
+      if (multiline.join('\n').length + text.length + (multiline.length ? 1 : 0) > 8000) { multilineOverflow = true; print('多行输入最多 8000 字符，未发送；请 /discard。', true); }
+      else if (!multilineOverflow) multiline.push(text);
+      return;
+    }
+    if (line === '/edit') { multiline = []; multilineOverflow = false; print('多行输入：/send 发送，/discard 丢弃；其他命令作为正文，//send 表示 /send。'); return; }
+    enqueue(line);
   }
   const stop = () => close();
   signal.addEventListener('abort', stop, { once: true });
@@ -232,16 +271,15 @@ export async function runInteractiveChat(options: {
     if (options.conversationId) { current = await ownedConversation(options.conversationId); await history(current); }
     if (closed || signal.aborted) return 0;
     print(current ? '已连接个人 Agent，当前会话已选定。/help 查看命令。' : '已连接个人 Agent。/help 查看命令；首次发送会创建会话。');
-    reader = createInterface({ input: options.input, output: options.output, terminal: tty, historySize: 0 });
-    reader.setPrompt('你> ');
-    reader.on('line', line => {
-      commands = commands.then(() => handle(line)).catch(error => { if (!closed && !signal.aborted) print(`操作失败：${failureCode(error)}`, true); });
-    });
-    reader.on('SIGINT', stop);
-    reader.on('error', () => { print('输入流读取失败。', true); close(1); });
-    // Drain buffered commands on EOF, then leave accepted remote work running.
-    reader.on('close', () => { void commands.finally(() => close()); });
-    if (tty) reader.prompt();
+    const eof = () => { void commands.finally(() => close()); };
+    if (tty) editor = new TerminalEditor(options.input, options.output, enqueue, code => close(code), eof, text => print(text, true));
+    else {
+      reader = createInterface({ input: options.input, output: options.output, terminal: false, historySize: 0 });
+      reader.on('line', receiveLine);
+      reader.on('error', () => { print('输入流读取失败。', true); close(1); });
+      // Drain buffered commands on EOF, without sending an unfinished multiline edit.
+      reader.on('close', eof);
+    }
     return await ended;
-  } finally { signal.removeEventListener('abort', stop); active?.controller.abort(); reader?.close(); }
+  } finally { signal.removeEventListener('abort', stop); active?.controller.abort(); reader?.close(); editor?.close(); }
 }

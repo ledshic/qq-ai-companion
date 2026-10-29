@@ -40,7 +40,7 @@ function fixture(generate: ConsoleGenerator = async text => 'answer:' + text) {
     const result = runCLI(['chat', ...args], { env: { AGENT_CREDENTIAL_FILE: credential }, input, terminalOutput: output,
       signal: controller.signal, request: network, out: line => lines.push(line), error: line => errors.push(line) });
     sessions.push({ stop: () => controller.abort(), result });
-    return { input, output, controller, lines, errors, result, line: (text: string) => input.write(text + '\n'), text: () => lines.join('\n'), error: () => errors.join('\n') };
+    return { input, output, controller, lines, errors, result, line: (text: string) => input.write(text + (tty ? '\r' : '\n')), text: () => lines.join('\n'), error: () => errors.join('\n') };
   };
   return { store, host, api, request, calls, connect, credential, async close() {
     for (const session of sessions) session.stop();
@@ -215,8 +215,10 @@ test('interrupt during an uncertain in-flight submission keeps retry metadata an
 test('authentication and foreign initial conversation failures do not start an input session or submit', async () => {
   const f = fixture();
   try {
-    const refused = f.connect([], async () => Response.json({ error: { code: 'unauthorized' } }, { status: 401 }));
+    const refused = f.connect([], async () => Response.json({ error: { code: 'unauthorized' } }, { status: 401 }), true);
+    const raw: boolean[] = []; Object.assign(refused.input, { setRawMode: (value: boolean) => raw.push(value) });
     assert.equal(await refused.result, 1); assert(refused.error().includes('unauthorized')); assert(!refused.text().includes('已连接'));
+    assert.deepEqual(raw, []); assert.equal(refused.input.listenerCount('data'), 0);
     const foreign = f.store.createConversation('other', 'private title');
     const hidden = f.connect([foreign.id]); assert.equal(await hidden.result, 1); assert(hidden.error().includes('not_found'));
     assert(!hidden.text().includes('private title'));
@@ -256,11 +258,55 @@ for (const tty of [false, true]) test(`stream cancellation discards drafts and p
     await settle(() => s.text().includes('已连接')); s.line('cancel stream'); await settle(() => !!emit);
     emit('first segment'); await settle(() => (s.text() + output).includes('first segment'));
     emit('first segment second segment'); await settle(() => (s.text() + output).includes('second segment'));
-    assert.equal((s.text() + output).split('first segment').length - 1, 1); assert(!s.text().includes('助手（'));
+    if (!tty) assert.equal((s.text() + output).split('first segment').length - 1, 1);
+    assert(!s.text().includes('助手（'));
     s.line('/cancel'); await settle(() => s.text().includes('cancelled'));
     emit('late segment'); finish('late complete'); await new Promise(resolve => setImmediate(resolve));
     assert(!(s.text() + output).includes('late segment')); assert(!s.text().includes('late complete'));
     assert.equal(f.store.all("SELECT * FROM service_messages WHERE role = 'assistant'").length, 0);
     s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('pipe multiline mode preserves indentation and command-looking body, sends only on explicit confirmation', async () => {
+  let received = ''; const f = fixture(async text => { received = text; return 'confirmed'; });
+  try {
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    for (const line of ['/edit', '  first', '/cancel', '//send', '// comment', '', 'last']) s.line(line);
+    await settle(() => s.text().includes('多行输入：')); assert(!f.calls.some(call => call.path.endsWith('/messages')));
+    s.line('/send'); await settle(() => s.text().includes('confirmed'));
+    assert.equal(received, '  first\n/cancel\n/send\n// comment\n\nlast'); assert(!f.calls.some(call => call.path.endsWith('/cancel')));
+    s.line('/edit'); s.line('discard this'); s.line('/discard'); await settle(() => s.text().includes('多行输入已丢弃'));
+    s.line('/edit'); s.line('unfinished'); s.input.end(); assert.equal(await s.result, 0);
+    assert.equal(f.calls.filter(call => call.method === 'POST' && call.path.endsWith('/messages')).length, 1);
+  } finally { await f.close(); }
+});
+test('oversized pipe edit cannot submit a silently truncated message', async () => {
+  const f = fixture();
+  try {
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    for (const line of ['/edit', 'x'.repeat(8001), '/send']) s.line(line);
+    await settle(() => s.error().includes('超限')); assert(!f.calls.some(call => call.path.endsWith('/messages')));
+    s.line('/discard'); s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('terminal keeps the next multiline edit through streamed replacements, busy send, cancel and recovery', async () => {
+  let emit!: (text: string) => void, finish!: (text: string) => void; const inputs: string[] = [];
+  const f = fixture((text, _history, _signal, _reasoning, context) => {
+    inputs.push(text); emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; });
+  });
+  try {
+    const s = f.connect([], f.request, true); await settle(() => s.text().includes('已连接'));
+    s.input.write('\x1b[200~first\n  body\x1b[201~'); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(inputs.length, 0); s.input.write('\r'); await settle(() => !!emit && s.text().includes('已接受任务'));
+    s.input.write('next\n  line'); emit('draft one'); await new Promise(resolve => setTimeout(resolve, 20));
+    s.input.write('\r'); await settle(() => s.error().includes('尚未结束')); assert.equal(inputs.length, 1);
+    emit('replacement'); s.input.write('\x18'); await settle(() => s.text().includes('cancelled'));
+    finish('late'); emit('late draft'); s.input.write('\r'); await settle(() => inputs.length === 2);
+    assert.deepEqual(inputs, ['first\n  body', 'next\n  line']);
+    const id = s.text().match(/已接受任务：([^\s]+)/g)!.at(-1)!.split('：')[1]!;
+    s.line('/resume ' + id); await settle(() => s.text().includes('无需重复恢复'));
+    finish('second complete'); await settle(() => s.text().includes('second complete')); s.line('/exit'); assert.equal(await s.result, 0);
+    assert.equal(f.calls.filter(call => call.path.endsWith('/cancel')).length, 1);
+    assert.deepEqual(f.store.history('text-owner', f.store.conversations('text-owner', '', 50)[0]!.id).map(message => message.content), ['next\n  line', 'second complete']);
   } finally { await f.close(); }
 });

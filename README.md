@@ -70,6 +70,8 @@ pnpm agent:cli cancel <runId>
 
 发送前会输出 clientMessageId；网络结果不确定时，交互模式用 /retry，单次命令用相同正文和该标识作为 send 的最后一个参数重试。watch 输出逐行 JSON 事件。来源管理及完整用法见[CLI 实施记录](docs/AGENT-CLI.md)。
 
+终端中 Enter 发送、Ctrl+J 或 Alt+Enter 换行，Ctrl+X 取消当前任务并保留输入。草稿在原位刷新；多行粘贴、编辑按键和管道模式见[CLI 多行编辑](docs/AGENT-CLI-EDITOR.md)。
+
 ## 验证与文档
 
 ```sh
