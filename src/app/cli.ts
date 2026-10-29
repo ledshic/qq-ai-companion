@@ -59,7 +59,7 @@ export async function runCLI(argv: string[], options: CLIOptions = {}): Promise<
     signal.throwIfAborted();
     const request: typeof fetch = (url, init) => {
       const signals = [signal, ...(init?.signal ? [init.signal] : [])];
-      if (command !== 'watch') signals.push(AbortSignal.timeout(15_000));
+      if (!new Headers(init?.headers).get('Accept')?.includes('text/event-stream')) signals.push(AbortSignal.timeout(15_000));
       return (options.request ?? fetch)(url, { ...init, signal: AbortSignal.any(signals) });
     };
     const client = createServiceClient(env.AGENT_URL || 'http://127.0.0.1:4320', { token, request });

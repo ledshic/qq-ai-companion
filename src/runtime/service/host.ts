@@ -1,4 +1,4 @@
-import { APIError, type AcceptedMessage } from '@companion/contracts/service';
+import { APIError, type RunOutput, type AcceptedMessage } from '@companion/contracts/service';
 import type { ConversationMessage } from '../../agent/contracts.js';
 import type { ExecutionScope } from '../../agent/scope.js';
 import { ServiceMemory } from './memory.js';
@@ -6,6 +6,7 @@ import { ServiceStore } from './store.js';
 export interface GenerationContext {
   scope: ExecutionScope;
   onMemoryGuard(guard: () => boolean): void;
+  onOutput?: (text: string) => void;
 }
 export type ConsoleGenerator = (
   content: string,
@@ -17,7 +18,7 @@ export type ConsoleGenerator = (
 export class RunHost {
   private active = new Map<
     string,
-    { ownerId: string; controller: AbortController }
+    { ownerId: string; controller: AbortController; text: string; sequence: number; guard: () => boolean }
   >();
   private closed = false;
   constructor(
@@ -61,6 +62,20 @@ export class RunHost {
     this.pump();
     return result;
   }
+  output(ownerId: string, id: string): RunOutput {
+    let run = this.store.run(ownerId, id); // Ownership check precedes access to drafts.
+    const active = this.active.get(id);
+    if (!this.closed && run.state === 'running' && active && !active.controller.signal.aborted) {
+      let valid = false;
+      try { valid = active.guard(); } catch { /* source unavailable is not authorization */ }
+      if (!valid) {
+        this.store.finish(ownerId, id, null, 'memory_context_changed');
+        active.text = ''; active.sequence++; active.controller.abort();
+        run = this.store.run(ownerId, id);
+      }
+    }
+    return { run, text: run.state === 'running' && active && !active.controller.signal.aborted ? active.text : '', sequence: active?.sequence ?? 0 };
+  }
   private pump() {
     if (this.closed) return;
     while (this.active.size < this.concurrency) {
@@ -69,7 +84,8 @@ export class RunHost {
       const { ownerId, run } = queued;
       if (!this.store.start(ownerId, run.id)) continue;
       const controller = new AbortController();
-      this.active.set(run.id, { ownerId, controller });
+      const active = { ownerId, controller, text: '', sequence: 0, guard: () => true };
+      this.active.set(run.id, active);
       const history = this.store.history(
         ownerId,
         run.conversationId,
@@ -95,7 +111,14 @@ export class RunHost {
             },
             {
               scope: new ServiceMemory(this.store).scope(ownerId, run.conversationId),
-              onMemoryGuard: guard => { memoryGuard = guard; },
+              onMemoryGuard: guard => { memoryGuard = () => { try { return guard(); } catch { return false; } }; active.guard = memoryGuard; },
+              onOutput: text => {
+                if (this.closed || controller.signal.aborted || this.active.get(run.id) !== active) return;
+                const snapshot = this.output(ownerId, run.id);
+                if (snapshot.run.state !== 'running' || controller.signal.aborted) return;
+                if (typeof text !== 'string' || text.length > 16000) throw Error('invalid_output');
+                if (text !== active.text) { active.text = text; active.sequence++; }
+              },
             },
           );
         })
@@ -117,7 +140,7 @@ export class RunHost {
               ownerId,
               run.id,
               null,
-              error instanceof APIError ? error.code : 'generation_failed',
+              error instanceof APIError ? error.code : !memoryGuard() ? 'memory_context_changed' : 'generation_failed',
             );
         })
         .finally(() => {

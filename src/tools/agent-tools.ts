@@ -21,7 +21,7 @@ export function createAgentTools(key: string, searchEnabled: boolean, request: t
     for (const source of visible) if (sources.size < 6) sources.set(source.url, source);
     return payload();
   } });
-  return { tools, decorate(answer: string) {
+  return { tools, canPreview: () => !failed && !empty, decorate(answer: string) {
     if (failed && !sources.size) return '这次联网搜索失败了，暂时没法核实。可以稍后再试，或给我具体链接。';
     if (empty && !sources.size) return '这次搜索没有找到结果，换个关键词再试试？';
     if (sources.size) answer += '\n来源：' + [...sources.values()].map(source => `${source.title} ${source.url}`).join('；');

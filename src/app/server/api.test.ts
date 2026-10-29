@@ -427,3 +427,73 @@ test('source policy revision conflicts cannot overwrite concurrent grants or rev
     assert.deepEqual((await f.api.inject({ url, headers })).json(), { sourceConversationIds: [], revision: 2 });
   } finally { await f.close(); }
 });
+test('real provider deltas cross HTTP and SDK before commit; source revocation clears reconnect snapshots', async () => {
+  const { createConsoleReply } = await import('../../channels/console/generator.js');
+  const { ServiceMemory } = await import('../../runtime/service/memory.js');
+  let generate!: ConsoleGenerator, finish!: () => void, cancelled = false;
+  const f = fixture((...args) => generate(...args)); const controller = new AbortController();
+  try {
+    const source = f.store.createConversation('owner', 'Evidence'), target = f.store.createConversation('owner', 'Streaming');
+    const evidence = f.store.accept('owner', source.id, 'source', '考试在周五'); f.store.start('owner', evidence.runId); f.store.finish('owner', evidence.runId, 'ack', null);
+    const memory = new ServiceMemory(f.store); memory.setSources('owner', target.id, [source.id]);
+    const frame = (delta: unknown, finish_reason: string | null = null) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason }] })}\n\n`;
+    generate = createConsoleReply('fixture', 'test', 9, false, async (_url, init) => {
+      assert.equal(JSON.parse(String(init?.body)).stream, true);
+      return new Response(new ReadableStream({ start(stream) {
+        stream.enqueue(new TextEncoder().encode(frame({ content: '考试资料的草稿' })));
+        finish = () => { if (!cancelled) { stream.enqueue(new TextEncoder().encode(frame({ content: '最终回答' }, 'stop') + 'data: [DONE]\n\n')); stream.close(); } };
+      }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } });
+    }, undefined, { memory });
+    await f.api.listen({ host: '127.0.0.1', port: 0 }); const address = f.api.server.address(); assert(address && typeof address !== 'string');
+    const base = `http://127.0.0.1:${address.port}`, client = createServiceClient(base, { token: 'owner-token' });
+    const accepted = await client.submit(target.id, 'stream', '考试资料'); const stream = client.watchRun(accepted.runId, controller.signal);
+    let preview = await stream.next();
+    while (!preview.value?.text) preview = await stream.next();
+    assert.equal(preview.value?.text, '考试资料的草稿'); assert.equal(preview.value?.run.result, null);
+    assert.deepEqual(f.store.history('owner', target.id), []);
+    assert.equal((await f.api.inject({ url: `/api/v1/runs/${accepted.runId}/output` })).statusCode, 401);
+    f.store.exec('INSERT INTO service_devices(id,owner_id,name,token_hash,admin) VALUES(?,?,?,?,0)', 'foreign-stream-device', 'foreign', 'Foreign', tokenHash('foreign-token'));
+    assert.equal((await f.api.inject({ url: `/api/v1/runs/${accepted.runId}/output`, headers: { authorization: 'Bearer foreign-token' } })).statusCode, 404);
+    await client.setMemorySources(target.id, []);
+    const terminal = await stream.next(); assert.equal(terminal.value?.text, ''); assert.equal(terminal.value?.run.error, 'memory_context_changed');
+    assert.equal((await stream.next()).done, true);
+    assert.equal((await client.output(accepted.runId)).text, '');
+    finish(); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(f.store.history('owner', target.id), []);
+    assert.equal(f.store.messages('owner', target.id, 0, 50).messages.some(m => m.role === 'assistant'), false);
+    // A new run takes a fresh authorized scope and commits the actual provider stream.
+    await client.setMemorySources(target.id, [source.id]); cancelled = false;
+    const recovered = await client.submit(target.id, 'recovered', '再查考试资料');
+    const recovery = client.watchRun(recovered.runId, controller.signal);
+    let first = await recovery.next(); while (!first.value?.text) first = await recovery.next();
+    assert.equal(first.value?.run.result, null); finish();
+    const completed = await recovery.next(); assert.equal(completed.value?.run.state, 'completed');
+    assert.equal(completed.value?.text, ''); assert.equal(completed.value?.run.result, '考试资料的草稿最终回答');
+    assert.equal((await recovery.next()).done, true);
+    assert.deepEqual(f.store.history('owner', target.id).map(message => message.content), ['再查考试资料', '考试资料的草稿最终回答']);
+  } finally { controller.abort(); await f.close(); }
+});
+test('output streams reconnect with snapshots, finish once and stop when device credentials are revoked', async () => {
+  let emit!: (text: string) => void, finish!: (text: string) => void;
+  const f = fixture((_content, _history, _signal, _reasoning, context) => { emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; }); });
+  const first = new AbortController(), second = new AbortController(), revoked = new AbortController();
+  try {
+    await f.api.listen({ host: '127.0.0.1', port: 0 }); const address = f.api.server.address(); assert(address && typeof address !== 'string');
+    const base = `http://127.0.0.1:${address.port}`, client = createServiceClient(base, { token: 'owner-token' });
+    const c = await client.createConversation('Output'); const accepted = await client.submit(c.id, 'first', 'hello'); await wait(() => !!emit);
+    emit('first'); const stream = client.watchRun(accepted.runId, first.signal); assert.equal((await stream.next()).value?.text, 'first');
+    first.abort(); await stream.return(undefined).catch(() => {}); assert.equal(f.store.run('owner', accepted.runId).state, 'running');
+    emit('first second'); const reconnected = client.watchRun(accepted.runId, second.signal);
+    assert.equal((await reconnected.next()).value?.text, 'first second');
+    finish('complete answer'); const complete = await reconnected.next();
+    assert.equal(complete.value?.text, ''); assert.equal(complete.value?.run.result, 'complete answer'); assert.equal((await reconnected.next()).done, true);
+    assert.deepEqual(f.store.history('owner', c.id).map(m => m.content), ['hello', 'complete answer']);
+    emit = undefined!; const pending = await client.submit(c.id, 'second', 'remain running'); await wait(() => !!emit); emit('authorized');
+    f.store.exec('INSERT INTO service_devices(id,owner_id,name,token_hash,admin) VALUES(?,?,?,?,0)', 'stream-device', 'owner', 'Device', tokenHash('device-token'));
+    const device = createServiceClient(base, { token: 'device-token' }), observation = device.watchRun(pending.runId, revoked.signal);
+    assert.equal((await observation.next()).value?.text, 'authorized');
+    f.store.revoke('owner', 'stream-device'); emit('must not reach revoked reader');
+    await assert.rejects(observation.next(), /before terminal/);
+    assert.equal(f.store.run('owner', pending.runId).state, 'running'); finish('owner can still finish');
+  } finally { first.abort(); second.abort(); revoked.abort(); await f.close(); }
+});

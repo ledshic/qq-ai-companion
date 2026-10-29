@@ -265,6 +265,39 @@ export function createServiceAPI(options: {
         ),
       );
   });
+  app.get('/api/v1/runs/:id/output', async (request, reply) => {
+    query(request, []);
+    const { principal } = authenticate(request), id = routeId(request);
+    const initial = host.output(principal.ownerId, id);
+    if (!request.headers.accept?.includes('text/event-stream')) return initial;
+    if (streams.size >= 64) throw new APIError(429, 'stream_limit');
+    reply.hijack();
+    reply.raw.writeHead(200, { ...reply.getHeaders(), 'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' } as OutgoingHttpHeaders);
+    let closed = false, previous = '', heartbeat = Date.now();
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const close = () => {
+      if (closed) return;
+      closed = true; if (timer) clearInterval(timer); streams.delete(close); reply.raw.end();
+    };
+    const send = () => {
+      if (closed) return;
+      try {
+        const current = authenticate(request).principal;
+        if (current.ownerId !== principal.ownerId || current.deviceId !== principal.deviceId) { close(); return; }
+        const snapshot = host.output(current.ownerId, id), data = JSON.stringify(snapshot);
+        if (data !== previous) {
+          if (!reply.raw.write(`event: run.output\ndata: ${data}\n\n`)) { close(); return; }
+          previous = data;
+        } else if (Date.now() - heartbeat >= 15000) {
+          heartbeat = Date.now(); if (!reply.raw.write(': heartbeat\n\n')) { close(); return; }
+        }
+        if (!['queued', 'running'].includes(snapshot.run.state)) close();
+      } catch { close(); }
+    };
+    streams.add(close); reply.raw.on('close', close); send();
+    if (!closed) { timer = setInterval(send, 100); timer.unref(); }
+  });
   app.get('/api/v1/runs/:id', async (request) =>
     store.run(authenticate(request).principal.ownerId, routeId(request)),
   );

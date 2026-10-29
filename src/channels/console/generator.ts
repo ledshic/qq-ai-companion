@@ -29,9 +29,10 @@ export function createConsoleReply(
       const assertCurrent = () => { signal.throwIfAborted(); if (!prepared.isCurrent()) throw Error('Memory context changed'); };
       assertCurrent();
       const capability = createAgentTools(key, searchEnabled, request);
-      const answer = await executeAgent({ model: { async complete(messages, tools, deadline) {
-          assertCurrent(); const result = await provider.complete(messages, tools, deadline); assertCurrent(); return result;
+      const answer = await executeAgent({ model: { async complete(messages, tools, deadline, onDelta) {
+          assertCurrent(); const result = await provider.complete(messages, tools, deadline, onDelta ? delta => { assertCurrent(); onDelta(delta); } : undefined); assertCurrent(); return result;
         } }, tools: capability.tools.map(tool => ({ ...tool, execute: (args, ctx) => { assertCurrent(); return tool.execute(args, ctx); } })), signal, onReasoning,
+        onOutput: context?.onOutput ? text => { assertCurrent(); context.onOutput!(capability.canPreview() ? text : ''); } : undefined,
         messages: [{ role: 'system', content: system + (prepared.personality.prompt ? '\n' + prepared.personality.prompt : '') },
           ...(context ? [{ role: 'user' as const, content: JSON.stringify({
             session: { channelId: context.scope.channelId, kind: context.scope.kind },
@@ -41,7 +42,9 @@ export function createConsoleReply(
           ...history.map(({ role, content }) => ({ role, content })), { role: 'user', content }] });
       signal.throwIfAborted();
       assertCurrent();
-      return capability.decorate(answer);
+      const result = capability.decorate(answer);
+      context?.onOutput?.(result);
+      return result;
     } finally { release?.(); }
   };
 }

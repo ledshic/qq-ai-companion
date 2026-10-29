@@ -7,6 +7,7 @@ import { PassThrough } from 'node:stream';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
+import { testRunStream } from '../testing/run-stream.js';
 import { runCLI } from './cli.js';
 import { ServiceStore } from '../runtime/service/store.js';
 import { RunHost, type ConsoleGenerator } from '../runtime/service/host.js';
@@ -25,6 +26,8 @@ function fixture(generate: ConsoleGenerator = async text => 'answer:' + text) {
   const request: typeof fetch = async (url, init) => {
     const path = new URL(String(url)).pathname + new URL(String(url)).search;
     calls.push({ path, method: init?.method ?? 'GET', ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
+    const streaming = path.match(/^\/api\/v1\/runs\/([^/]+)\/output$/);
+    if (streaming) return testRunStream(host, 'text-owner', streaming[1]!, init?.signal ?? undefined);
     const response = await api.inject({ method: (init?.method ?? 'GET') as 'GET' | 'POST', url: path,
       headers: init?.headers as Record<string, string>, payload: init?.body as string | undefined });
     return new Response(response.body, { status: response.statusCode, headers: { 'Content-Type': String(response.headers['content-type']) } });
@@ -230,5 +233,34 @@ test('resuming an already observed task cannot create a second result observer',
     finish('one completion'); await settle(() => s.text().includes('one completion'));
     s.line('/exit'); assert.equal(await s.result, 0);
     assert.equal(s.text().split('one completion').length - 1, 1);
+  } finally { await f.close(); }
+});
+test('CLI receives genuine drafts before final completion without duplicating tokens', async () => {
+  let emit!: (text: string) => void, finish!: (text: string) => void;
+  const f = fixture((_text, _history, _signal, _reasoning, context) => { emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; }); });
+  try {
+    const s = f.connect(); let output = ''; s.output.on('data', chunk => { output += String(chunk); });
+    await settle(() => s.text().includes('已连接')); s.line('streaming'); await settle(() => !!emit);
+    emit('first token'); await settle(() => output.includes('first token'));
+    assert(!s.text().includes('助手（')); emit('first token second token'); await settle(() => output.includes('second token'));
+    finish('complete final answer'); await settle(() => s.text().includes('complete final answer'));
+    assert.equal(output.split('first token').length - 1, 1);
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+for (const tty of [false, true]) test(`stream cancellation discards drafts and preserves terminal input with tty=${tty}`, async () => {
+  let emit!: (text: string) => void, finish!: (text: string) => void;
+  const f = fixture((_text, _history, _signal, _reasoning, context) => { emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; }); });
+  try {
+    const s = f.connect([], f.request, tty); let output = ''; s.output.on('data', chunk => { output += String(chunk); });
+    await settle(() => s.text().includes('已连接')); s.line('cancel stream'); await settle(() => !!emit);
+    emit('first segment'); await settle(() => (s.text() + output).includes('first segment'));
+    emit('first segment second segment'); await settle(() => (s.text() + output).includes('second segment'));
+    assert.equal((s.text() + output).split('first segment').length - 1, 1); assert(!s.text().includes('助手（'));
+    s.line('/cancel'); await settle(() => s.text().includes('cancelled'));
+    emit('late segment'); finish('late complete'); await new Promise(resolve => setImmediate(resolve));
+    assert(!(s.text() + output).includes('late segment')); assert(!s.text().includes('late complete'));
+    assert.equal(f.store.all("SELECT * FROM service_messages WHERE role = 'assistant'").length, 0);
+    s.line('/exit'); assert.equal(await s.result, 0);
   } finally { await f.close(); }
 });

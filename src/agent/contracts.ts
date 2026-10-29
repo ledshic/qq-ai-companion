@@ -7,7 +7,7 @@ export type ModelMessage =
 export interface ToolSpec { name: string; description: string; parameters: Record<string, unknown> }
 export interface ModelReply { text: string; calls: ToolCall[]; reasoning?: string }
 export interface Model {
-  complete(messages: ModelMessage[], tools: ToolSpec[], signal: AbortSignal): Promise<ModelReply>;
+  complete(messages: ModelMessage[], tools: ToolSpec[], signal: AbortSignal, onDelta?: (text: string) => void): Promise<ModelReply>;
 }
 export interface Tool extends ToolSpec {
   execute(args: unknown, context: { signal: AbortSignal }): string | Promise<string>;

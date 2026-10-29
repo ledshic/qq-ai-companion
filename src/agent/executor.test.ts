@@ -59,3 +59,13 @@ test('tool timeout settles an uncooperative tool and permits model explanation',
     assert.equal(await executeAgent({ model, tools: [{ ...tool, execute: () => new Promise(() => {}) }], messages: [], signal: signal(), limits: { toolTimeoutMs: 5 } }), 'timeout explained');
   } finally { clearTimeout(keepAlive); }
 });
+test('incremental output is provisional, resets across tool rounds and ignores late callbacks', async () => {
+  const output: string[] = []; let late!: (text: string) => void; let rounds = 0;
+  const model: Model = { async complete(_messages, _tools, _signal, onDelta) {
+    late = onDelta!; rounds++; onDelta?.(rounds === 1 ? 'planning' : 'final');
+    return rounds === 1 ? { text: 'planning', calls: [call()] } : { text: 'final', calls: [] };
+  } };
+  assert.equal(await executeAgent({ model, tools: [tool], messages: [], signal: signal(), onOutput: text => output.push(text) }), 'final');
+  assert.deepEqual(output, ['', 'planning', '', '', 'final']);
+  late('must not arrive'); assert.equal(output.at(-1), 'final');
+});

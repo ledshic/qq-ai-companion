@@ -34,6 +34,15 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
 }
+// Ephemeral draft; only run.result / committed messages are authoritative.
+export interface RunOutput { run: Run; text: string; sequence: number }
+export function parseRunOutput(value: unknown): RunOutput {
+  if (!isRecord(value) || typeof value.text !== 'string' || value.text.length > 16000 ||
+    !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 0) throw Error('Invalid run output');
+  const run = parseRun(value.run);
+  if (run.state !== 'running' && value.text !== '') throw Error('Draft outside running state');
+  return { run, text: value.text, sequence: Number(value.sequence) };
+}
 export interface ServiceEvent {
   eventId: number;
   conversationId: string;

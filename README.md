@@ -1,6 +1,6 @@
 # Personal Agent
 
-本机常驻的个人 Agent 服务，提供认证会话、持久任务、可选来源记忆、时间与骰子工具，以及按配置启用的搜索。Web 工作台和命令行已接入正式 API；桌面、iOS 和 Android 暂停迭代。
+本机常驻的个人 Agent 服务，提供认证会话、持久任务、可选来源记忆、时间与骰子工具，以及按配置启用的搜索。Web 工作台和交互式命令行已接入正式 API，并能显示真实模型增量草稿；桌面、iOS 和 Android 暂停迭代。
 
 旧 QQ 适配器、群聊调度、事件记忆、配图及相关配置已归档到 [legacy/qq](legacy/qq/README.md)，默认构建和测试不扫描归档。已有数据库、拥有者凭据和锁路径不迁移、不删除。
 
@@ -83,4 +83,4 @@ pnpm test:web
 
 测试使用临时数据和假模型，本地 HTTP、进程锁及浏览器测试需要正常监听和进程检查权限。没有真实账号或模型验证。
 
-[当前架构](docs/PERSONAL-AGENT-ARCHITECTURE.md)说明职责与依赖；[正式 API](docs/MULTI-CLIENT-PHASE-B.md)说明认证与接口；[交接计划](docs/AGENT-REFACTOR-HANDOFF.md)记录已完成阶段和后续范围。完整列表见[文档索引](docs/README.md)。
+[流式输出记录](docs/AGENT-STREAMING.md)说明草稿、最终结果与重连规则；[当前架构](docs/PERSONAL-AGENT-ARCHITECTURE.md)说明职责与依赖；[正式 API](docs/MULTI-CLIENT-PHASE-B.md)说明认证与接口；[交接计划](docs/AGENT-REFACTOR-HANDOFF.md)记录已完成阶段和后续范围。完整列表见[文档索引](docs/README.md)。

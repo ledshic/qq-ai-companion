@@ -74,3 +74,21 @@ test('source updates carry an optional revision and never silently retry writes'
   await assert.rejects(unavailable.setMemorySources('target', [], 2));
   assert.equal(calls, 1);
 });
+test('run output parser rejects malformed snapshots and premature EOF, cancellation cleans up readers', async () => {
+  const now = '2026-10-29T00:00:00Z';
+  const run = { id: 'run', conversationId: 'conversation', clientMessageId: 'message', state: 'running', input: 'question', result: null, error: null, createdAt: now, updatedAt: now };
+  for (const data of [{ run, text: 5, sequence: 1 }, { run, text: 'partial', sequence: -1 }, { run: { ...run, state: 'completed' }, text: 'partial', sequence: 1 }]) {
+    const client = createServiceClient('http://localhost', { request: async () => Response.json(data) });
+    await assert.rejects(client.output('run'), /Invalid|Draft/);
+  }
+  const frame = (value: unknown) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\r\n\r\n`);
+  const client = createServiceClient('http://localhost', { request: async () => new Response(new ReadableStream({ start(controller) {
+    const bytes = frame({ run, text: '中文😀', sequence: 1 }); for (const byte of bytes) controller.enqueue(Uint8Array.of(byte)); controller.close();
+  } }), { headers: { 'Content-Type': 'text/event-stream' } }) });
+  const stream = client.watchRun('run'); assert.equal((await stream.next()).value?.text, '中文😀');
+  await assert.rejects(stream.next(), /before terminal/);
+  let cancelled = false;
+  const stalled = createServiceClient('http://localhost', { request: async () => new Response(new ReadableStream({ cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } }) });
+  const abort = new AbortController(), pending = stalled.watchRun('run', abort.signal).next();
+  await new Promise(resolve => setImmediate(resolve)); abort.abort(); await assert.rejects(pending); assert.equal(cancelled, true);
+});

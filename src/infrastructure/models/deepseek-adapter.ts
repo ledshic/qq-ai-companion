@@ -1,10 +1,11 @@
+import { streamDeepSeek } from './deepseek-stream.js';
 import type { Model } from '../../agent/contracts.js';
 import { completionMessage, requestChatCompletion } from './model-request.js';
 import { isRecord } from '../../shared/value.js';
 
 export function createDeepSeekModel(key: string, model: string, request: typeof fetch = fetch): Model {
   if (!key.trim()) throw Error('Missing model API key');
-  return { async complete(messages, tools, signal) {
+  return { async complete(messages, tools, signal, onDelta) {
     signal.throwIfAborted();
     const body = {
       model, thinking: { type: 'disabled' }, stream: false, max_tokens: 512,
@@ -17,6 +18,7 @@ export function createDeepSeekModel(key: string, model: string, request: typeof 
       }),
       ...(tools.length ? { tools: tools.map(tool => ({ type: 'function', function: tool })), tool_choice: 'auto' } : {}),
     };
+    if (onDelta) return streamDeepSeek(key, body, request, signal, onDelta);
     const data = await requestChatCompletion(key, body, { request, signal, timeoutMs: 30_000, httpError: 'Model request failed' });
     signal.throwIfAborted();
     const message = completionMessage(data, 'Invalid model response');

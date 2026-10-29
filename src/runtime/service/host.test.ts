@@ -211,3 +211,55 @@ test('host supplies authenticated scope and checks memory freshness at final com
     assert.equal(store.one('SELECT COUNT(*) n FROM service_reasoning')?.n, 0);
   } finally { host.stop(); store.close(); }
 });
+test('draft snapshots are owner scoped, uncommitted, invalidated on source changes and suppress late output', async () => {
+  const store = new ServiceStore(':memory:'); let emit!: (text: string) => void, finish!: (text: string) => void, current = true;
+  const host = new RunHost(store, (_text, _history, _signal, _reasoning, context) => {
+    context!.onMemoryGuard(() => current); emit = context!.onOutput!;
+    return new Promise(resolve => { finish = resolve; });
+  });
+  try {
+    const c = store.createConversation('owner', 'Draft'); const run = host.submit('owner', c.id, 'draft', 'question');
+    await settle(() => !!emit); emit('partial');
+    assert.equal(host.output('owner', run.runId).text, 'partial');
+    assert.throws(() => host.output('other', run.runId), /not_found/);
+    assert.deepEqual(store.history('owner', c.id), []);
+    assert.equal(store.messages('owner', c.id, 0, 50).messages.filter(m => m.role === 'assistant').length, 0);
+    current = false;
+    const invalidated = host.output('owner', run.runId);
+    assert.equal(invalidated.text, ''); assert.equal(invalidated.run.error, 'memory_context_changed');
+    emit('late'); finish('late'); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(host.output('owner', run.runId).text, ''); assert.deepEqual(store.history('owner', c.id), []);
+  } finally { host.stop(); store.close(); }
+});
+test('complete and cancelled streams clear drafts and persist only the complete answer', async () => {
+  const store = new ServiceStore(':memory:'); let emit!: (text: string) => void, finish!: (text: string) => void;
+  const host = new RunHost(store, (_text, _history, _signal, _reasoning, context) => {
+    emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; });
+  });
+  try {
+    const c = store.createConversation('owner', 'Stream'); const run = host.submit('owner', c.id, 'first', 'question');
+    await settle(() => !!emit); emit('part'); finish('complete');
+    await settle(() => store.run('owner', run.runId).state === 'completed');
+    assert.equal(host.output('owner', run.runId).text, ''); assert.equal(store.history('owner', c.id)[1]?.content, 'complete');
+    emit = undefined!; const second = host.submit('owner', c.id, 'second', 'cancelled');
+    await settle(() => !!emit); emit('discard'); host.cancel('owner', second.runId); emit('late'); finish('late');
+    assert.equal(host.output('owner', second.runId).text, ''); assert.equal(host.output('owner', second.runId).run.state, 'cancelled');
+  } finally { host.stop(); store.close(); }
+});
+test('shutdown discards provisional output and restart never replays or commits a late draft', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'agent-stream-restart-')), path = join(root, 'memory.db');
+  const store = new ServiceStore(path); let emit!: (text: string) => void, finish!: (text: string) => void;
+  const host = new RunHost(store, (_input, _history, _signal, _reasoning, context) => {
+    emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; });
+  });
+  let reopened: ServiceStore | undefined, restarted: RunHost | undefined;
+  try {
+    const c = store.createConversation('owner', 'Restart'); const accepted = host.submit('owner', c.id, 'message', 'question');
+    await settle(() => !!emit); emit('ephemeral draft'); assert.equal(host.output('owner', accepted.runId).text, 'ephemeral draft');
+    host.stop(); store.close();
+    reopened = new ServiceStore(path); restarted = new RunHost(reopened, async () => assert.fail('interrupted run must not restart automatically'));
+    assert.equal(restarted.output('owner', accepted.runId).text, ''); assert.equal(restarted.output('owner', accepted.runId).run.state, 'interrupted');
+    emit('late draft'); finish('late final'); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(reopened.history('owner', c.id), []); assert.equal(reopened.messages('owner', c.id, 0, 50).messages.filter(m => m.role === 'assistant').length, 0);
+  } finally { host.stop(); restarted?.stop(); reopened?.close(); rmSync(root, { recursive: true, force: true }); }
+});

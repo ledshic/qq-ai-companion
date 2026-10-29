@@ -1,6 +1,5 @@
 import { createInterface, clearLine, cursorTo, type Interface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
-import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { stripVTControlCharacters } from 'node:util';
 import type { createServiceClient } from '../../packages/client/src/service.js';
@@ -8,7 +7,7 @@ import { APIError, type Conversation, type Run } from '@companion/contracts/serv
 
 type Client = ReturnType<typeof createServiceClient>;
 interface Attempt { conversationId: string; content: string; clientMessageId: string }
-interface ObservedRun { id: string; conversation: Conversation; controller: AbortController }
+interface ObservedRun { id: string; conversation: Conversation; controller: AbortController; preview: string }
 const instructions = `普通输入发送消息；每次等待一个任务。// 开头可发送以 / 开头的正文。
 /help                 查看帮助
 /list                 列出会话
@@ -85,27 +84,43 @@ export async function runInteractiveChat(options: {
   function finish(task: ObservedRun, run: Run) {
     if (closed || active !== task) return;
     active = undefined; task.controller.abort();
+    if (task.preview && run.state !== 'completed') print('\n草稿已清除，未作为回答保存。');
+    task.preview = '';
     if (run.state === 'completed' && run.result?.trim()) print(`助手（${task.conversation.title}）：\n${run.result}`);
     else print(`任务 ${run.id}：${run.state}${run.error ? `（${run.error}）` : ''}`, run.state === 'failed' || run.state === 'interrupted');
   }
   function observe(id: string, conversation: Conversation, known?: Run) {
     active?.controller.abort();
-    const task: ObservedRun = { id, conversation, controller: new AbortController() };
+    const task: ObservedRun = { id, conversation, controller: new AbortController(), preview: '' };
     active = task;
     if (known && terminal(known)) { finish(task, known); return; }
     print(`正在观察任务 ${id}；/cancel 取消，/exit 仅退出观察。`);
     void (async () => {
       try {
-        while (!closed && active === task && !task.controller.signal.aborted) {
-          const latest = await client.run(task.id);
-          if (closed || active !== task || task.controller.signal.aborted) return;
+        const streamSignal = AbortSignal.any([signal, task.controller.signal]);
+        for await (const snapshot of client.watchRun(task.id, streamSignal)) {
+          if (closed || active !== task || streamSignal.aborted) return;
+          const latest = snapshot.run;
           if (latest.id !== task.id || latest.conversationId !== task.conversation.id) throw Error('run_scope_changed');
-          if (terminal(latest)) { finish(task, latest); return; }
-          await delay(500, undefined, { signal: task.controller.signal });
+          const safe = terminalText(snapshot.text);
+          if (safe !== task.preview) {
+            const change = safe.startsWith(task.preview) ? safe.slice(task.preview.length) : '\n[草稿已替换或清除]\n' + safe;
+            if (reader && tty) {
+              // Keep readline's input and prompt intact without erasing prior tokens.
+              if (!task.preview) print('草稿（未提交）：');
+              print(change);
+            } else {
+              if (!task.preview) options.output.write('草稿（未提交）：\n');
+              options.output.write(change);
+            }
+            task.preview = safe;
+          }
+          if (terminal(latest)) { if (task.preview) options.output.write('\n'); finish(task, latest); return; }
         }
       } catch (error) {
         if (closed || active !== task || task.controller.signal.aborted || signal.aborted) return;
-        task.controller.abort();
+        task.preview = ''; task.controller.abort();
+        options.output.write('\n[输出连接中断，草稿不作为已提交回答]\n');
         print(`观察失败：${failureCode(error)}。任务可能仍在运行，可 /resume ${task.id} 或 /cancel。`, true);
       }
     })();

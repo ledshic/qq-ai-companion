@@ -18,6 +18,7 @@ async function cancellable<T>(signal: AbortSignal, run: () => Promise<T> | T): P
 export async function executeAgent(input: {
   model: Model; tools: Tool[]; messages: ModelMessage[]; signal: AbortSignal;
   onReasoning?: (text: string) => void;
+  onOutput?: (text: string) => void;
   limits?: { rounds?: number; calls?: number; resultChars?: number; toolTimeoutMs?: number };
 }): Promise<string> {
   const limits = { rounds: 3, calls: 8, resultChars: 2000, toolTimeoutMs: 8000, ...input.limits };
@@ -28,14 +29,25 @@ export async function executeAgent(input: {
   const messages = structuredClone(input.messages);
   let calls = 0;
   for (let round = 0; round <= limits.rounds; round++) {
-    const reply = await cancellable(input.signal, () => input.model.complete(messages,
-      round < limits.rounds && calls < limits.calls ? input.tools.map(({ name, description, parameters }) => ({ name, description, parameters })) : [], input.signal));
+    let preview = '', open = true;
+    input.onOutput?.('');
+    let reply;
+    try {
+      reply = await cancellable(input.signal, () => input.model.complete(messages,
+        round < limits.rounds && calls < limits.calls ? input.tools.map(({ name, description, parameters }) => ({ name, description, parameters })) : [], input.signal,
+        input.onOutput ? delta => {
+          if (!open || input.signal.aborted) return;
+          preview = Array.from(preview + delta).slice(0, 1500).join('');
+          input.onOutput!(preview);
+        } : undefined));
+    } finally { open = false; }
     if (!reply.calls.length) {
       if (!reply.text.trim()) throw Error('Model returned empty reply');
       if (reply.reasoning?.trim()) input.onReasoning?.(reply.reasoning.slice(0, 32000));
       input.signal.throwIfAborted();
       return Array.from(reply.text.trim()).slice(0, 1500).join('');
     }
+    input.onOutput?.(''); // Tool-round text is provisional, never a final answer.
     if (round === limits.rounds || calls + reply.calls.length > limits.calls) throw Error('Tool budget exhausted');
     if (new Set(reply.calls.map(call => call.id)).size !== reply.calls.length || reply.calls.some(call => !call.id || !call.name))
       throw Error('Invalid tool calls');

@@ -104,3 +104,22 @@ test('revoking memory during a model wait blocks the answer and subsequent tool 
   resolve(Response.json({ choices: [{ message: { tool_calls: [{ id: '1', function: { name: 'roll_dice', arguments: '{}' } }] } }] }));
   await assert.rejects(pending, /Memory context changed/); assert.equal(calls, 1);
 });
+for (const mode of ['success', 'failed']) test(`streamed tool rounds reset provisional text and preserve ${mode} search policy`, async () => {
+  const output: string[] = []; let completions = 0;
+  const scope = { ownerId: 'owner', participantId: 'owner', participantIds: ['owner'], conversationId: 'conversation', channelId: 'console', kind: 'direct' as const, memorySourceConversationIds: [] };
+  const reply = createConsoleReply('fixture', 'fixture', 9, true, async (url, init) => {
+    if (String(url).endsWith('/tools/search')) return mode === 'failed' ? new Response('', { status: 503 }) : Response.json({ results: [{ title: 'Evidence', url: 'https://example.com/source', summary: 'verified snippet' }] });
+    const body = JSON.parse(String(init?.body)); assert.equal(body.stream, true); completions++;
+    const chunks = completions === 1 ? [
+      { content: '正在查找' },
+      { tool_calls: [{ index: 0, id: 'search', type: 'function', function: { name: 'web_search', arguments: '{"query":' } }] },
+      { tool_calls: [{ index: 0, function: { arguments: '"test"}' } }] },
+    ] : [{ content: 'verified ' }, { content: 'answer' }];
+    if (completions === 2) { assert.equal(body.messages.at(-1).tool_call_id, 'search'); assert(!output.includes('正在查找') || output.at(-1) === ''); }
+    return new Response([...chunks.map(delta => ({ choices: [{ index: 0, delta, finish_reason: null }] })), { choices: [{ index: 0, delta: {}, finish_reason: completions === 1 ? 'tool_calls' : 'stop' }] }].map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+  });
+  const result = await reply('search', [], new AbortController().signal, undefined, { scope, onMemoryGuard() {}, onOutput(text) { output.push(text); } });
+  assert.equal(completions, 2); assert(output.includes('正在查找')); assert.equal(output.at(-1), result);
+  if (mode === 'success') { assert(output.includes('verified ')); assert.equal(result, 'verified answer\n来源：Evidence https://example.com/source'); }
+  else { assert.match(result, /联网搜索失败/); assert(!output.includes('verified ')); assert(!output.some(text => text.includes('verified answer'))); }
+});

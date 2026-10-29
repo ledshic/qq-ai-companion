@@ -1,7 +1,10 @@
+import { sseData } from '@companion/contracts/sse';
 import {
   APIError,
   parseServiceStatus,
   parseRun,
+  parseRunOutput,
+  type RunOutput,
   parseEventPage,
   parseServiceEvent,
   type AcceptedMessage,
@@ -133,6 +136,21 @@ export function createServiceClient(
         'POST',
         { clientMessageId, content },
       ),
+    output: (id: string, signal?: AbortSignal) => call(`/runs/${encodeURIComponent(id)}/output`, 'GET', undefined, signal).then(parseRunOutput),
+    async *watchRun(id: string, signal?: AbortSignal): AsyncGenerator<RunOutput> {
+      const init: NonNullable<Parameters<typeof request>[1]> & { cache: 'no-store' } = {
+        headers: headers({ Accept: 'text/event-stream' }), credentials: 'include', redirect: 'error', cache: 'no-store', signal,
+      };
+      const response = await request(`${base}/api/v1/runs/${encodeURIComponent(id)}/output`, init);
+      if (!response.ok) throw new APIError(response.status, errorCode(await response.json()));
+      for await (const data of sseData(response, signal)) {
+        const snapshot = parseRunOutput(JSON.parse(data));
+        if (snapshot.run.id !== id) throw Error('Run stream scope mismatch');
+        yield snapshot;
+        if (!['queued', 'running'].includes(snapshot.run.state)) return;
+      }
+      throw Error('Run stream ended before terminal state');
+    },
     run: (id: string) => call(`/runs/${encodeURIComponent(id)}`).then(parseRun),
     cancel: (id: string) =>
       call(`/runs/${encodeURIComponent(id)}/cancel`, 'POST', {}).then(parseRun),
@@ -160,41 +178,9 @@ export function createServiceClient(
         const error = await response.json();
         throw new APIError(response.status, errorCode(error));
       }
-      if (
-        !response.headers
-          .get('content-type')
-          ?.startsWith('text/event-stream') ||
-        !response.body
-      )
-        throw Error('Invalid event stream');
-      const reader = response.body.getReader(),
-        decoder = new TextDecoder();
-      let buffer = '';
-      try {
-        for (;;) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          if (buffer.length > 1024 * 1024)
-            throw Error('Event stream frame too large');
-          let boundary: number;
-          while ((boundary = buffer.indexOf('\n\n')) >= 0) {
-            const frame = buffer.slice(0, boundary);
-            buffer = buffer.slice(boundary + 2);
-            const data = frame
-              .split('\n')
-              .find((line) => line.startsWith('data: '));
-            if (!data) continue;
-            const event = parseServiceEvent(JSON.parse(data.slice(6)));
-            if (event.eventId > after) {
-              after = event.eventId;
-              yield event;
-            }
-          }
-        }
-      } finally {
-        await reader.cancel().catch(() => {});
-        reader.releaseLock();
+      for await (const data of sseData(response, signal)) {
+        const event = parseServiceEvent(JSON.parse(data));
+        if (event.eventId > after) { after = event.eventId; yield event; }
       }
     },
   };
