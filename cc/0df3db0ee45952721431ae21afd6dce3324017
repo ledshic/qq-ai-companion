@@ -1,0 +1,56 @@
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_0a508d8d3c331f 23-24,72,82-84
+docs/README.md
+  s_0e006fc6de5952::t_0a508d8d3c331f 14
+src/app/terminal-editor.test.ts
+  s_0e006fc6de5952::t_25d297ed54ab51 1-20,22-69
+  s_0e006fc6de5952::t_f21a60b40c789e 21
+  s_0e006fc6de5952::t_32296aab0ff9c3 70-86
+README.md
+  s_0e006fc6de5952::t_0a508d8d3c331f 73-74
+src/testing/terminal-screen.ts
+  s_0e006fc6de5952::t_25d297ed54ab51 1-31
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_9ef549c6fd85cd 218-219,221
+  s_0e006fc6de5952::t_442b87a25648d9 43,261-262,270-312
+src/app/terminal-editor.ts
+  s_0e006fc6de5952::t_b6088ec9b3d5ca 82,84,155-160
+  s_0e006fc6de5952::t_58e7889ef21226 1-38,40-41,43,49-50,52-75,77-78,80-81,83,85,88,93,95-97,99-102,105-116,119,121-125,127-128,131-139,141,143,146,148-154,161-162
+  s_0e006fc6de5952::t_a6b3d79948b303 39,86,94,117-118,120,130
+  s_0e006fc6de5952::t_b72ef5a76313a0 42,44-48,51,79,87,89-92,98,129
+  s_0e006fc6de5952::t_88348c8fe9d16d 140,142,144-145,147
+  s_0e006fc6de5952::t_3e94dfa4630063 76,103-104
+  s_0e006fc6de5952::t_f21a60b40c789e 126
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_b6088ec9b3d5ca 233-236,258
+  s_0e006fc6de5952::t_a6b3d79948b303 161
+  s_0e006fc6de5952::t_3e94dfa4630063 14,254-255
+  s_0e006fc6de5952::t_6452c0faceafe1 1-2,13,15,41-42,47-48,92,114-115,121,126-127,152,154-158,231-232,237-253,256-257,259-264,274-282,284
+docs/AGENT-CLI-EDITOR.md
+  s_0e006fc6de5952::t_131b6e42a8fc60 1-28,30-74
+  s_0e006fc6de5952::t_0a508d8d3c331f 29
+docs/AGENT-STREAMING.md
+  s_0e006fc6de5952::t_0a508d8d3c331f 58
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_0a508d8d3c331f 30-31,71-73
+src/testing/cli-pty-smoke.ts
+  s_0e006fc6de5952::t_7116b07c06724b 75,83
+  s_0e006fc6de5952::t_a35ac733062efc 1-20,25-74,76-82,84-93,97-112,114-117
+  s_0e006fc6de5952::t_88348c8fe9d16d 21-24,94-96,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc0df3db0ee45952721431ae21afd6dce3324017",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
