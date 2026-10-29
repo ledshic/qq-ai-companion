@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createServiceClient } from '../../packages/client/src/service.js';
-import { APIError } from '@companion/contracts/service';
+import { APIError, RUN_LIST_STATUSES } from '@companion/contracts/service';
 import type { Readable, Writable } from 'node:stream';
 import { runInteractiveChat } from './interactive-cli.js';
 import { parseTaskArguments } from './task-arguments.js';
@@ -13,7 +13,8 @@ const help = `Usage: pnpm agent:cli <command>
   chat [conversationId]
   status
   conversations
-  tasks [active|all] [--conversation <conversationId>] [--before <runId>] [--limit <1..200>]
+  tasks [status] [--conversation <conversationId>] [--before <runId>] [--limit <1..200>]
+    status: ${RUN_LIST_STATUSES.join('|')}
   new <title>
   send <conversationId> <content> [clientMessageId]
   run <runId>

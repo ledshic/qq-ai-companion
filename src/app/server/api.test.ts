@@ -542,3 +542,35 @@ test('conversation task filtering checks ownership, scoped cursors, empty owned 
     assert.equal((await f.api.inject({ url: '/api/v1/runs?conversationId=' + a.id, headers: { ...headers, origin: 'https://evil.example' } })).statusCode, 403);
   } finally { await f.close(); }
 });
+test('specific task states isolate owners, combine with conversation scope and retain cursors after state transitions', async () => {
+  const f = fixture();
+  try {
+    const states = ['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;
+    const own = new Map<string, string>();
+    for (const state of states) {
+      for (const owner of ['owner', 'other']) {
+        const c = f.store.createConversation(owner, owner + '-' + state), run = f.store.accept(owner, c.id, state, 'private input');
+        if (state === 'running' || state === 'completed' || state === 'failed') f.store.start(owner, run.runId);
+        if (state === 'completed') f.store.finish(owner, run.runId, 'private result', null);
+        if (state === 'failed') f.store.finish(owner, run.runId, null, 'generation_failed');
+        if (state === 'cancelled') f.store.cancel(owner, run.runId);
+        if (state === 'interrupted') f.store.exec("UPDATE service_runs SET state='interrupted',error='service_restarted' WHERE id=?", run.runId);
+        if (owner === 'owner') own.set(state, run.runId);
+      }
+    }
+    const get = (query: string) => f.api.inject({ url: '/api/v1/runs?' + query, headers });
+    for (const state of states) {
+      const page = (await get('status=' + state)).json(); assert.deepEqual(page.runs.map((run: any) => [run.id, run.state]), [[own.get(state), state]]);
+      assert.equal(page.nextCursor, null); assert(!JSON.stringify(page).includes('private'));
+    }
+    const c = f.store.createConversation('owner', 'Scoped history'); const completed: string[] = [];
+    for (let i = 0; i < 3; i++) { const run = f.store.accept('owner', c.id, 'c-' + i, 'question'); f.store.start('owner', run.runId); f.store.finish('owner', run.runId, i === 1 ? null : 'answer', i === 1 ? 'generation_failed' : null); if (i !== 1) completed.push(run.runId); }
+    const first = (await get('status=completed&conversationId=' + c.id + '&limit=1')).json(); assert.equal(first.runs[0].id, completed[1]);
+    const next = (await get('status=completed&conversationId=' + c.id + '&limit=1&before=' + first.nextCursor)).json(); assert.deepEqual(next.runs.map((run: any) => run.id), [completed[0]]); assert.equal(next.nextCursor, null);
+    const newer = f.store.createConversation('owner', 'New running'), nr = f.store.accept('owner', newer.id, 'running', 'question'); f.store.start('owner', nr.runId);
+    const running = (await get('status=running&limit=1')).json(); assert.equal(running.runs[0].id, nr.runId); f.store.finish('owner', nr.runId, 'finished', null);
+    assert.deepEqual((await get('status=running&before=' + running.nextCursor)).json().runs.map((run: any) => run.id), [own.get('running')]);
+    for (const status of ['finished', 'RUNNING', '', 'running,queued', 'running&status=failed']) assert.equal((await get('status=' + status)).statusCode, 400);
+    const foreign = f.store.createConversation('other', 'Foreign'); assert.equal((await get('status=failed&conversationId=' + foreign.id)).statusCode, 404);
+  } finally { await f.close(); }
+});

@@ -26,8 +26,8 @@ pnpm agent:cli chat <conversationId>
 | --- | --- |
 | /help | 查看帮助 |
 | /list | 列出当前认证身份可见的会话 |
-| /tasks [active\|all] | 分页列出本人任务，默认未完成；/tasks more 读取下一页 |
-| /tasks [active\|all] --here / --conversation <id> | 限定当前或指定会话；后续 more 保持该范围 |
+| /tasks [状态] | 默认 active；可选 all 或六种具体状态；/tasks more 读取下一页 |
+| /tasks [状态] --here / --conversation <id> | 限定当前或指定会话；后续 more 保持状态与会话范围 |
 | /new [标题] | 创建并切换新会话 |
 | /use <conversationId> | 校验会话可见性后切换，读取最近消息 |
 | /history | 分页读取当前会话，展示最后 20 条消息，不显示推理 |
@@ -41,6 +41,8 @@ pnpm agent:cli chat <conversationId>
 选择已有会话不会自动接管其他设备的未完成任务。可先 `/tasks` 发现任务，再 `/resume #序号` 观察，也保留完整任务标识入口。列表只显示摘要，选择后重新查询身份和状态；终态不重新执行。分页、编号与权限规则见[任务列表记录](AGENT-CLI-TASKS.md)。其他设备提交的新消息仍按既有服务规则取代同会话未完成任务。
 
 `--here` 和 `--conversation` 互斥。切换当前会话不改变已经打开的分页范围，重新指定筛选才清除旧编号。单次命令、筛选与分页的完整参数见[会话筛选记录](AGENT-CLI-TASK-FILTERS.md)。
+
+状态支持 queued、running、completed、failed、cancelled、interrupted，保留 active 和 all。用 `/tasks failed --here` 查看当前会话失败项，终态只读，不会重新执行；完整规则见[具体状态筛选](AGENT-CLI-TASK-STATES.md)。
 
 ## 重试、取消与退出
 
@@ -58,7 +60,7 @@ pnpm agent:cli chat <conversationId>
 | --- | --- |
 | status | 查询正式服务状态 |
 | conversations | 分页列出当前身份可见会话 |
-| tasks [active\|all] [--conversation <id>] [--before <runId>] [--limit <n>] | 输出一页摘要及 nextCursor，默认未完成；不自动读取下一页 |
+| tasks [状态] [--conversation <id>] [--before <runId>] [--limit <n>] | 输出一页摘要及 nextCursor，默认 active；支持六种具体状态，不自动翻页 |
 | new "标题" | 创建拥有者直聊会话 |
 | send <conversationId> "正文" [clientMessageId] | 提交一次消息，先输出重试标识，再输出接受结果 |
 | run <runId> | 查询保存的执行状态和结果 |
@@ -90,4 +92,6 @@ pnpm agent:cli chat <conversationId>
 
 任务列表首次验收（`c8fc0dd`）：核心 126 项、客户端 12 项、浏览器 22 项、类型检查、构建和帮助通过；真实伪终端验证从列表发现任务并按编号恢复，来源撤销前后均验证不提交失效草稿。日志位于 `artifacts/cli-tasks/`，详见任务列表记录。
 
-会话筛选和单次命令最新验收：核心 131 项、客户端 13 项、浏览器 22 项、类型检查、构建、帮助和真实终端验证通过。日志位于 `artifacts/cli-task-filters/`，详见会话筛选记录。本地 HTTP、进程与浏览器测试在沙箱外执行，文档已检查标题、敏感信息、链接和实现事实。
+会话筛选和单次命令首次验收（`8da5a4e`）：核心 131 项、客户端 13 项、浏览器 22 项、类型检查、构建、帮助和真实终端验证通过。日志位于 `artifacts/cli-task-filters/`，详见会话筛选记录。
+
+具体状态筛选最新验收：核心 135 项、客户端 14 项、浏览器 22 项、类型检查、构建、帮助和真实终端验证通过。日志位于 `artifacts/cli-task-states/`，详见具体状态筛选记录。本地 HTTP、进程与浏览器测试在沙箱外执行，文档已检查标题、敏感信息、链接和实现事实。

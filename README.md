@@ -76,6 +76,8 @@ pnpm agent:cli cancel <runId>
 
 任务列表支持 `--here` 限定当前会话，或 `--conversation` 指定本人会话。单次 `pnpm agent:cli tasks` 输出一页 JSON，可配合状态、会话、游标和页长选项；完整用法见[任务会话筛选与单次命令](docs/AGENT-CLI-TASK-FILTERS.md)。
 
+可用 `/tasks failed --here` 或 `pnpm agent:cli tasks completed` 按具体状态查询。六种状态、分页和恢复规则见[具体状态筛选](docs/AGENT-CLI-TASK-STATES.md)，active 与 all 继续可用。
+
 ## 验证与文档
 
 ```sh

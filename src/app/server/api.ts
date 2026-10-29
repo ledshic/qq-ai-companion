@@ -7,6 +7,7 @@ import {
   parseMessage,
   pageLimit,
   eventCursor,
+  isRunListStatus,
   type Principal,
   type ServiceStatus,
 } from '@companion/contracts/service';
@@ -267,8 +268,8 @@ export function createServiceAPI(options: {
   });
   app.get('/api/v1/runs', async request => {
     const q = query(request, ['status', 'before', 'limit', 'conversationId']);
-    if (q.status !== undefined && q.status !== 'active' && q.status !== 'all') throw new APIError(400, 'invalid_request');
-    return store.runs(authenticate(request).principal.ownerId, q.status === 'active' ? 'active' : 'all',
+    if (q.status !== undefined && !isRunListStatus(q.status)) throw new APIError(400, 'invalid_request');
+    return store.runs(authenticate(request).principal.ownerId, q.status ?? 'all',
       q.before === undefined ? undefined : text(q.before, 80), pageLimit(q.limit),
       q.conversationId === undefined ? undefined : text(q.conversationId, 80));
   });

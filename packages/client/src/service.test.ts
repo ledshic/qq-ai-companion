@@ -118,3 +118,19 @@ test('task SDK carries conversation filters and rejects a response outside the s
   options.conversationId = 'changed-after-request'; reply(Response.json({ runs: [run], nextCursor: null }));
   assert.equal((await pending).runs[0]?.conversationId, 'selected');
 });
+test('task SDK validates each exact status, active membership and the request-time status snapshot', async () => {
+  const base = { id: 'run', conversationId: 'conversation', conversationTitle: 'Title', error: null, createdAt: '2026-10-29T00:00:00Z', updatedAt: '2026-10-29T00:00:00Z' };
+  const states = ['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;
+  for (const state of states) {
+    let url = ''; const client = createServiceClient('http://localhost', { request: async input => { url = String(input); return Response.json({ runs: [{ ...base, state }], nextCursor: null }); } });
+    assert.equal((await client.runs({ status: state })).runs[0]?.state, state); assert.equal(new URL(url).searchParams.get('status'), state);
+    const wrong = state === 'failed' ? 'running' : 'failed'; await assert.rejects(client.runs({ status: wrong }), /status mismatch/);
+    if (!['running', 'queued'].includes(state)) await assert.rejects(client.runs({ status: 'active' }), /status mismatch/);
+    assert.equal((await client.runs({ status: 'all' })).runs.length, 1);
+  }
+  let reply!: (response: Response) => void;
+  const deferred = createServiceClient('http://localhost', { request: () => new Promise(resolve => { reply = resolve; }) });
+  const options: { status: 'running' | 'failed' } = { status: 'running' }, pending = deferred.runs(options);
+  options.status = 'failed'; reply(Response.json({ runs: [{ ...base, state: 'running' }], nextCursor: null }));
+  assert.equal((await pending).runs[0]?.state, 'running');
+});

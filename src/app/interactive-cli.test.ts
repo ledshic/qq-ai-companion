@@ -347,7 +347,7 @@ test('numbered recovery revalidates the latest terminal state rather than execut
   try {
     const c = f.store.createConversation('text-owner', 'Changed after listing'), accepted = f.host.submit('text-owner', c.id, 'earlier', 'question');
     await settle(() => !!finish); const s = f.connect(); await settle(() => s.text().includes('已连接'));
-    s.line('/tasks'); await settle(() => s.text().includes('#1  运行中')); finish('finished after listing'); await settle(() => f.store.run('text-owner', accepted.runId).state === 'completed');
+    s.line('/tasks running'); await settle(() => s.text().includes('#1  运行中')); finish('finished after listing'); await settle(() => f.store.run('text-owner', accepted.runId).state === 'completed');
     s.line('/resume #1'); await settle(() => s.text().includes('finished after listing'));
     assert.equal(generated, 1); assert(!f.calls.some(call => call.path.endsWith('/output') || call.method === 'POST'));
     s.line('/exit'); assert.equal(await s.result, 0);
@@ -382,7 +382,7 @@ for (const revoke of ['before', 'during']) test(`numbered recovery checks real s
     }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } }), undefined, { memory });
     const accepted = f.host.submit('text-owner', target.id, 'earlier', '考试安排'); await settle(() => !!f.host.output('text-owner', accepted.runId).text);
     const s = f.connect(); let output = ''; s.output.on('data', chunk => { output += String(chunk); }); await settle(() => s.text().includes('已连接'));
-    s.line('/tasks --conversation ' + target.id); await settle(() => s.text().includes('#1  运行中'));
+    s.line('/tasks running --conversation ' + target.id); await settle(() => s.text().includes('#1  运行中'));
     if (revoke === 'before') memory.setSources('text-owner', target.id, []);
     s.line('/resume #1');
     if (revoke === 'during') { await settle(() => output.includes('已授权草稿')); memory.setSources('text-owner', target.id, []); }
@@ -439,5 +439,44 @@ test('a denied conversation filter clears old numbered choices and invalid optio
     s.line('/tasks more --here'); s.line('/tasks --here --conversation ' + own.id); s.line('/tasks --limit 1');
     await settle(() => s.error().split('命令或参数无效').length >= 4); assert.equal(f.calls.length, before);
     s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('interactive task listing supports each exact state and viewing a terminal task never reruns it', async () => {
+  let generated = 0; const f = fixture(async () => { generated++; return 'must not run'; });
+  try {
+    const states = ['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;
+    const labels = ['排队中', '运行中', '已完成', '失败', '已取消', '已中断'];
+    for (const state of states) {
+      const c = f.store.createConversation('text-owner', state), run = f.store.accept('text-owner', c.id, state, 'private input');
+      f.store.exec('UPDATE service_runs SET state=? WHERE id=?', state, run.runId);
+    }
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    for (const [i, state] of states.entries()) {
+      s.line('/tasks ' + state); await settle(() => s.text().includes('任务列表（' + labels[i] + '，'));
+      const latest = f.calls.filter(call => call.path.startsWith('/api/v1/runs?')).at(-1)!;
+      assert.equal(new URL(latest.path, 'http://localhost').searchParams.get('status'), state);
+    }
+    s.line('/resume #1'); await settle(() => s.error().includes('interrupted')); assert.equal(generated, 0);
+    assert(!s.text().includes('private input')); assert(!f.calls.some(call => call.method === 'POST'));
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('specific status pagination retains both filters after conversation changes and resets numbered choices', async () => {
+  const f = fixture();
+  try {
+    const a = f.store.createConversation('text-owner', 'State A'), b = f.store.createConversation('text-owner', 'State B');
+    for (let i = 0; i < 23; i++) { const run = f.store.accept('text-owner', a.id, 'done-' + i, 'question'); f.store.start('text-owner', run.runId); f.store.finish('text-owner', run.runId, 'completed-answer-' + i, null); }
+    const failed = f.store.accept('text-owner', a.id, 'failed', 'question'); f.store.start('text-owner', failed.runId); f.store.finish('text-owner', failed.runId, null, 'generation_failed');
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks completed --conversation ' + a.id); await settle(() => s.text().includes('#20 ')); assert(!s.text().includes('#1  失败'));
+    s.line('/use ' + b.id); await settle(() => s.text().includes('历史：State B'));
+    s.line('/tasks more'); await settle(() => s.text().includes('#23 '));
+    const query = new URL(f.calls.filter(call => call.path.startsWith('/api/v1/runs?')).at(-1)!.path, 'http://localhost').searchParams;
+    assert.equal(query.get('status'), 'completed'); assert.equal(query.get('conversationId'), a.id);
+    s.line('/resume #21'); await settle(() => s.text().includes('completed-answer-2'));
+    s.line('/tasks failed --here'); await settle(() => s.text().includes('#1  失败'));
+    s.line('/resume #21'); await settle(() => s.error().includes('序号不可用'));
+    s.line('/resume #1'); await settle(() => s.error().includes('generation_failed'));
+    s.line('/exit'); assert.equal(await s.result, 0); assert(!f.calls.some(call => call.method === 'POST'));
   } finally { await f.close(); }
 });

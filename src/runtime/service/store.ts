@@ -8,6 +8,7 @@ import {
   type Message,
   type Run,
   type RunPage,
+  type RunListStatus,
   type RunState,
   type Principal,
   type ServiceEvent,
@@ -301,7 +302,7 @@ export class ServiceStore {
     if (!row) throw new APIError(404, 'not_found');
     return this.runRow(row);
   }
-  runs(ownerId: string, status: 'active' | 'all', before: string | undefined, limit: number, conversationId?: string): RunPage {
+  runs(ownerId: string, status: RunListStatus, before: string | undefined, limit: number, conversationId?: string): RunPage {
     if (conversationId !== undefined) this.conversation(ownerId, conversationId);
     let boundary: number | undefined;
     if (before) {
@@ -312,9 +313,10 @@ export class ServiceStore {
     const rows = this.all(`SELECT r.id,r.conversation_id,r.state,r.error,r.created_at,r.updated_at,c.title
       FROM service_runs r JOIN service_conversations c ON c.id=r.conversation_id AND c.owner_id=r.owner_id
       WHERE r.owner_id=? ${status === 'active' ? "AND r.state IN ('queued','running')" : ''}
+      ${status === 'active' || status === 'all' ? '' : 'AND r.state=?'}
       ${conversationId === undefined ? '' : 'AND r.conversation_id=?'}
       ${boundary === undefined ? '' : 'AND r.rowid < ?'} ORDER BY r.rowid DESC LIMIT ?`,
-      ownerId, ...(conversationId === undefined ? [] : [conversationId]), ...(boundary === undefined ? [] : [boundary]), limit + 1);
+      ownerId, ...(status === 'active' || status === 'all' ? [] : [status]), ...(conversationId === undefined ? [] : [conversationId]), ...(boundary === undefined ? [] : [boundary]), limit + 1);
     const runs = rows.slice(0, limit).map(row => ({ id: String(row.id), conversationId: String(row.conversation_id),
       conversationTitle: String(row.title), state: row.state as RunState, error: row.error === null ? null : String(row.error),
       createdAt: String(row.created_at), updatedAt: String(row.updated_at) }));

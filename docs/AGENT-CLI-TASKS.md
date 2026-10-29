@@ -34,7 +34,7 @@
 
 | 查询参数 | 行为 |
 | --- | --- |
-| `status` | `all` 或 `active`；API 默认 all，交互式 CLI 明确请求 active |
+| `status` | 保留 all、active，并支持六种[具体状态](AGENT-CLI-TASK-STATES.md)；API 默认 all，CLI 默认 active |
 | `limit` | 1–200，默认 50；CLI 请求 20 |
 | `before` | 上一页的 nextCursor，值为上一页末项的任务标识；其他拥有者或不存在的游标返回 404 |
 

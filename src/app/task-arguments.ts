@@ -1,4 +1,4 @@
-import type { RunListOptions } from '@companion/contracts/service';
+import { isRunListStatus, type RunListOptions } from '@companion/contracts/service';
 // Shared CLI grammar; parsing performs no I/O, including credential reads.
 export function parseTaskArguments(args: string[], interactive: boolean): { query: RunListOptions; here: boolean; more: boolean } {
   if (interactive && args[0] === 'more') {
@@ -6,7 +6,7 @@ export function parseTaskArguments(args: string[], interactive: boolean): { quer
     return { query: {}, here: false, more: true };
   }
   const rest = [...args], query: RunListOptions = { status: 'active' }; let here = false;
-  if (rest[0] === 'all' || rest[0] === 'active') query.status = rest.shift() as 'all' | 'active';
+  if (isRunListStatus(rest[0])) query.status = rest.shift() as NonNullable<RunListOptions['status']>;
   const seen = new Set<string>();
   while (rest.length) {
     const flag = rest.shift()!;

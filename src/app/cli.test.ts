@@ -103,7 +103,7 @@ test('CLI process authenticates and Ctrl+C ends SSE observation without cancelli
     assert.equal(JSON.parse(result.stdout).environment, 'service'); assert.doesNotMatch(result.stdout + result.stderr, /fixture-token/);
     const c = f.store.createConversation('cli-owner', 'Watch'); const run = f.host.submit('cli-owner', c.id, 'watch', 'pending');
     await settle(() => !!finish);
-    const tasks = await promisify(execFile)(process.execPath, ['--import', 'tsx', cli, 'tasks', '--conversation', c.id, '--limit', '1'], { env, timeout: 4000 });
+    const tasks = await promisify(execFile)(process.execPath, ['--import', 'tsx', cli, 'tasks', 'running', '--conversation', c.id, '--limit', '1'], { env, timeout: 4000 });
     assert.deepEqual(JSON.parse(tasks.stdout).runs.map((item: any) => item.id), [run.runId]);
     assert.equal(f.store.run('cli-owner', run.runId).state, 'running'); assert.doesNotMatch(tasks.stdout + tasks.stderr, /fixture-token/);
     child = spawn(process.execPath, ['--import', 'tsx', cli, 'watch'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -149,4 +149,22 @@ test('task argument errors are rejected before reading credentials or making req
     }
     assert.equal(requested, false);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+test('single task command supports every specific state and rejects unknown or combined states before I/O', async () => {
+  const f = fixture();
+  try {
+    const states = ['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;
+    for (const state of states) {
+      const c = f.store.createConversation('cli-owner', state), run = f.store.accept('cli-owner', c.id, state, 'private input');
+      f.store.exec('UPDATE service_runs SET state=? WHERE id=?', state, run.runId);
+      const response = await f.invoke(['tasks', state, '--conversation', c.id, '--limit', '1']);
+      assert.equal(response.code, 0); assert.deepEqual(response.output[0].runs.map((r: any) => [r.id, r.state]), [[run.runId, state]]);
+      assert.equal(response.output[0].nextCursor, null); assert(!JSON.stringify(response.output).includes('private input'));
+    }
+    for (const status of ['finished', 'RUNNING', 'running,queued', 'failed completed']) {
+      const errors: string[] = []; let requested = false;
+      assert.equal(await runCLI(['tasks', status], { env: { AGENT_CREDENTIAL_FILE: join(f.root, 'missing.json') }, request: async () => { requested = true; throw Error(); }, error: text => errors.push(text) }), 2);
+      assert.equal(requested, false); assert(errors[0]?.includes('invalid_arguments'));
+    }
+  } finally { await f.close(); }
 });

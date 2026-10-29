@@ -1,11 +1,9 @@
 export const SERVICE_API_VERSION = 'v1' as const;
-export type RunState =
-  | 'queued'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'interrupted';
+export const RUN_STATES = ['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;
+export type RunState = typeof RUN_STATES[number];
+export const RUN_LIST_STATUSES = ['active', 'all', ...RUN_STATES] as const;
+export type RunListStatus = typeof RUN_LIST_STATUSES[number];
+export const isRunListStatus = (value: unknown): value is RunListStatus => typeof value === 'string' && (RUN_LIST_STATUSES as readonly string[]).includes(value);
 export interface Conversation {
   id: string;
   ownerId: string;
@@ -36,14 +34,14 @@ export interface Run {
 }
 export type RunSummary = Pick<Run, 'id' | 'conversationId' | 'state' | 'error' | 'createdAt' | 'updatedAt'> & { conversationTitle: string };
 export interface RunPage { runs: RunSummary[]; nextCursor: string | null }
-export interface RunListOptions { status?: 'active' | 'all'; before?: string; limit?: number; conversationId?: string }
+export interface RunListOptions { status?: RunListStatus; before?: string; limit?: number; conversationId?: string }
 export function parseRunPage(value: unknown): RunPage {
   if (!isRecord(value) || !Array.isArray(value.runs) || value.runs.length > 200 ||
     !(value.nextCursor === null || isString(value.nextCursor))) throw Error('Invalid run page');
   const runs = value.runs.map((item: unknown): RunSummary => {
     if (!isRecord(item) || !['id', 'conversationId'].every(key => typeof item[key] === 'string' && /^[\w-]{1,80}$/.test(item[key] as string)) ||
       !isString(item.conversationTitle) || item.conversationTitle.length > 120 ||
-      !['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'].includes(String(item.state)) ||
+      !(RUN_STATES as readonly unknown[]).includes(item.state) ||
       !(item.error === null || typeof item.error === 'string') || !isTime(item.createdAt) || !isTime(item.updatedAt) ||
       Object.keys(item).some(key => !['id', 'conversationId', 'conversationTitle', 'state', 'error', 'createdAt', 'updatedAt'].includes(key))) throw Error('Invalid run summary');
     return item as unknown as RunSummary;

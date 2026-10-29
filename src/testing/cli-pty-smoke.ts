@@ -103,11 +103,11 @@ try {
   const resumed = first.text().match(/已接受任务：([^\s]+)/g)!.at(-1)!.split('：')[1]!;
   first.send('\x03'); assert.equal((await first.done)[0], 0, first.error()); assert(first.error().includes('PTY_RESTORED=True'));
   assert.equal(store.run('pty-owner', resumed).state, 'running');
-  const second = start(); await wait(() => second.text().includes('\x1b[?2004h')); second.send('/tasks --conversation ' + conversation.id + '\r');
+  const second = start(); await wait(() => second.text().includes('\x1b[?2004h')); second.send('/tasks running --conversation ' + conversation.id + '\r');
   await wait(() => second.text().includes('#1') && second.text().includes(resumed)); second.send('/resume #1\r');
   await wait(() => second.text().includes('正在观察任务')); generations[1]!.emit('恢复后的草稿'); await wait(() => second.text().includes('恢复后的草稿'));
   generations[1]!.finish('恢复后的完整回答'); await wait(() => second.text().includes('恢复后的完整回答'));
-  second.send('/tasks all --here\r'); await wait(() => second.text().includes('#1  已完成'));
+  second.send('/tasks completed --here\r'); await wait(() => second.text().includes('#1  已完成'));
   second.send('\x04'); assert.equal((await second.done)[0], 0, second.error()); assert(second.error().includes('PTY_RESTORED=True'));
   assert.deepEqual(store.history('pty-owner', conversation.id).map(message => message.content), ['next\n  input', '恢复后的完整回答']);
   assert(!first.text().includes('迟到草稿')); assert(!first.text().includes('pty-fixture-token'));

@@ -5,7 +5,7 @@ import type { Readable, Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { stripVTControlCharacters } from 'node:util';
 import type { createServiceClient } from '../../packages/client/src/service.js';
-import { APIError, type Conversation, type Run, type RunPage } from '@companion/contracts/service';
+import { APIError, RUN_LIST_STATUSES, type Conversation, type Run, type RunPage, type RunListStatus } from '@companion/contracts/service';
 
 type Client = ReturnType<typeof createServiceClient>;
 interface Attempt { conversationId: string; content: string; clientMessageId: string }
@@ -16,7 +16,8 @@ Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时
 粘贴多行后等待 Enter 确认；管道：/edit 开始多行，/send 发送，/discard 丢弃。
 /help                 查看帮助
 /list                 列出会话
-/tasks [active|all]   列出本人任务（默认未完成）；/tasks more 读取下一页
+/tasks [状态]        列出本人任务（默认 active）；/tasks more 读取下一页
+  状态：${RUN_LIST_STATUSES.join('、')}
   --here             限定当前会话；--conversation <会话标识> 限定指定会话
 /new [标题]           创建并切换到新会话
 /use <会话标识>       切换会话并读取最近消息
@@ -29,6 +30,7 @@ Ctrl+C / Ctrl+D 退出本地聊天，不取消远程任务。`;
 const terminalText = (text: string) => stripVTControlCharacters(text).replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 const failureCode = (error: unknown) => error instanceof APIError ? error.code : 'request_failed';
 const terminal = (run: Run) => !['queued', 'running'].includes(run.state);
+const taskStates: Record<RunListStatus, string> = { active: '未完成', all: '全部', queued: '排队中', running: '运行中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' };
 
 export async function runInteractiveChat(options: {
   client: Client; input: Readable; output: Writable; signal: AbortSignal;
@@ -39,7 +41,7 @@ export async function runInteractiveChat(options: {
   let active: ObservedRun | undefined;
   let uncertain: Attempt | undefined;
   let submitting: Attempt | undefined;
-  let taskList: (RunPage & { status: 'active' | 'all'; offset: number; conversationId?: string }) | undefined;
+  let taskList: (RunPage & { status: RunListStatus; offset: number; conversationId?: string }) | undefined;
   let closed = false;
   let reader: Interface | undefined;
   let editor: TerminalEditor | undefined;
@@ -90,7 +92,7 @@ export async function runInteractiveChat(options: {
     for (const message of recent) print(`${message.role === 'assistant' ? '助手' : '你'}：${message.content}`);
     if (!recent.length) print('暂无消息。');
   }
-  async function listTasks(mode: 'active' | 'all' | 'more', requestedConversation?: string) {
+  async function listTasks(mode: RunListStatus | 'more', requestedConversation?: string) {
     const previous = taskList;
     if (mode === 'more' && !previous) { print('请先 /tasks 或 /tasks all。'); return; }
     if (mode === 'more' && previous!.nextCursor === null) { print('已到任务列表末尾。'); return; }
@@ -104,11 +106,10 @@ export async function runInteractiveChat(options: {
     if (page.runs.some(run => earlier.some(item => item.id === run.id))) throw Error('task_page_repeated');
     const combined = [...earlier, ...page.runs], dropped = Math.max(0, combined.length - 200);
     taskList = { status, offset: offset + dropped, runs: combined.slice(dropped), nextCursor: page.nextCursor, conversationId };
-    const states = { queued: '排队中', running: '运行中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' };
     const oneLine = (text: string) => Array.from(terminalText(text).replace(/\s+/gu, ' ')).slice(0, 120).join('');
-    print(`任务列表（${status === 'active' ? '未完成' : '全部'}，${conversationId ? '会话 ' + conversationId : '本人全部会话'}，按创建顺序从新到旧）：`);
+    print(`任务列表（${taskStates[status]}，${conversationId ? '会话 ' + conversationId : '本人全部会话'}，按创建顺序从新到旧）：`);
     for (const [index, run] of page.runs.entries()) {
-      print(`#${offset + earlier.length + index + 1}  ${states[run.state]}${active?.id === run.id ? ' · 当前观察' : ''}  ${run.id}\n  会话：${oneLine(run.conversationTitle)}（${run.conversationId}）\n  更新：${oneLine(run.updatedAt)}${run.error ? ' · ' + oneLine(run.error) : ''}`);
+      print(`#${offset + earlier.length + index + 1}  ${taskStates[run.state]}${active?.id === run.id ? ' · 当前观察' : ''}  ${run.id}\n  会话：${oneLine(run.conversationTitle)}（${run.conversationId}）\n  更新：${oneLine(run.updatedAt)}${run.error ? ' · ' + oneLine(run.error) : ''}`);
     }
     if (!page.runs.length) print('没有更多符合条件的任务。');
     if (taskList.runs.length) print('输入 /resume #序号 或 /resume 完整任务标识；终态仅查看结果，不会重新执行。');

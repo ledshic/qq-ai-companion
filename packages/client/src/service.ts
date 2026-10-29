@@ -155,13 +155,15 @@ export function createServiceClient(
     },
     runs: (options: RunListOptions = {}) => {
       const conversationId = options.conversationId;
+      const status = options.status;
       const query = new URLSearchParams();
-      if (options.status !== undefined) query.set('status', options.status);
+      if (status !== undefined) query.set('status', status);
       if (options.before !== undefined) query.set('before', options.before);
       if (options.limit !== undefined) query.set('limit', String(options.limit));
       if (conversationId !== undefined) query.set('conversationId', conversationId);
       return call(`/runs?${query}`).then(parseRunPage).then(page => {
         if (conversationId !== undefined && page.runs.some(run => run.conversationId !== conversationId)) throw Error('Run page conversation mismatch');
+        if (status !== undefined && status !== 'all' && page.runs.some(run => status === 'active' ? !['queued', 'running'].includes(run.state) : run.state !== status)) throw Error('Run page status mismatch');
         return page;
       });
     },
