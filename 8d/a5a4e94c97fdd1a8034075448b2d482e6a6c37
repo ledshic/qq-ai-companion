@@ -1,0 +1,62 @@
+docs/AGENT-CLI-TASKS.md
+  s_0e006fc6de5952::t_123ed57f0281bd 53-54,76
+docs/README.md
+  s_0e006fc6de5952::t_123ed57f0281bd 16
+src/app/task-arguments.ts
+  s_0e006fc6de5952::t_83f227aabae503 1-29
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_fce19ffcd5d633 157,162,164
+  s_0e006fc6de5952::t_253a2246093e8e 163,165-166
+README.md
+  s_0e006fc6de5952::t_123ed57f0281bd 77-78
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_f22510fe317ba7 3,20,42,93,98,100,106,109,208-213
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_123ed57f0281bd 32-33,77-79
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_123ed57f0281bd 42
+packages/client/src/service.test.ts
+  s_0e006fc6de5952::t_0d2fc026396429 107-114,120
+  s_0e006fc6de5952::t_fce19ffcd5d633 115-119
+docs/AGENT-CLI-TASK-FILTERS.md
+  s_0e006fc6de5952::t_58b02fb1be013a 1-33,35-65
+  s_0e006fc6de5952::t_123ed57f0281bd 34
+src/app/cli.ts
+  s_0e006fc6de5952::t_f22510fe317ba7 9,16,29,50-52,75
+src/app/server/api.ts
+  s_0e006fc6de5952::t_253a2246093e8e 269,272-273
+packages/contracts/src/service.ts
+  s_0e006fc6de5952::t_253a2246093e8e 39
+src/app/cli.test.ts
+  s_0e006fc6de5952::t_0d2fc026396429 121-123,125,128-134,137,139-152
+  s_0e006fc6de5952::t_78b8a44a3d214e 106-108,124,126-127,135-136,138
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_0d2fc026396429 525-544
+src/testing/cli-pty-smoke.ts
+  s_0e006fc6de5952::t_fce19ffcd5d633 115
+  s_0e006fc6de5952::t_1b563ad6c4d381 106
+  s_0e006fc6de5952::t_15f3b750f0a9d6 110
+src/runtime/service/store.ts
+  s_0e006fc6de5952::t_253a2246093e8e 304-305,308-309,315,317
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_1b563ad6c4d381 385,409-439,441-443
+  s_0e006fc6de5952::t_52bce2326004e6 440
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_123ed57f0281bd 30,43-44,61,91-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8da5a4e94c97fdd1a8034075448b2d482e6a6c37",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
