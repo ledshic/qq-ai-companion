@@ -120,3 +120,41 @@ test('Tab indentation and pasted tabs remain literal outside single-line command
     await f.send('/tasks failed --here \t\r'); assert.equal(f.submitted.at(-1), '/tasks failed --here ');
   } finally { f.editor.close(); }
 });
+test('input history selection preserves multiline drafts, cursor positions and edits within one browsing session', async () => {
+  const f = fixture();
+  try {
+    await f.send('alpha\n第二行\rbravo\r'); await f.send('未发送\nbody\x1b[D\x1b[D\x10');
+    assert(f.screen.visible().includes('输入历史')); assert.equal(f.submitted.length, 2);
+    await f.send('\x7fX\x10\x0e\r'); assert.equal(f.submitted.at(-1), 'bravX');
+    assert(f.screen.visible().includes('未发送')); await f.send('Z\r'); assert.equal(f.submitted.at(-1), '未发送\nboZdy');
+  } finally { f.editor.close(); }
+});
+test('recalled input remains editable and completable; Ctrl+N or Ctrl+O restores the unsubmitted draft', async () => {
+  const f = fixture();
+  try {
+    await f.send('/tasks run\roriginal\n草稿\x10\t--h\t\r');
+    assert.equal(f.submitted.at(-1), '/tasks running --here '); assert(f.screen.visible().includes('original'));
+    await f.send('\x10\x0e'); assert(f.screen.visible().includes('original')); assert(!f.screen.visible().includes('输入历史'));
+    await f.send('\x10\x0fX\r'); assert.equal(f.submitted.at(-1), 'original\n草稿X');
+  } finally { f.editor.close(); }
+});
+test('rejected input is not remembered, leading-space input is skipped and new editors inherit no history', async () => {
+  const denied = fixture(false);
+  try { await denied.send('rejected\r\x07\x10different\r'); assert.equal(denied.submitted.at(-1), 'different'); } finally { denied.editor.close(); }
+  const f = fixture();
+  try {
+    await f.send('normal\r secret\r\x10'); assert(f.screen.visible().includes('normal')); assert(!f.screen.visible().includes('secret'));
+    f.editor.clearInputHistory(); assert(!f.screen.visible().includes('输入历史')); await f.send('\x07\x10fresh\r'); assert.equal(f.submitted.at(-1), 'fresh');
+  } finally { f.editor.close(); }
+  const second = fixture(); try { await second.send('\x10new session\r'); assert.deepEqual(second.submitted, ['new session']); } finally { second.editor.close(); }
+});
+test('history selection, completion hints and streamed drafts share a bounded region across resize', async () => {
+  const f = fixture();
+  try {
+    await f.send('/tasks c\rnext\x1b[D\x10\t'); assert(f.screen.visible().includes('输入历史')); assert(f.screen.visible().includes('补全候选'));
+    for (let i = 0; i < 50; i++) f.editor.setDraft('片段-' + i);
+    assert(f.screen.visible().split('\n').length <= f.screen.rows);
+    f.screen.columns = 12; f.screen.rows = 6; f.screen.emit('resize'); assert(f.screen.visible().split('\n').length <= f.screen.rows);
+    await f.send('\x0fx\r'); assert.equal(f.submitted.at(-1), 'nexxt');
+  } finally { f.editor.close(); }
+});

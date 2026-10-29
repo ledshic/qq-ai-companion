@@ -80,6 +80,8 @@ pnpm agent:cli cancel <runId>
 
 交互式单行命令按 Tab 补全命令、任务状态和筛选参数，多个候选会显示在编辑区，仍需 Enter 执行。普通正文和多行输入的 Tab 保持缩进；详见[命令补全](docs/AGENT-CLI-COMPLETION.md)。
 
+Ctrl+P / Ctrl+N 选择本次输入历史，Ctrl+O 返回原草稿；记录只在进程内保存，不写文件。输入前加空格可跳过记录，`/clear-input-history` 可清空；详见[输入历史](docs/AGENT-CLI-INPUT-HISTORY.md)。
+
 ## 验证与文档
 
 ```sh

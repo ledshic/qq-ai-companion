@@ -13,6 +13,7 @@ interface ObservedRun { id: string; conversation: Conversation; controller: Abor
 const instructions = `普通输入发送消息；每次等待一个任务。// 开头可发送以 / 开头的正文。
 终端：Enter 发送，Ctrl+J / Alt+Enter 换行；方向键移动，Home/End 行首尾，Ctrl+G 清空输入。
 单行命令按 Tab 补全命令、任务状态和筛选参数；多个候选显示在编辑区，仍需 Enter 执行。
+Ctrl+P / Ctrl+N 选择本次输入历史，Ctrl+O 返回原草稿；输入前加空格跳过记录，历史不写入文件。
 Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时退出。
 粘贴多行后等待 Enter 确认；管道：/edit 开始多行，/send 发送，/discard 丢弃。
 /help                 查看帮助
@@ -23,6 +24,7 @@ Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时
 /new [标题]           创建并切换到新会话
 /use <会话标识>       切换会话并读取最近消息
 /history              查看当前会话最近 20 条消息（不含推理）
+/clear-input-history  清空当前进程的输入历史
 /retry                用原标识重试结果未确认的提交
 /resume [任务标识|#序号] 恢复观察或查看结果；不带参数显示未完成任务
 /cancel               显式取消当前任务
@@ -202,6 +204,9 @@ export async function runInteractiveChat(options: {
     const arg = parts.join(' ');
     switch (command) {
       case '/help': if (parts.length) break; print(instructions); return;
+      case '/clear-input-history':
+        if (parts.length) break;
+        editor?.clearInputHistory(); print(editor ? '本次输入历史已清空。' : '当前输入模式不保留输入历史。'); return;
       case '/exit': if (parts.length) break; close(); return;
       case '/list':
         if (parts.length) break;

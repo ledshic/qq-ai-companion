@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,7 +93,8 @@ try {
   generations[0]!.emit('首段真实草稿'); await wait(() => first.text().includes('首段真实草稿'));
   first.send('next\n  input');
   const beforeResize = first.text().length; first.child.kill('SIGUSR1'); await wait(() => first.text().length > beforeResize);
-  first.send('\r'); await wait(() => first.text().includes('尚未结束'));
+  first.send('\x10'); await wait(() => first.text().includes('输入历史'));
+  first.send('\x0f\r'); await wait(() => first.text().includes('尚未结束'));
   first.send('\x18'); await wait(() => store.run('pty-owner', cancelled).state === 'cancelled');
   assert(generations[0]!.signal.aborted); generations[0]!.emit('迟到草稿'); generations[0]!.finish('迟到回答');
   await wait(() => first.text().includes('cancelled')); first.send('\r'); await wait(() => generations.length === 2);
@@ -103,16 +104,18 @@ try {
   const resumed = first.text().match(/已接受任务：([^\s]+)/g)!.at(-1)!.split('：')[1]!;
   first.send('\x03'); assert.equal((await first.done)[0], 0, first.error()); assert(first.error().includes('PTY_RESTORED=True'));
   assert.equal(store.run('pty-owner', resumed).state, 'running');
-  const second = start(); await wait(() => second.text().includes('\x1b[?2004h')); second.send('/ta\trun\t--conv\t' + conversation.id + '\r');
+  const second = start(); await wait(() => second.text().includes('\x1b[?2004h')); second.send('\x10/ta\trun\t--conv\t' + conversation.id + '\r');
   await wait(() => second.text().includes('#1') && second.text().includes(resumed)); second.send('/res\t#1\r');
   await wait(() => second.text().includes('正在观察任务')); generations[1]!.emit('恢复后的草稿'); await wait(() => second.text().includes('恢复后的草稿'));
   generations[1]!.finish('恢复后的完整回答'); await wait(() => second.text().includes('恢复后的完整回答'));
   second.send('/ta\tcomp\t--h\t\r'); await wait(() => second.text().includes('#1  已完成'));
+  second.send('/cl\t\r'); await wait(() => second.text().includes('本次输入历史已清空'));
   second.send('\x04'); assert.equal((await second.done)[0], 0, second.error()); assert(second.error().includes('PTY_RESTORED=True'));
   assert.deepEqual(store.history('pty-owner', conversation.id).map(message => message.content), ['next\n  input', '恢复后的完整回答']);
+  assert.deepEqual(readdirSync(root), ['credential.json']);
   assert(!first.text().includes('迟到草稿')); assert(!first.text().includes('pty-fixture-token'));
   writeFileSync(join(artifacts, 'pty-first.txt'), first.text()); writeFileSync(join(artifacts, 'pty-resume.txt'), second.text());
-  console.log('PTY smoke passed: multiline paste, resize, busy edit, Ctrl+X, Ctrl+C, local command/state/flag completion, authenticated filtered listing and numbered resume, final history, Ctrl+D and raw mode restoration.');
+  console.log('PTY smoke passed: multiline paste, resize, busy edit, Ctrl+X, Ctrl+C, process-local input history and draft restoration, local command/state/flag completion, authenticated filtered listing and numbered resume, final history, Ctrl+D and raw mode restoration.');
 } finally {
   for (const session of children) if (session.child.exitCode === null && session.child.signalCode === null) { session.child.kill('SIGTERM'); await session.done; }
   host.stop(); await api.close(); store.close(); rmSync(root, { recursive: true, force: true });

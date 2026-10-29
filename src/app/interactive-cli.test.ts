@@ -42,7 +42,7 @@ function fixture(generate: ConsoleGenerator = async text => 'answer:' + text) {
     sessions.push({ stop: () => controller.abort(), result });
     return { input, output, controller, lines, errors, result, line: (text: string) => input.write(text + (tty ? '\r' : '\n')), text: () => lines.join('\n'), error: () => errors.join('\n') };
   };
-  return { store, host, api, request, calls, connect, credential, async close() {
+  return { root, store, host, api, request, calls, connect, credential, async close() {
     for (const session of sessions) session.stop();
     await Promise.all(sessions.map(session => session.result));
     host.stop(); await api.close(); store.close(); rmSync(root, { recursive: true, force: true });
@@ -390,6 +390,8 @@ for (const revoke of ['before', 'during']) test(`numbered recovery checks real s
     if (revoke === 'before') assert(!output.includes('已授权草稿'));
     assert.equal(f.host.output('text-owner', accepted.runId).text, ''); assert.deepEqual(f.store.history('text-owner', target.id), []);
     await settle(() => cancelled); assert(!f.calls.some(call => call.method === 'POST'));
+    const errors = s.error().split('memory_context_changed').length;
+    s.input.write('\x10\r'); await settle(() => s.error().split('memory_context_changed').length > errors);
     s.line('/exit'); assert.equal(await s.result, 0);
   } finally { await f.close(); }
 });
@@ -510,6 +512,52 @@ test('nonterminal input never performs completion and preserves literal tabs in 
     const s = f.connect(); await settle(() => s.text().includes('已连接')); s.line('/he\t'); await settle(() => s.error().includes('命令或参数无效'));
     s.line('/edit'); s.line('/ta\tvalue'); s.line('/send'); await settle(() => s.text().includes('literal response'));
     assert.equal(received, '/ta\tvalue'); assert(!f.calls.some(call => call.path.startsWith('/api/v1/runs?')));
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('history recall is local, preserves an unsent multiline draft and only explicit Enter submits the edited selection', async () => {
+  let emit!: (text: string) => void; const finish: ((text: string) => void)[] = [], inputs: string[] = [];
+  const f = fixture((text, _history, _signal, _reasoning, context) => { inputs.push(text); emit = context!.onOutput!; return new Promise(resolve => { finish.push(resolve); }); });
+  try {
+    const s = f.connect([], f.request, true); await settle(() => s.text().includes('已连接'));
+    s.line('first\nline'); await settle(() => finish.length === 1 && s.text().includes('已接受任务'));
+    s.input.write('draft\nbody\x1b[D\x1b[D'); emit('live draft'); const calls = f.calls.length;
+    s.input.write('\x10'); await new Promise(resolve => setTimeout(resolve, 20)); assert.equal(f.calls.length, calls); assert.deepEqual(inputs, ['first\nline']);
+    s.input.write('\x0f\x18'); await settle(() => s.text().includes('cancelled')); finish[0]!('late');
+    s.input.write('\x10\x7fX\r'); await settle(() => inputs.length === 2); assert.equal(inputs[1], 'first\nlinX');
+    finish[1]!('complete'); await settle(() => s.text().includes('complete'));
+    s.input.write('Z\r'); await settle(() => inputs.length === 3); assert.equal(inputs[2], 'draft\nboZdy');
+    finish[2]!('third complete'); await settle(() => s.text().includes('third complete'));
+    assert.equal(f.calls.filter(call => call.path.endsWith('/cancel')).length, 1);
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('input history clearing is local, completable and does not write history files or import prior sessions', async () => {
+  const f = fixture(async () => 'done');
+  try {
+    const s = f.connect([], f.request, true); let output = ''; s.output.on('data', chunk => { output += String(chunk); });
+    await settle(() => s.text().includes('已连接')); s.line('/help'); await settle(() => s.text().includes('Ctrl+P / Ctrl+N'));
+    const before = f.calls.length; s.input.write('\x10'); await settle(() => output.includes('输入历史'));
+    assert.equal(f.calls.length, before); s.input.write('\x0f/cl\t\r'); await settle(() => s.text().includes('本次输入历史已清空'));
+    assert.equal(f.calls.length, before); s.input.write('\x10fresh\r'); await settle(() => s.text().includes('done'));
+    const posted = f.calls.find(call => call.method === 'POST' && call.path.endsWith('/messages'))!; assert.equal(posted.body.content, 'fresh');
+    s.line('/exit'); assert.equal(await s.result, 0);
+    const second = f.connect([], f.request, true); await settle(() => second.text().includes('已连接'));
+    second.input.write('\x10second session\r'); await settle(() => second.text().includes('done'));
+    const latest = f.calls.filter(call => call.method === 'POST' && call.path.endsWith('/messages')).at(-1)!; assert.equal(latest.body.content, 'second session');
+    second.line('/exit'); assert.equal(await second.result, 0);
+    const { readdirSync } = await import('node:fs'); assert.deepEqual(readdirSync(f.root), ['credential.json']);
+  } finally { await f.close(); }
+});
+test('recalled input cannot bypass uncertain submission protection or create a second logical message', async () => {
+  let drop = true, generated = 0; const f = fixture(async () => { generated++; return 'confirmed'; });
+  const network: typeof fetch = async (url, init) => { const response = await f.request(url, init); if (drop && init?.method === 'POST' && String(url).endsWith('/messages')) { drop = false; throw Error('lost acceptance'); } return response; };
+  try {
+    const s = f.connect([], network, true); await settle(() => s.text().includes('已连接')); s.line('uncertain input'); await settle(() => s.error().includes('提交结果未确认'));
+    s.input.write('\x10\r'); await settle(() => s.error().includes('结果尚未确认'));
+    assert.equal(f.calls.filter(call => call.method === 'POST' && call.path.endsWith('/messages')).length, 1);
+    s.input.write('\x0f/retry\r'); await settle(() => s.text().includes('confirmed'));
+    const posts = f.calls.filter(call => call.method === 'POST' && call.path.endsWith('/messages')); assert.equal(posts.length, 2); assert.deepEqual(posts[0]!.body, posts[1]!.body); assert.equal(generated, 1);
     s.line('/exit'); assert.equal(await s.result, 0);
   } finally { await f.close(); }
 });

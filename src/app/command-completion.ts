@@ -1,7 +1,7 @@
 import { RUN_LIST_STATUSES } from '@companion/contracts/service';
 import { parseTaskArguments, TASK_FILTER_FLAGS } from './task-arguments.js';
 
-export const INTERACTIVE_COMMANDS = ['/help', '/list', '/tasks', '/new', '/use', '/history', '/retry', '/resume', '/cancel', '/exit'] as const;
+export const INTERACTIVE_COMMANDS = ['/help', '/list', '/tasks', '/new', '/use', '/history', '/clear-input-history', '/retry', '/resume', '/cancel', '/exit'] as const;
 export interface CommandCompletion { start: number; end: number; candidates: string[] }
 
 // Lexical, synchronous completion only. No identities, credentials, files or API calls.

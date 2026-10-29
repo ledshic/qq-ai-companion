@@ -2,6 +2,7 @@ import type { Readable, Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { stripVTControlCharacters } from 'node:util';
 import { completeCommand } from './command-completion.js';
+import { InputHistory } from './input-history.js';
 
 type Input = Readable & { isRaw?: boolean; setRawMode?: (enabled: boolean) => unknown };
 type Output = Writable & { columns?: number; rows?: number };
@@ -39,6 +40,10 @@ export class TerminalEditor {
   private drawn = false; private cursorRow = 0; private closed = false; private readonly wasRaw: boolean;
   private preferredColumn: number | undefined;
   private completionHint = '';
+  private readonly inputHistory = new InputHistory();
+  private historyIndex: number | undefined;
+  private historyDraft: { text: string; cursor: number } | undefined;
+  private historyEdits = new Map<number, { text: string; cursor: number }>();
   private readonly decoder = new StringDecoder('utf8');
   constructor(private input: Input, private output: Output, private submit: (text: string) => boolean,
     private stop: (code?: number) => void, private eof: () => void, private warning: (text: string) => void) {
@@ -75,7 +80,7 @@ export class TerminalEditor {
         this.pending = this.pending.slice(1); continue;
       }
       const ch = String.fromCodePoint(this.pending.codePointAt(0)!); this.pending = this.pending.slice(ch.length);
-      const controls: Record<string, string> = { '\r': 'submit', '\n': 'newline', '\t': 'tab', '\x03': 'stop', '\x04': 'eof', '\x7f': 'backspace', '\b': 'backspace', '\x01': 'home', '\x05': 'end', '\x07': 'clear', '\x15': 'killStart', '\x0b': 'killEnd', '\x18': 'cancel' };
+      const controls: Record<string, string> = { '\r': 'submit', '\n': 'newline', '\t': 'tab', '\x03': 'stop', '\x04': 'eof', '\x7f': 'backspace', '\b': 'backspace', '\x01': 'home', '\x05': 'end', '\x07': 'clear', '\x15': 'killStart', '\x0b': 'killEnd', '\x18': 'cancel', '\x10': 'historyPrevious', '\x0e': 'historyNext', '\x0f': 'historyReturn' };
       if (controls[ch]) this.key(controls[ch]!); else if (ch >= ' ') this.insert(ch);
     }
     this.snap(); this.render();
@@ -93,6 +98,24 @@ export class TerminalEditor {
     const part = segments(this.text).find(item => item.index < this.cursor && item.index + item.segment.length > this.cursor);
     if (part) this.cursor = part.index + part.segment.length;
   }
+  private detachHistory() { this.historyIndex = undefined; this.historyDraft = undefined; this.historyEdits.clear(); }
+  private restoreHistoryDraft() {
+    if (!this.historyDraft) return;
+    this.text = this.historyDraft.text; this.cursor = this.historyDraft.cursor; this.detachHistory();
+  }
+  private selectHistory(direction: -1 | 1) {
+    if (!this.inputHistory.length || this.historyIndex === undefined && direction === 1) return;
+    const next = this.historyIndex === undefined ? this.inputHistory.length - 1 : Math.max(0, this.historyIndex + direction);
+    if (next === this.historyIndex) return;
+    if (this.historyIndex === undefined) this.historyDraft = { text: this.text, cursor: this.cursor };
+    else this.historyEdits.set(this.historyIndex, { text: this.text, cursor: this.cursor });
+    if (next >= this.inputHistory.length) { this.restoreHistoryDraft(); return; }
+    this.historyIndex = next;
+    const entry = this.inputHistory.get(next)!;
+    const selected = this.historyEdits.get(next) ?? { text: entry, cursor: entry.length };
+    this.text = selected.text; this.cursor = selected.cursor;
+  }
+  clearInputHistory() { this.inputHistory.clear(); this.detachHistory(); this.completionHint = ''; this.render(); }
   private complete() {
     const result = completeCommand(this.text, this.cursor);
     if (!result) { this.insert('  '); return; }
@@ -120,7 +143,15 @@ export class TerminalEditor {
     const startLine = this.cursor === 0 ? 0 : this.text.lastIndexOf('\n', this.cursor - 1) + 1;
     const lineEnd = this.text.indexOf('\n', this.cursor); const endLine = lineEnd < 0 ? this.text.length : lineEnd;
     switch (key) {
-      case 'submit': if (this.text.trim() && this.submit(this.text)) { this.text = ''; this.cursor = 0; } break;
+      case 'submit': {
+        const text = this.text;
+        if (text.trim() && this.submit(text) && !this.closed) {
+          const original = this.historyDraft;
+          this.inputHistory.record(text); this.detachHistory();
+          this.text = original?.text ?? ''; this.cursor = original?.cursor ?? 0;
+        }
+        break;
+      }
       case 'newline': this.insert('\n'); break;
       case 'tab': this.complete(); break;
       case 'cancel': this.submit('/cancel'); break;
@@ -132,7 +163,10 @@ export class TerminalEditor {
       case 'delete': this.text = this.text.slice(0, this.cursor) + this.text.slice(end); break;
       case 'killStart': this.text = this.text.slice(0, startLine) + this.text.slice(this.cursor); this.cursor = startLine; break;
       case 'killEnd': this.text = this.text.slice(0, this.cursor) + this.text.slice(endLine); break;
-      case 'clear': this.text = ''; this.cursor = 0; break;
+      case 'clear': this.text = ''; this.cursor = 0; this.detachHistory(); break;
+      case 'historyPrevious': this.selectHistory(-1); break;
+      case 'historyNext': this.selectHistory(1); break;
+      case 'historyReturn': this.restoreHistoryDraft(); break;
       case 'up': case 'down': {
         const view = layout(this.text, Math.max(4, (this.output.columns ?? 80) - 1), '你> ');
         const current = view.points.find(item => item.offset === this.cursor)!;
@@ -161,9 +195,11 @@ export class TerminalEditor {
     this.erase();
     const columns = Math.max(4, (this.output.columns ?? 80) - 1), budget = Math.max(1, (this.output.rows ?? 24) - 2);
     const hintLimit = Math.min(3, Math.max(0, budget - 2));
-    const hint = this.completionHint && hintLimit ? layout(this.completionHint, columns).lines : [];
+    const historyHint = this.historyIndex === undefined ? '' : `输入历史 ${this.historyIndex + 1}/${this.inputHistory.length} · Ctrl+O 返回草稿`;
+    const hintText = [historyHint, this.completionHint].filter(Boolean).join('\n');
+    const hint = hintText && hintLimit ? layout(hintText, columns).lines : [];
     const hints = hint.slice(0, hintLimit);
-    if (hint.length > hintLimit && hints.length) hints[hints.length - 1] = layout('…继续输入缩小候选', columns).lines[0]!;
+    if (hint.length > hintLimit && hints.length) hints[hints.length - 1] = layout(this.completionHint ? '…继续输入缩小候选' : '…Ctrl+O 返回草稿', columns).lines[0]!;
     const inputBudget = budget - hints.length;
     const input = layout(this.text, columns, '你> '), cursor = input.points.find(item => item.offset === this.cursor)!;
     const inputLimit = Math.min(input.lines.length, this.draft ? Math.max(Math.min(2, inputBudget), inputBudget - 6) : inputBudget);
@@ -183,6 +219,7 @@ export class TerminalEditor {
     try { this.erase(); } finally {
       this.input.off('data', this.data); this.input.off('end', this.end); this.input.off('error', this.error); this.output.off('resize', this.resize);
       this.text = ''; this.draft = ''; this.paste = undefined; this.pending = ''; this.completionHint = '';
+      this.inputHistory.clear(); this.detachHistory();
       try { this.input.setRawMode?.(this.wasRaw); } finally { this.input.pause(); this.output.write('\x1b[?2004l'); }
     }
   }

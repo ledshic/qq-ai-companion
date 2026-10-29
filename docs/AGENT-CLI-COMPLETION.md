@@ -15,7 +15,7 @@
 | `/tasks failed --h` | 补为 `--here ` |
 | `/tasks running --conv` | 补为 `--conversation `，会话标识仍需明确输入 |
 
-可补全命令包括 /help、/list、/tasks、/new、/use、/history、/retry、/resume、/cancel、/exit。任务状态覆盖 active、all 和六种具体状态，来源与正式 API（服务接口）相同。`/tasks more` 也可补全，但执行时仍检查是否存在可继续读取的列表。
+可补全命令包括 /help、/list、/tasks、/new、/use、/history、/clear-input-history、/retry、/resume、/cancel、/exit。任务状态覆盖 active、all 和六种具体状态，来源与正式 API（服务接口）相同。`/tasks more` 也可补全，但执行时仍检查是否存在可继续读取的列表。
 
 唯一候选会替换光标所在的词，并在需要时补一个空格；同一行右侧参数保留。多个候选显示在编辑区，仅在光标位于词尾时补足共同前缀，不覆盖词中光标右侧的内容。方向键继续移动输入光标，不用于选择候选；重复 Tab 不轮流选择或自动提交。
 
@@ -53,4 +53,4 @@
 node --import tsx src/testing/cli-pty-smoke.ts artifacts/cli-completion
 ```
 
-本次仅修改 CLI，没有修改 Web、SDK 或服务协议，未重复浏览器测试和 Web 构建；上次 `8a0aa71` 的 22 项浏览器测试与构建记录见[状态筛选记录](AGENT-CLI-TASK-STATES.md)。文档已检查标题、术语、敏感信息、链接与实现事实。后续可按需求增加输入历史选择；动态标识建议、文件名补全和候选轮选不在本期范围。
+该期仅修改 CLI，没有修改 Web、SDK 或服务协议，未重复浏览器测试和 Web 构建；当时 `8a0aa71` 的 22 项浏览器测试与构建记录见[状态筛选记录](AGENT-CLI-TASK-STATES.md)。后续已实现进程内输入历史，最新验证见[历史记录](AGENT-CLI-INPUT-HISTORY.md)。动态标识建议、文件名补全和候选轮选仍未实现。文档已检查标题、术语、敏感信息、链接与实现事实。

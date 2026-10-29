@@ -4,7 +4,7 @@ import { completeCommand } from './command-completion.js';
 import { parseTaskArguments } from './task-arguments.js';
 const candidates = (text: string, cursor = text.length) => completeCommand(text, cursor)?.candidates;
 test('completion covers interactive commands and shared task statuses without changing execution', () => {
-  assert.deepEqual(candidates('/'), ['/help', '/list', '/tasks', '/new', '/use', '/history', '/retry', '/resume', '/cancel', '/exit']);
+  assert.deepEqual(candidates('/'), ['/help', '/list', '/tasks', '/new', '/use', '/history', '/clear-input-history', '/retry', '/resume', '/cancel', '/exit']);
   assert.deepEqual(candidates('/res'), ['/resume']); assert.deepEqual(candidates('/r'), ['/retry', '/resume']);
   const states = ['active', 'all', 'queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'];
   for (const state of states) { assert(candidates('/tasks ' + state)?.includes(state)); assert.equal(parseTaskArguments([state], true).query.status, state); }

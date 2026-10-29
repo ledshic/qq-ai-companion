@@ -72,4 +72,4 @@ SDK 使用 `client.runs({ status: 'failed', conversationId, before, limit })`。
 node --import tsx src/testing/cli-pty-smoke.ts artifacts/cli-task-states
 ```
 
-本页保留具体状态筛选首次交付记录，命令补全已在后续实现，最新验证见[补全记录](AGENT-CLI-COMPLETION.md)。输入历史选择仍未实现，继续复用正式服务，不自动重跑失败任务。文档已检查标题、术语、敏感信息、链接及实现事实。
+本页保留具体状态筛选首次交付记录，命令补全和进程内输入历史已在后续实现，最新验证见[历史记录](AGENT-CLI-INPUT-HISTORY.md)。继续复用正式服务，不自动重跑失败任务。文档已检查标题、术语、敏感信息、链接及实现事实。
