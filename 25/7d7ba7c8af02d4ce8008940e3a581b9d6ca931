@@ -1,0 +1,56 @@
+docs/AGENT-CLI-INPUT-HISTORY.md
+  s_0e006fc6de5952::t_c201ac5706be9d 1-2,4-37,39-60
+  s_0e006fc6de5952::t_07c34131adfe16 3,38
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_07c34131adfe16 27-28,38,104-106
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_bd297db747d8cf 16,27,207-209
+docs/AGENT-CLI-TASK-STATES.md
+  s_0e006fc6de5952::t_07c34131adfe16 75
+docs/README.md
+  s_0e006fc6de5952::t_07c34131adfe16 19
+docs/AGENT-CLI-TASK-FILTERS.md
+  s_0e006fc6de5952::t_07c34131adfe16 65
+src/app/input-history.ts
+  s_0e006fc6de5952::t_ea773aafb40205 1-13
+src/app/command-completion.test.ts
+  s_0e006fc6de5952::t_5f88225211f82f 7
+README.md
+  s_0e006fc6de5952::t_07c34131adfe16 83-84
+docs/AGENT-CLI-COMPLETION.md
+  s_0e006fc6de5952::t_07c34131adfe16 18,56
+src/app/input-history.test.ts
+  s_0e006fc6de5952::t_4e4519c5d02078 1-19
+src/app/terminal-editor.ts
+  s_0e006fc6de5952::t_a9541021504e9f 148
+  s_0e006fc6de5952::t_bd297db747d8cf 5,43-46,83,101-118,146-147,149-154,166-169,198-200,202,222
+src/testing/cli-pty-smoke.ts
+  s_0e006fc6de5952::t_089b4367c19468 6,96-97,107,112,115,118
+src/app/command-completion.ts
+  s_0e006fc6de5952::t_bd297db747d8cf 4
+src/app/terminal-editor.test.ts
+  s_0e006fc6de5952::t_4e4519c5d02078 123-160
+docs/AGENT-CLI-EDITOR.md
+  s_0e006fc6de5952::t_07c34131adfe16 17,75
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_528743f4802a1c 45
+  s_0e006fc6de5952::t_089b4367c19468 393-394,518-563
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_07c34131adfe16 35-36,86-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "257d7ba7c8af02d4ce8008940e3a581b9d6ca931",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
