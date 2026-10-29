@@ -62,4 +62,4 @@ SDK 使用 `client.runs({ status, conversationId, before, limit })`，按发起�
 node --import tsx src/testing/cli-pty-smoke.ts artifacts/cli-task-filters
 ```
 
-本页保留会话筛选和单次命令的首次交付记录。具体状态筛选已在后续完成，最新验证见状态筛选记录；命令补全、输入历史选择、后台观察和自动重跑仍未实现。文档已检查标题、术语、敏感信息、链接与实现事实。
+本页保留会话筛选和单次命令的首次交付记录。具体状态筛选和命令补全已在后续完成，最新验证见[补全记录](AGENT-CLI-COMPLETION.md)；输入历史选择、后台观察和自动重跑仍未实现。文档已检查标题、术语、敏感信息、链接与实现事实。

@@ -381,10 +381,10 @@ for (const revoke of ['before', 'during']) test(`numbered recovery checks real s
       controller.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: '已授权草稿' }, finish_reason: null }] }) + '\n\n'));
     }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } }), undefined, { memory });
     const accepted = f.host.submit('text-owner', target.id, 'earlier', '考试安排'); await settle(() => !!f.host.output('text-owner', accepted.runId).text);
-    const s = f.connect(); let output = ''; s.output.on('data', chunk => { output += String(chunk); }); await settle(() => s.text().includes('已连接'));
-    s.line('/tasks running --conversation ' + target.id); await settle(() => s.text().includes('#1  运行中'));
+    const s = f.connect([], f.request, true); let output = ''; s.output.on('data', chunk => { output += String(chunk); }); await settle(() => s.text().includes('已连接'));
+    s.line('/ta\trun\t--conv\t' + target.id); await settle(() => s.text().includes('#1  运行中'));
     if (revoke === 'before') memory.setSources('text-owner', target.id, []);
-    s.line('/resume #1');
+    s.line('/res\t#1');
     if (revoke === 'during') { await settle(() => output.includes('已授权草稿')); memory.setSources('text-owner', target.id, []); }
     await settle(() => s.error().includes('memory_context_changed'));
     if (revoke === 'before') assert(!output.includes('已授权草稿'));
@@ -478,5 +478,38 @@ test('specific status pagination retains both filters after conversation changes
     s.line('/resume #21'); await settle(() => s.error().includes('序号不可用'));
     s.line('/resume #1'); await settle(() => s.error().includes('generation_failed'));
     s.line('/exit'); assert.equal(await s.result, 0); assert(!f.calls.some(call => call.method === 'POST'));
+  } finally { await f.close(); }
+});
+test('terminal completion makes no requests before Enter and preserves task recovery and explicit cancellation', async () => {
+  let finish!: (text: string) => void, emit!: (text: string) => void;
+  const f = fixture((_text, _history, _signal, _reasoning, context) => { emit = context!.onOutput!; return new Promise(resolve => { finish = resolve; }); });
+  try {
+    const c = f.store.createConversation('text-owner', 'Completion');
+    const completed = f.store.accept('text-owner', c.id, 'done', 'question'); f.store.start('text-owner', completed.runId); f.store.finish('text-owner', completed.runId, 'saved result', null);
+    const s = f.connect([c.id], f.request, true); let output = ''; s.output.on('data', chunk => { output += String(chunk); });
+    await settle(() => s.text().includes('已连接')); const initial = f.calls.length;
+    s.input.write('/ta\tc\t'); await settle(() => output.includes('completed') && output.includes('cancelled'));
+    assert.equal(f.calls.length, initial); s.input.write('omp\t--h\t'); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(f.calls.length, initial); s.input.write('\r'); await settle(() => s.text().includes('#1  已完成'));
+    const query = new URL(f.calls.filter(call => call.path.startsWith('/api/v1/runs?')).at(-1)!.path, 'http://localhost').searchParams;
+    assert.equal(query.get('status'), 'completed'); assert.equal(query.get('conversationId'), c.id);
+    s.line('/res\t#1'); await settle(() => s.text().includes('助手（Completion）'));
+    const running = f.host.submit('text-owner', c.id, 'pending', 'pending'); await settle(() => !!finish);
+    s.line('/ta\trun\t--h\t'); await settle(() => s.text().includes('#1  运行中'));
+    s.line('/res\t#1'); await settle(() => s.text().includes('正在观察任务 ' + running.runId));
+    emit('草稿仍未提交'); s.input.write('/can\t'); await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(f.store.run('text-owner', running.runId).state, 'running'); assert(!f.calls.some(call => call.path.endsWith('/cancel')));
+    s.input.write('\r'); await settle(() => s.text().includes('cancelled')); finish('late result');
+    assert.equal(f.calls.filter(call => call.path.endsWith('/cancel')).length, 1); assert(!f.calls.some(call => call.method === 'POST' && call.path.endsWith('/messages')));
+    s.line('/ex\t'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('nonterminal input never performs completion and preserves literal tabs in multiline messages', async () => {
+  let received = ''; const f = fixture(async text => { received = text; return 'literal response'; });
+  try {
+    const s = f.connect(); await settle(() => s.text().includes('已连接')); s.line('/he\t'); await settle(() => s.error().includes('命令或参数无效'));
+    s.line('/edit'); s.line('/ta\tvalue'); s.line('/send'); await settle(() => s.text().includes('literal response'));
+    assert.equal(received, '/ta\tvalue'); assert(!f.calls.some(call => call.path.startsWith('/api/v1/runs?')));
+    s.line('/exit'); assert.equal(await s.result, 0);
   } finally { await f.close(); }
 });

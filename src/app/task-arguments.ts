@@ -1,4 +1,6 @@
 import { isRunListStatus, type RunListOptions } from '@companion/contracts/service';
+export const TASK_FILTER_FLAGS = ['--here', '--conversation'] as const;
+const SINGLE_TASK_FLAGS = ['--conversation', '--before', '--limit'] as const;
 // Shared CLI grammar; parsing performs no I/O, including credential reads.
 export function parseTaskArguments(args: string[], interactive: boolean): { query: RunListOptions; here: boolean; more: boolean } {
   if (interactive && args[0] === 'more') {
@@ -12,8 +14,8 @@ export function parseTaskArguments(args: string[], interactive: boolean): { quer
     const flag = rest.shift()!;
     if (seen.has(flag)) throw Error('invalid_arguments');
     seen.add(flag);
-    if (flag === '--here' && interactive) { if (query.conversationId) throw Error('invalid_arguments'); here = true; continue; }
-    if (flag !== '--conversation' && (interactive || !['--before', '--limit'].includes(flag))) throw Error('invalid_arguments');
+    if (!((interactive ? TASK_FILTER_FLAGS : SINGLE_TASK_FLAGS) as readonly string[]).includes(flag)) throw Error('invalid_arguments');
+    if (flag === '--here') { if (query.conversationId) throw Error('invalid_arguments'); here = true; continue; }
     const value = rest.shift();
     if (!value || value.startsWith('--')) throw Error('invalid_arguments');
     if (flag === '--limit') {

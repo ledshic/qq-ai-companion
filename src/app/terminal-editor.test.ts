@@ -84,3 +84,39 @@ test('screen write failure during close still restores raw input and removes lis
     assert.deepEqual(f.raw, [true, false]); assert.equal(f.input.listenerCount('data'), 0); assert.equal(f.screen.listenerCount('resize'), 0);
   } finally { f.screen.write = write; f.editor.close(); }
 });
+test('Tab completes commands, statuses and flags without submitting and preserves arguments to the right', async () => {
+  const f = fixture();
+  try {
+    await f.send('/ta\trun\t--conv\towned'); assert.equal(f.submitted.length, 0);
+    await f.send('\r'); assert.deepEqual(f.submitted, ['/tasks running --conversation owned']);
+    await f.send('/tasks --co owned\x01'); for (let i = 0; i < 11; i++) await f.send('\x1b[C');
+    await f.send('\t\x05\r'); assert.equal(f.submitted[1], '/tasks --conversation owned');
+    await f.send('/tasks runnning --here\x01'); for (let i = 0; i < 10; i++) await f.send('\x1b[C');
+    await f.send('\t\x05\r'); assert.equal(f.submitted[2], '/tasks running --here');
+  } finally { f.editor.close(); }
+});
+test('ambiguous completion stays in the bounded live region through streamed drafts and resize', async () => {
+  const f = fixture();
+  try {
+    f.editor.message(() => f.screen.write('committed\r\n')); await f.send('/r\t');
+    assert(f.screen.visible().includes('/retry')); assert(f.screen.visible().includes('/resume')); assert.equal(f.submitted.length, 0);
+    for (let i = 0; i < 50; i++) f.editor.setDraft('draft-' + i);
+    assert(f.screen.visible().includes('committed')); assert(f.screen.visible().includes('draft-49')); assert(f.screen.visible().includes('补全候选'));
+    assert(f.screen.visible().split('\n').length <= f.screen.rows);
+    f.screen.columns = 12; f.screen.rows = 6; f.screen.emit('resize'); await f.send('s\t#1\r');
+    assert.deepEqual(f.submitted, ['/resume #1']); assert(!f.screen.visible().includes('补全候选'));
+    await f.send('/tasks cancelled\x01'); for (let i = 0; i < 8; i++) await f.send('\x1b[C');
+    await f.send('\t\x05\r'); assert.equal(f.submitted[1], '/tasks cancelled');
+  } finally { f.editor.close(); }
+});
+test('Tab indentation and pasted tabs remain literal outside single-line commands, and completion respects the input limit', async () => {
+  const f = fixture();
+  try {
+    await f.send('text\tvalue\r//help\ttext\r/tasks\n\tcode\r');
+    assert.deepEqual(f.submitted, ['text  value', '//help  text', '/tasks\n  code']);
+    await f.send('\x1b[200~/ta\tvalue\x1b[201~\r'); assert.equal(f.submitted[3], '/ta  value');
+    await f.send('\x1b[200~/he' + ' '.repeat(7997) + '\x1b[201~\x01\x1b[C\x1b[C\x1b[C\t');
+    assert(f.warnings.some(text => text.includes('补全未接受'))); await f.send('\x07');
+    await f.send('/tasks failed --here \t\r'); assert.equal(f.submitted.at(-1), '/tasks failed --here ');
+  } finally { f.editor.close(); }
+});

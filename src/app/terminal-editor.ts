@@ -1,6 +1,7 @@
 import type { Readable, Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { stripVTControlCharacters } from 'node:util';
+import { completeCommand } from './command-completion.js';
 
 type Input = Readable & { isRaw?: boolean; setRawMode?: (enabled: boolean) => unknown };
 type Output = Writable & { columns?: number; rows?: number };
@@ -37,6 +38,7 @@ export class TerminalEditor {
   private text = ''; private cursor = 0; private draft = ''; private pending = ''; private paste: string | undefined;
   private drawn = false; private cursorRow = 0; private closed = false; private readonly wasRaw: boolean;
   private preferredColumn: number | undefined;
+  private completionHint = '';
   private readonly decoder = new StringDecoder('utf8');
   constructor(private input: Input, private output: Output, private submit: (text: string) => boolean,
     private stop: (code?: number) => void, private eof: () => void, private warning: (text: string) => void) {
@@ -79,6 +81,7 @@ export class TerminalEditor {
     this.snap(); this.render();
   };
   private insert(value: string) {
+    this.completionHint = '';
     if (value.length > 8000) { this.warning('输入最多 8000 字符，本次插入未接受。'); return; }
     const safe = clean(value);
     if (this.text.length + safe.length > 8000) { this.warning('输入最多 8000 字符，本次插入未接受。'); return; }
@@ -90,7 +93,26 @@ export class TerminalEditor {
     const part = segments(this.text).find(item => item.index < this.cursor && item.index + item.segment.length > this.cursor);
     if (part) this.cursor = part.index + part.segment.length;
   }
+  private complete() {
+    const result = completeCommand(this.text, this.cursor);
+    if (!result) { this.insert('  '); return; }
+    this.completionHint = '';
+    if (!result.candidates.length) return;
+    const unique = result.candidates.length === 1;
+    let replacement = result.candidates[0]!;
+    for (const candidate of result.candidates.slice(1)) while (!candidate.startsWith(replacement)) replacement = replacement.slice(0, -1);
+    const prefix = this.text.slice(result.start, this.cursor);
+    if (unique || this.cursor === result.end && replacement.length > prefix.length) {
+      const suffix = this.text.slice(result.end), space = unique && !suffix ? ' ' : '';
+      const next = this.text.slice(0, result.start) + replacement + space + suffix;
+      if (next.length > 8000) { this.warning('输入最多 8000 字符，本次补全未接受。'); return; }
+      this.text = next;
+      this.cursor = result.start + replacement.length + space.length + (unique && suffix.startsWith(' ') ? 1 : 0);
+    }
+    if (!unique) this.completionHint = '补全候选：' + result.candidates.join('  ');
+  }
   private key(key: string) {
+    if (key !== 'tab') this.completionHint = '';
     if (key !== 'up' && key !== 'down') this.preferredColumn = undefined;
     const parts = segments(this.text), previous = parts.filter(item => item.index < this.cursor).at(-1)?.index ?? 0;
     const next = parts.find(item => item.index >= this.cursor);
@@ -100,7 +122,7 @@ export class TerminalEditor {
     switch (key) {
       case 'submit': if (this.text.trim() && this.submit(this.text)) { this.text = ''; this.cursor = 0; } break;
       case 'newline': this.insert('\n'); break;
-      case 'tab': this.insert('  '); break;
+      case 'tab': this.complete(); break;
       case 'cancel': this.submit('/cancel'); break;
       case 'left': this.cursor = previous; break;
       case 'right': this.cursor = end; break;
@@ -138,14 +160,19 @@ export class TerminalEditor {
     if (this.closed) return;
     this.erase();
     const columns = Math.max(4, (this.output.columns ?? 80) - 1), budget = Math.max(1, (this.output.rows ?? 24) - 2);
+    const hintLimit = Math.min(3, Math.max(0, budget - 2));
+    const hint = this.completionHint && hintLimit ? layout(this.completionHint, columns).lines : [];
+    const hints = hint.slice(0, hintLimit);
+    if (hint.length > hintLimit && hints.length) hints[hints.length - 1] = layout('…继续输入缩小候选', columns).lines[0]!;
+    const inputBudget = budget - hints.length;
     const input = layout(this.text, columns, '你> '), cursor = input.points.find(item => item.offset === this.cursor)!;
-    const inputLimit = Math.min(input.lines.length, this.draft ? Math.max(Math.min(2, budget), budget - 6) : budget);
+    const inputLimit = Math.min(input.lines.length, this.draft ? Math.max(Math.min(2, inputBudget), inputBudget - 6) : inputBudget);
     const start = Math.max(0, Math.min(cursor.row - Math.floor(inputLimit / 2), input.lines.length - inputLimit));
     const label = '草稿·未提交';
     const draft = this.draft ? layout(label + '\n' + this.draft, columns).lines : [];
-    const available = budget - inputLimit;
+    const available = inputBudget - inputLimit;
     const preview = !available ? [] : draft.length > available ? [...layout(label, columns).lines.slice(0, 1), ...(available > 1 ? draft.slice(-(available - 1)) : [])] : draft;
-    const lines = [...preview, ...input.lines.slice(start, start + inputLimit)];
+    const lines = [...preview, ...input.lines.slice(start, start + inputLimit), ...hints];
     this.cursorRow = preview.length + cursor.row - start;
     this.output.write(lines.join('\r\n') + (lines.length - 1 > this.cursorRow ? `\x1b[${lines.length - 1 - this.cursorRow}A` : '') + '\r' + (cursor.col ? `\x1b[${cursor.col}C` : ''));
     this.drawn = true;
@@ -155,7 +182,7 @@ export class TerminalEditor {
     this.closed = true;
     try { this.erase(); } finally {
       this.input.off('data', this.data); this.input.off('end', this.end); this.input.off('error', this.error); this.output.off('resize', this.resize);
-      this.text = ''; this.draft = ''; this.paste = undefined; this.pending = '';
+      this.text = ''; this.draft = ''; this.paste = undefined; this.pending = ''; this.completionHint = '';
       try { this.input.setRawMode?.(this.wasRaw); } finally { this.input.pause(); this.output.write('\x1b[?2004l'); }
     }
   }

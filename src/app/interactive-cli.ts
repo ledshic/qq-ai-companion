@@ -12,6 +12,7 @@ interface Attempt { conversationId: string; content: string; clientMessageId: st
 interface ObservedRun { id: string; conversation: Conversation; controller: AbortController; preview: string }
 const instructions = `普通输入发送消息；每次等待一个任务。// 开头可发送以 / 开头的正文。
 终端：Enter 发送，Ctrl+J / Alt+Enter 换行；方向键移动，Home/End 行首尾，Ctrl+G 清空输入。
+单行命令按 Tab 补全命令、任务状态和筛选参数；多个候选显示在编辑区，仍需 Enter 执行。
 Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时退出。
 粘贴多行后等待 Enter 确认；管道：/edit 开始多行，/send 发送，/discard 丢弃。
 /help                 查看帮助

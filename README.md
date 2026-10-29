@@ -78,6 +78,8 @@ pnpm agent:cli cancel <runId>
 
 可用 `/tasks failed --here` 或 `pnpm agent:cli tasks completed` 按具体状态查询。六种状态、分页和恢复规则见[具体状态筛选](docs/AGENT-CLI-TASK-STATES.md)，active 与 all 继续可用。
 
+交互式单行命令按 Tab 补全命令、任务状态和筛选参数，多个候选会显示在编辑区，仍需 Enter 执行。普通正文和多行输入的 Tab 保持缩进；详见[命令补全](docs/AGENT-CLI-COMPLETION.md)。
+
 ## 验证与文档
 
 ```sh
