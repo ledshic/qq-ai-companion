@@ -72,6 +72,8 @@ pnpm agent:cli cancel <runId>
 
 终端中 Enter 发送、Ctrl+J 或 Alt+Enter 换行，Ctrl+X 取消当前任务并保留输入。草稿在原位刷新；多行粘贴、编辑按键和管道模式见[CLI 多行编辑](docs/AGENT-CLI-EDITOR.md)。
 
+退出后可用 `/tasks` 找回未完成任务，`/resume #序号` 恢复观察；`/tasks all` 查看全部状态，`/tasks more` 翻页。完整标识入口继续可用，终态不会重新执行；详见[任务列表与恢复](docs/AGENT-CLI-TASKS.md)。
+
 ## 验证与文档
 
 ```sh

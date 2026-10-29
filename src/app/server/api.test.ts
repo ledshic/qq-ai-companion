@@ -497,3 +497,28 @@ test('output streams reconnect with snapshots, finish once and stop when device 
     assert.equal(f.store.run('owner', pending.runId).state, 'running'); finish('owner can still finish');
   } finally { first.abort(); second.abort(); revoked.abort(); await f.close(); }
 });
+test('task summaries paginate by creation, isolate owners and never expose prompt, result, reasoning or draft', async () => {
+  const f = fixture();
+  try {
+    const create = (owner: string, title: string, key: string) => { const c = f.store.createConversation(owner, title); return f.store.accept(owner, c.id, key, 'private-input-' + key).runId; };
+    const first = create('owner', 'Completed', 'first'); f.store.start('owner', first); f.store.finish('owner', first, 'private-result', null, 'private-reasoning');
+    const queued = create('owner', 'Queued', 'queued'), running = create('owner', 'Running', 'running'); f.store.start('owner', running);
+    const foreign = create('other', 'foreign-title', 'foreign');
+    const get = async (query = '', auth: Record<string, string> = headers) => f.api.inject({ url: '/api/v1/runs' + query, headers: auth });
+    assert.equal((await f.api.inject('/api/v1/runs')).statusCode, 401);
+    assert.equal((await get('', { ...headers, origin: 'https://evil.example' })).statusCode, 403);
+    for (const query of ['?status=bogus', '?limit=0', '?limit=201', '?limit=1.2', '?before=', '?ownerId=other']) assert.equal((await get(query)).statusCode, 400);
+    assert.equal((await get('?before=' + foreign)).statusCode, 404);
+    const page = (await get('?status=all&limit=1')).json(); assert.deepEqual(page.runs.map((run: any) => run.id), [running]); assert.equal(page.nextCursor, running);
+    const newest = create('owner', 'Arrived between pages', 'newest');
+    const next = (await get('?status=all&limit=2&before=' + page.nextCursor)).json(); assert.deepEqual(next.runs.map((run: any) => run.id), [queued, first]); assert.equal(next.nextCursor, null);
+    const active = (await get('?status=active')).json(); assert.deepEqual(active.runs.map((run: any) => run.id), [newest, running, queued]);
+    f.store.finish('owner', running, 'finished between pages', null);
+    const afterChangedCursor = (await get('?status=active&before=' + running)).json();
+    assert.deepEqual(afterChangedCursor.runs.map((run: any) => run.id), [queued]);
+    const all = (await get()).body; for (const hidden of ['private-input', 'private-result', 'private-reasoning', 'foreign-title', '"input"', '"result"', '"text"']) assert(!all.includes(hidden));
+    f.store.exec('INSERT INTO service_devices(id,owner_id,name,token_hash,admin) VALUES(?,?,?,?,0)', 'list-device', 'owner', 'Device', tokenHash('list-token'));
+    const device = { authorization: 'Bearer list-token' }; assert.equal((await get('', device)).statusCode, 200);
+    f.store.revoke('owner', 'list-device'); assert.equal((await get('', device)).statusCode, 401);
+  } finally { await f.close(); }
+});

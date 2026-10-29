@@ -310,3 +310,99 @@ test('terminal keeps the next multiline edit through streamed replacements, busy
     assert.deepEqual(f.store.history('text-owner', f.store.conversations('text-owner', '', 50)[0]!.id).map(message => message.content), ['next\n  line', 'second complete']);
   } finally { await f.close(); }
 });
+test('task entry discovers unknown IDs, resumes numbered tasks, cancels and reads terminal results without resubmission', async () => {
+  let finish!: (text: string) => void; const f = fixture(() => new Promise(resolve => { finish = resolve; }));
+  try {
+    const c = f.store.createConversation('text-owner', 'From another device');
+    const accepted = f.host.submit('text-owner', c.id, 'earlier', 'do not resubmit'); await settle(() => !!finish);
+    const foreign = f.store.createConversation('other', 'foreign secret'); f.store.accept('other', foreign.id, 'hidden', 'foreign input');
+    const s = f.connect(); await settle(() => s.text().includes('已连接')); s.line('/resume'); await settle(() => s.text().includes('#1  运行中'));
+    assert(!s.text().includes('foreign secret')); assert(!s.text().includes('do not resubmit'));
+    s.line('/resume #1'); await settle(() => s.text().includes('正在观察任务 ' + accepted.runId));
+    s.line('/resume #1'); await settle(() => s.text().includes('无需重复恢复'));
+    s.line('/cancel'); await settle(() => s.text().includes('cancelled')); finish('late completion');
+    s.line('/tasks all'); await settle(() => s.text().includes('#1  已取消')); s.line('/resume #1'); await settle(() => s.text().split('cancelled').length >= 3);
+    s.line('/exit'); assert.equal(await s.result, 0);
+    assert.equal(f.calls.filter(call => call.method === 'POST' && call.path.endsWith('/messages')).length, 0);
+    assert.equal(f.calls.filter(call => call.path.endsWith('/cancel')).length, 1);
+  } finally { await f.close(); }
+});
+test('task pages keep numbers stable, recheck current state and invalidate choices after a failed refresh', async () => {
+  const f = fixture(); let offline = false;
+  const network: typeof fetch = (url, init) => offline && new URL(String(url)).pathname === '/api/v1/runs' ? Promise.reject(Error('offline')) : f.request(url, init);
+  try {
+    const c = f.store.createConversation('text-owner', 'History'); const ids: string[] = [];
+    for (let i = 0; i < 23; i++) { const run = f.store.accept('text-owner', c.id, 'history-' + i, 'private-body'); f.store.start('text-owner', run.runId); f.store.finish('text-owner', run.runId, 'final-' + i, null); ids.push(run.runId); }
+    const s = f.connect([], network); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks all'); await settle(() => s.text().includes('#20 ')); s.line('/tasks more'); await settle(() => s.text().includes('#23 '));
+    s.line('/resume #21'); await settle(() => s.text().includes('final-2'));
+    const read = f.calls.find(call => call.path === '/api/v1/runs/' + ids[2]); assert(read);
+    offline = true; s.line('/tasks'); await settle(() => s.error().includes('操作失败')); s.line('/resume #1'); await settle(() => s.error().includes('序号不可用'));
+    offline = false; s.line('/tasks'); await settle(() => s.text().includes('没有更多符合条件')); s.line('/exit'); assert.equal(await s.result, 0);
+    assert(!f.calls.some(call => call.method === 'POST')); // Browsing/results never create work.
+  } finally { await f.close(); }
+});
+test('numbered recovery revalidates the latest terminal state rather than executing stale list state', async () => {
+  let finish!: (text: string) => void, generated = 0; const f = fixture(() => { generated++; return new Promise(resolve => { finish = resolve; }); });
+  try {
+    const c = f.store.createConversation('text-owner', 'Changed after listing'), accepted = f.host.submit('text-owner', c.id, 'earlier', 'question');
+    await settle(() => !!finish); const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks'); await settle(() => s.text().includes('#1  运行中')); finish('finished after listing'); await settle(() => f.store.run('text-owner', accepted.runId).state === 'completed');
+    s.line('/resume #1'); await settle(() => s.text().includes('finished after listing'));
+    assert.equal(generated, 1); assert(!f.calls.some(call => call.path.endsWith('/output') || call.method === 'POST'));
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('task selection cannot replace another observed run, and browsing never cancels it', async () => {
+  const finish: ((text: string) => void)[] = []; const f = fixture(() => new Promise(resolve => { finish.push(resolve); }));
+  try {
+    const a = f.store.createConversation('text-owner', 'A'), b = f.store.createConversation('text-owner', 'B');
+    const older = f.host.submit('text-owner', a.id, 'a', 'a'), newer = f.host.submit('text-owner', b.id, 'b', 'b');
+    await settle(() => finish.length === 2); const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks'); await settle(() => s.text().includes('#2  运行中'));
+    s.line('/resume #2'); await settle(() => s.text().includes('正在观察任务 ' + older.runId));
+    s.line('/resume #1'); await settle(() => s.error().includes('尚未结束'));
+    assert(!f.calls.some(call => call.path === '/api/v1/runs/' + newer.runId));
+    s.line('/tasks'); await settle(() => s.text().includes('当前观察')); assert(!f.calls.some(call => call.path.endsWith('/cancel')));
+    s.line('/cancel'); await settle(() => s.text().includes('cancelled')); s.line('/resume #1'); await settle(() => s.text().includes('正在观察任务 ' + newer.runId));
+    s.line('/exit'); assert.equal(await s.result, 0); assert.equal(f.store.run('text-owner', newer.runId).state, 'running');
+    for (const resolve of finish) resolve('late');
+  } finally { await f.close(); }
+});
+for (const revoke of ['before', 'during']) test(`numbered recovery checks real source authorization revoked ${revoke} observation`, async () => {
+  const { createConsoleReply } = await import('../channels/console/generator.js');
+  const { ServiceMemory } = await import('../runtime/service/memory.js');
+  let generate!: ConsoleGenerator; const f = fixture((...args) => generate(...args)); let cancelled = false;
+  try {
+    const source = f.store.createConversation('text-owner', 'Source'), target = f.store.createConversation('text-owner', 'Target');
+    const evidence = f.store.accept('text-owner', source.id, 'evidence', '考试安排在周五'); f.store.start('text-owner', evidence.runId); f.store.finish('text-owner', evidence.runId, 'ack', null);
+    const memory = new ServiceMemory(f.store); memory.setSources('text-owner', target.id, [source.id]);
+    generate = createConsoleReply('fixture', 'test', 9, false, async () => new Response(new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: '已授权草稿' }, finish_reason: null }] }) + '\n\n'));
+    }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } }), undefined, { memory });
+    const accepted = f.host.submit('text-owner', target.id, 'earlier', '考试安排'); await settle(() => !!f.host.output('text-owner', accepted.runId).text);
+    const s = f.connect(); let output = ''; s.output.on('data', chunk => { output += String(chunk); }); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks'); await settle(() => s.text().includes('#1  运行中'));
+    if (revoke === 'before') memory.setSources('text-owner', target.id, []);
+    s.line('/resume #1');
+    if (revoke === 'during') { await settle(() => output.includes('已授权草稿')); memory.setSources('text-owner', target.id, []); }
+    await settle(() => s.error().includes('memory_context_changed'));
+    if (revoke === 'before') assert(!output.includes('已授权草稿'));
+    assert.equal(f.host.output('text-owner', accepted.runId).text, ''); assert.deepEqual(f.store.history('text-owner', target.id), []);
+    await settle(() => cancelled); assert(!f.calls.some(call => call.method === 'POST'));
+    s.line('/exit'); assert.equal(await s.result, 0);
+  } finally { await f.close(); }
+});
+test('long task browsing continues past the selection cache limit without reassigning expired numbers', async () => {
+  const f = fixture();
+  try {
+    const c = f.store.createConversation('text-owner', 'Long history');
+    for (let i = 0; i < 205; i++) { const run = f.store.accept('text-owner', c.id, 'long-' + i, 'question'); f.store.start('text-owner', run.runId); f.store.finish('text-owner', run.runId, 'answer-' + i, null); }
+    const s = f.connect(); await settle(() => s.text().includes('已连接'));
+    s.line('/tasks all'); await settle(() => s.text().includes('#20 '));
+    for (let page = 2; page <= 11; page++) { s.line('/tasks more'); const last = Math.min(page * 20, 205); await settle(() => s.text().includes('#' + last + ' ')); }
+    s.line('/resume #1'); await settle(() => s.error().includes('序号不可用'));
+    s.line('/resume #205'); await settle(() => s.text().includes('answer-0')); s.line('/tasks more'); await settle(() => s.text().includes('列表末尾'));
+    s.line('/exit'); assert.equal(await s.result, 0); assert(!f.calls.some(call => call.method === 'POST'));
+  } finally { await f.close(); }
+});

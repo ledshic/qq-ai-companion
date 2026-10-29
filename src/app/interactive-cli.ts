@@ -4,7 +4,7 @@ import type { Readable, Writable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { stripVTControlCharacters } from 'node:util';
 import type { createServiceClient } from '../../packages/client/src/service.js';
-import { APIError, type Conversation, type Run } from '@companion/contracts/service';
+import { APIError, type Conversation, type Run, type RunPage } from '@companion/contracts/service';
 
 type Client = ReturnType<typeof createServiceClient>;
 interface Attempt { conversationId: string; content: string; clientMessageId: string }
@@ -15,11 +15,12 @@ Ctrl+X 取消当前任务并保留正在编辑的内容；Ctrl+D 在空输入时
 粘贴多行后等待 Enter 确认；管道：/edit 开始多行，/send 发送，/discard 丢弃。
 /help                 查看帮助
 /list                 列出会话
+/tasks [active|all]   列出本人任务（默认未完成）；/tasks more 读取下一页
 /new [标题]           创建并切换到新会话
 /use <会话标识>       切换会话并读取最近消息
 /history              查看当前会话最近 20 条消息（不含推理）
 /retry                用原标识重试结果未确认的提交
-/resume <任务标识>    继续观察已有任务或查看其结果
+/resume [任务标识|#序号] 恢复观察或查看结果；不带参数显示未完成任务
 /cancel               显式取消当前任务
 /exit                 退出本地聊天，已接受任务继续运行
 Ctrl+C / Ctrl+D 退出本地聊天，不取消远程任务。`;
@@ -36,6 +37,7 @@ export async function runInteractiveChat(options: {
   let active: ObservedRun | undefined;
   let uncertain: Attempt | undefined;
   let submitting: Attempt | undefined;
+  let taskList: (RunPage & { status: 'active' | 'all'; offset: number }) | undefined;
   let closed = false;
   let reader: Interface | undefined;
   let editor: TerminalEditor | undefined;
@@ -85,6 +87,30 @@ export async function runInteractiveChat(options: {
     print(`历史：${conversation.title}（${conversation.id}）`);
     for (const message of recent) print(`${message.role === 'assistant' ? '助手' : '你'}：${message.content}`);
     if (!recent.length) print('暂无消息。');
+  }
+  async function listTasks(mode: 'active' | 'all' | 'more') {
+    const previous = taskList;
+    if (mode === 'more' && !previous) { print('请先 /tasks 或 /tasks all。'); return; }
+    if (mode === 'more' && previous!.nextCursor === null) { print('已到任务列表末尾。'); return; }
+    const status = mode === 'more' ? previous!.status : mode;
+    taskList = undefined; // Failed reads cannot leave apparently current numbered choices.
+    const page = await client.runs({ status, limit: 20, ...(mode === 'more' ? { before: previous!.nextCursor! } : {}) });
+    if (closed || signal.aborted) return;
+    const earlier = mode === 'more' ? previous!.runs : [];
+    const offset = mode === 'more' ? previous!.offset : 0;
+    if (page.runs.some(run => earlier.some(item => item.id === run.id))) throw Error('task_page_repeated');
+    const combined = [...earlier, ...page.runs], dropped = Math.max(0, combined.length - 200);
+    taskList = { status, offset: offset + dropped, runs: combined.slice(dropped), nextCursor: page.nextCursor };
+    const states = { queued: '排队中', running: '运行中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' };
+    const oneLine = (text: string) => Array.from(terminalText(text).replace(/\s+/gu, ' ')).slice(0, 120).join('');
+    print(`任务列表（${status === 'active' ? '未完成' : '全部'}，按创建顺序从新到旧）：`);
+    for (const [index, run] of page.runs.entries()) {
+      print(`#${offset + earlier.length + index + 1}  ${states[run.state]}${active?.id === run.id ? ' · 当前观察' : ''}  ${run.id}\n  会话：${oneLine(run.conversationTitle)}（${run.conversationId}）\n  更新：${oneLine(run.updatedAt)}${run.error ? ' · ' + oneLine(run.error) : ''}`);
+    }
+    if (!page.runs.length) print('没有更多符合条件的任务。');
+    if (taskList.runs.length) print('输入 /resume #序号 或 /resume 完整任务标识；终态仅查看结果，不会重新执行。');
+    if (dropped) print('序号只保留最近显示的 200 项；更早的任务可使用完整标识。');
+    if (page.nextCursor) print('输入 /tasks more 查看下一页；/tasks 刷新未完成任务，/tasks all 查看全部。');
   }
   function finish(task: ObservedRun, run: Run) {
     if (closed || active !== task) return;
@@ -176,6 +202,9 @@ export async function runInteractiveChat(options: {
         if (parts.length) break;
         for (const item of await conversations()) print(`${item.id}  ${item.title}`);
         return;
+      case '/tasks':
+        if (parts.length > 1 || parts.length && !['active', 'all', 'more'].includes(arg)) break;
+        await listTasks((arg || 'active') as 'active' | 'all' | 'more'); return;
       case '/new': {
         if (!requireIdle()) return;
         const created = await client.createConversation(arg || 'CLI 对话');
@@ -198,12 +227,22 @@ export async function runInteractiveChat(options: {
         if (uncertain && !active) await submit(uncertain); else print('没有待确认的提交。');
         return;
       case '/resume': {
+        if (!parts.length) { await listTasks('active'); return; }
         if (parts.length !== 1) break;
+        let id = arg;
+        if (arg.startsWith('#')) {
+          if (!/^#[1-9]\d*$/.test(arg) || !Number.isSafeInteger(Number(arg.slice(1)))) break;
+          const choice = taskList?.runs[Number(arg.slice(1)) - 1 - taskList.offset];
+          if (!choice) { print('序号不可用，请 /tasks 刷新后重新选择。', true); return; }
+          id = choice.id;
+        }
         if (uncertain) { requireIdle(); return; }
-        if (active && active.id !== arg) { requireIdle(); return; }
-        if (active && !active.controller.signal.aborted) { print(`任务 ${arg} 正在观察，无需重复恢复。`); return; }
-        const run = await client.run(arg);
-        if (run.id !== arg) throw Error('run_scope_changed');
+        if (active && active.id !== id) { requireIdle(); return; }
+        if (active && !active.controller.signal.aborted) { print(`任务 ${id} 正在观察，无需重复恢复。`); return; }
+        const run = await client.run(id);
+        if (run.id !== id) throw Error('run_scope_changed');
+        const choice = taskList?.runs.find(item => item.id === id);
+        if (choice && choice.conversationId !== run.conversationId) throw Error('run_scope_changed');
         const selected = await ownedConversation(run.conversationId);
         if (!closed) { current = selected; print(`当前会话：${selected.title}（${selected.id}）`); observe(run.id, selected, run); }
         return;
@@ -230,6 +269,7 @@ export async function runInteractiveChat(options: {
     if (pending) print(`保留重试标识：${pending.clientMessageId}；会话：${pending.conversationId}。重新连接后可用 send 的相同标识和正文确认结果。`);
     if (multiline) print('未发送的多行内容已丢弃。');
     multiline = undefined;
+    taskList = undefined;
     closed = true; active?.controller.abort();
     try { reader?.close(); } catch { code = 1; }
     try { editor?.close(); } catch { code = 1; }
@@ -270,7 +310,7 @@ export async function runInteractiveChat(options: {
     await client.me(); // Uses the existing bearer credential; never creates an identity.
     if (options.conversationId) { current = await ownedConversation(options.conversationId); await history(current); }
     if (closed || signal.aborted) return 0;
-    print(current ? '已连接个人 Agent，当前会话已选定。/help 查看命令。' : '已连接个人 Agent。/help 查看命令；首次发送会创建会话。');
+    print(current ? '已连接个人 Agent，当前会话已选定。/help 查看命令；/tasks 查任务。' : '已连接个人 Agent。/help 查看命令；/tasks 查任务；首次发送会创建会话。');
     const eof = () => { void commands.finally(() => close()); };
     if (tty) editor = new TerminalEditor(options.input, options.output, enqueue, code => close(code), eof, text => print(text, true));
     else {

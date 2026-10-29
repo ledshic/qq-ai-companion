@@ -39,6 +39,7 @@ console.log(await service.status());
 | GET /conversations/:id/memory-sources | 查看本人会话的跨会话来源授权及版本 |
 | POST /conversations/:id/memory-sources | 管理拥有者整体替换 sourceConversationIds，空数组撤销授权 |
 | GET /runs/:id、POST /runs/:id/cancel | 查询结果或取消执行 |
+| GET /runs | 按拥有者分页读取任务摘要；status、limit、before 与 SDK 用法见[任务列表记录](AGENT-CLI-TASKS.md) |
 | GET /events | JSON 补读；Accept 为 text/event-stream 时持续推送事件 |
 | POST /runtime/pause、POST /runtime/resume | 管理拥有者暂停、恢复接收新请求，不停止已运行任务 |
 

@@ -92,3 +92,15 @@ test('run output parser rejects malformed snapshots and premature EOF, cancellat
   const abort = new AbortController(), pending = stalled.watchRun('run', abort.signal).next();
   await new Promise(resolve => setImmediate(resolve)); abort.abort(); await assert.rejects(pending); assert.equal(cancelled, true);
 });
+test('task SDK encodes bounded queries and validates metadata-only pages and cursors', async () => {
+  const run = { id: 'run', conversationId: 'conversation', conversationTitle: 'Title', state: 'running', error: null, createdAt: '2026-10-29T00:00:00Z', updatedAt: '2026-10-29T00:00:00Z' };
+  let url = '';
+  const client = createServiceClient('http://localhost', { request: async input => { url = String(input); return Response.json({ runs: [run], nextCursor: 'run' }); } });
+  const page = await client.runs({ status: 'active', limit: 20, before: 'before&ownerId=other' });
+  assert.equal(page.runs[0]?.id, 'run'); const parsed = new URL(url); assert.equal(parsed.pathname, '/api/v1/runs');
+  assert.deepEqual([...parsed.searchParams], [['status', 'active'], ['before', 'before&ownerId=other'], ['limit', '20']]);
+  for (const body of [{ runs: [{ ...run, state: 'invented' }], nextCursor: null }, { runs: [{ ...run, input: 'secret' }], nextCursor: null },
+    { runs: [run, run], nextCursor: null }, { runs: [run], nextCursor: 'different' }, { runs: [], nextCursor: 'run' }, { runs: [{ ...run, updatedAt: 'bad-time' }], nextCursor: null }]) {
+    const invalid = createServiceClient('http://localhost', { request: async () => Response.json(body) }); await assert.rejects(invalid.runs(), /Invalid run/);
+  }
+});

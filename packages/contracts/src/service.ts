@@ -34,6 +34,23 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
 }
+export type RunSummary = Pick<Run, 'id' | 'conversationId' | 'state' | 'error' | 'createdAt' | 'updatedAt'> & { conversationTitle: string };
+export interface RunPage { runs: RunSummary[]; nextCursor: string | null }
+export interface RunListOptions { status?: 'active' | 'all'; before?: string; limit?: number }
+export function parseRunPage(value: unknown): RunPage {
+  if (!isRecord(value) || !Array.isArray(value.runs) || value.runs.length > 200 ||
+    !(value.nextCursor === null || isString(value.nextCursor))) throw Error('Invalid run page');
+  const runs = value.runs.map((item: unknown): RunSummary => {
+    if (!isRecord(item) || !['id', 'conversationId'].every(key => typeof item[key] === 'string' && /^[\w-]{1,80}$/.test(item[key] as string)) ||
+      !isString(item.conversationTitle) || item.conversationTitle.length > 120 ||
+      !['queued', 'running', 'completed', 'failed', 'cancelled', 'interrupted'].includes(String(item.state)) ||
+      !(item.error === null || typeof item.error === 'string') || !isTime(item.createdAt) || !isTime(item.updatedAt) ||
+      Object.keys(item).some(key => !['id', 'conversationId', 'conversationTitle', 'state', 'error', 'createdAt', 'updatedAt'].includes(key))) throw Error('Invalid run summary');
+    return item as unknown as RunSummary;
+  });
+  if (new Set(runs.map(run => run.id)).size !== runs.length || value.nextCursor !== null && value.nextCursor !== runs.at(-1)?.id) throw Error('Invalid run page cursor');
+  return { runs, nextCursor: value.nextCursor as string | null };
+}
 // Ephemeral draft; only run.result / committed messages are authoritative.
 export interface RunOutput { run: Run; text: string; sequence: number }
 export function parseRunOutput(value: unknown): RunOutput {

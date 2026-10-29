@@ -3,6 +3,8 @@ import {
   APIError,
   parseServiceStatus,
   parseRun,
+  parseRunPage,
+  type RunListOptions,
   parseRunOutput,
   type RunOutput,
   parseEventPage,
@@ -150,6 +152,13 @@ export function createServiceClient(
         if (!['queued', 'running'].includes(snapshot.run.state)) return;
       }
       throw Error('Run stream ended before terminal state');
+    },
+    runs: (options: RunListOptions = {}) => {
+      const query = new URLSearchParams();
+      if (options.status !== undefined) query.set('status', options.status);
+      if (options.before !== undefined) query.set('before', options.before);
+      if (options.limit !== undefined) query.set('limit', String(options.limit));
+      return call(`/runs?${query}`).then(parseRunPage);
     },
     run: (id: string) => call(`/runs/${encodeURIComponent(id)}`).then(parseRun),
     cancel: (id: string) =>
