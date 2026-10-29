@@ -1,0 +1,61 @@
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_d5f8c70405b125 158,160,166
+src/app/cli.test.ts
+  s_0e006fc6de5952::t_0776e2667ab03d 106,153-169
+  s_0e006fc6de5952::t_842f99a0b808c0 170
+src/app/server/api.ts
+  s_0e006fc6de5952::t_d5f8c70405b125 10,271-272
+docs/AGENT-CLI-TASK-STATES.md
+  s_0e006fc6de5952::t_db9578c5cc6ed5 1-75
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 8,20
+  s_0e006fc6de5952::t_d5f8c70405b125 19,33,44,95,110,112
+src/testing/cli-pty-smoke.ts
+  s_0e006fc6de5952::t_0776e2667ab03d 106,110
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 42
+src/runtime/service/store.ts
+  s_0e006fc6de5952::t_d5f8c70405b125 11,305,316,319
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_0776e2667ab03d 385
+  s_0e006fc6de5952::t_e044c7e9d0f84e 350,444-482
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 29-30,45-46,63,95-97
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_0776e2667ab03d 545-576
+docs/AGENT-CLI-TASK-FILTERS.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 18,34,65
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 33-34,80-82
+README.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 79-80
+src/app/task-arguments.ts
+  s_0e006fc6de5952::t_d5f8c70405b125 1,9
+src/app/cli.ts
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 6,17
+  s_0e006fc6de5952::t_d5f8c70405b125 16
+docs/AGENT-CLI-TASKS.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 37
+docs/README.md
+  s_0e006fc6de5952::t_1b7d96ebc5dc52 17
+packages/contracts/src/service.ts
+  s_0e006fc6de5952::t_d5f8c70405b125 2-6,37,44
+packages/client/src/service.test.ts
+  s_0e006fc6de5952::t_0776e2667ab03d 121-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a0aa7152b16663d03f8882e3d817afbdb7f9281",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
