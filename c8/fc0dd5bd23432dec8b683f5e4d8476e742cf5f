@@ -1,0 +1,71 @@
+src/app/server/api.ts
+  s_0e006fc6de5952::t_07f0bfe6d810d5 268-273
+docs/AGENT-CLI-EDITOR.md
+  s_0e006fc6de5952::t_0e43addd17e685 74
+docs/MULTI-CLIENT-PHASE-B.md
+  s_0e006fc6de5952::t_0e43addd17e685 42
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_012f1fd25477b6 108
+  s_0e006fc6de5952::t_cb68134f07f611 40,100,102-103,112,235
+  s_0e006fc6de5952::t_1b686f8bb64af6 7,18,23,91-99,101,104-107,109-111,113-114,205-207,230,232-234,236-238,240-245,272,313
+packages/contracts/src/service.ts
+  s_0e006fc6de5952::t_1b686f8bb64af6 41,44-45
+  s_0e006fc6de5952::t_07f0bfe6d810d5 37-40,42-43,46-53
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_0e43addd17e685 29,34,40,85-87
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_431cd21c0f9ea8 372,385-390
+  s_0e006fc6de5952::t_bd8c71da847f7a 315,328-329,333,343-344,396-408
+  s_0e006fc6de5952::t_6f1d7c43518379 325,345-371,373-384,391-395
+  s_0e006fc6de5952::t_b146f2cd531fae 313-314
+  s_0e006fc6de5952::t_6cf34275e9fca4 316-318,322-324
+  s_0e006fc6de5952::t_7383b4f0b196f0 326-327
+  s_0e006fc6de5952::t_a050f50db790cd 330-332
+  s_0e006fc6de5952::t_3978b38a0e4eaa 334-336,340-342
+  s_0e006fc6de5952::t_01fa2efbf2c4bf 319-321,337-339
+README.md
+  s_0e006fc6de5952::t_0e43addd17e685 75-76
+src/testing/cli-pty-smoke.ts
+  s_0e006fc6de5952::t_fee0a5842441f1 106-107,114
+  s_0e006fc6de5952::t_7cff631d617383 68
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_07f0bfe6d810d5 6-7,156-161
+  s_0e006fc6de5952::t_2b6a32130e7930 162
+docs/AGENT-CLI-TASKS.md
+  s_0e006fc6de5952::t_5860a2e8bc6db9 1-6,8-74
+  s_0e006fc6de5952::t_0e43addd17e685 7
+src/runtime/service/store.ts
+  s_0e006fc6de5952::t_07f0bfe6d810d5 10,304-319
+  s_0e006fc6de5952::t_f1bab6ac4b1547 320
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_fee0a5842441f1 520-522
+  s_0e006fc6de5952::t_13b6c7d691eae9 507
+  s_0e006fc6de5952::t_a43413ccae2ffa 516-518
+  s_0e006fc6de5952::t_eef455781fb718 504-506
+  s_0e006fc6de5952::t_861f30c5fb27b7 508-510,513-515
+  s_0e006fc6de5952::t_c47b8d9561e0a2 519
+  s_0e006fc6de5952::t_6980445e73d0d0 523-524
+  s_0e006fc6de5952::t_95984769d7d856 500-503,511-512
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_0e43addd17e685 31-32,74-76
+docs/README.md
+  s_0e006fc6de5952::t_0e43addd17e685 15
+packages/client/src/service.test.ts
+  s_0e006fc6de5952::t_03fbd84d356f23 95-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8fc0dd5bd23432dec8b683f5e4d8476e742cf5f",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
