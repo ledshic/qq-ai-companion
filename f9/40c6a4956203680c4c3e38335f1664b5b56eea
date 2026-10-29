@@ -1,0 +1,92 @@
+README.md
+  s_0e006fc6de5952::t_8a47f52d7c2096 3,86
+packages/client/src/service.ts
+  s_0e006fc6de5952::t_8d400a0283f1be 1,6-7,139-140,142,145-153,181-183
+  s_0e006fc6de5952::t_2bf4d81dd2baa3 141,143-144
+packages/client/src/sse.test.ts
+  s_0e006fc6de5952::t_8da0b8b41aa3c5 1-25
+src/agent/contracts.ts
+  s_0e006fc6de5952::t_9f031b31fac154 10
+apps/web/tests/streaming.spec.ts
+  s_0e006fc6de5952::t_a032ed0e4da56e 1-7,9-44,49,51-60,66-106,118
+  s_0e006fc6de5952::t_9c18ebe84284a3 8,45-48,50,61-65,107-117
+docs/AGENT-CLI.md
+  s_0e006fc6de5952::t_8a47f52d7c2096 3,43,70,78-80
+docs/README.md
+  s_0e006fc6de5952::t_8a47f52d7c2096 14
+src/app/interactive-cli.test.ts
+  s_0e006fc6de5952::t_1274f480a31726 239-247,264-266
+  s_0e006fc6de5952::t_8da0b8b41aa3c5 238,248-263
+  s_0e006fc6de5952::t_817ef19a7f080f 10,29-30
+src/app/server/api.ts
+  s_0e006fc6de5952::t_8d400a0283f1be 268-300
+packages/contracts/package.json
+  s_0e006fc6de5952::t_9f031b31fac154 8-9
+src/app/server/api.test.ts
+  s_0e006fc6de5952::t_4b923a587de471 464-473
+  s_0e006fc6de5952::t_1274f480a31726 430-463,474-499
+src/app/interactive-cli.ts
+  s_0e006fc6de5952::t_6238717bf9dfa0 10,94,100-103,105-106,116-118,122-123
+  s_0e006fc6de5952::t_8a7c632fa40605 87-88
+  s_0e006fc6de5952::t_d3a6bc1ccdafed 107-115
+docs/AGENT-STREAMING.md
+  s_0e006fc6de5952::t_872d9c50a0f50d 1-75
+src/infrastructure/models/deepseek-adapter.ts
+  s_0e006fc6de5952::t_9f031b31fac154 1,8,21
+apps/web/src/App.tsx
+  s_0e006fc6de5952::t_6c173ab3d8ad68 94
+  s_0e006fc6de5952::t_6238717bf9dfa0 5,9,39
+  s_0e006fc6de5952::t_d3a6bc1ccdafed 12-13,72,88
+src/app/cli.ts
+  s_0e006fc6de5952::t_6238717bf9dfa0 62
+docs/AGENT-REFACTOR-HANDOFF.md
+  s_0e006fc6de5952::t_8a47f52d7c2096 3,29-30,68-70
+packages/client/src/service.test.ts
+  s_0e006fc6de5952::t_1274f480a31726 77-94
+src/agent/executor.ts
+  s_0e006fc6de5952::t_9f031b31fac154 21,32-43,50
+packages/contracts/src/service.ts
+  s_0e006fc6de5952::t_8d400a0283f1be 37-45
+src/channels/console/generator.ts
+  s_0e006fc6de5952::t_9f031b31fac154 32-33,35,45-47
+src/tools/agent-tools.ts
+  s_0e006fc6de5952::t_9f031b31fac154 24
+src/runtime/service/host.ts
+  s_0e006fc6de5952::t_2bf4d81dd2baa3 114
+  s_0e006fc6de5952::t_8d400a0283f1be 1,9,21,65-78,87-88,115-121,143
+src/infrastructure/models/deepseek-stream.ts
+  s_0e006fc6de5952::t_9a70138936cbfa 42
+  s_0e006fc6de5952::t_9f031b31fac154 1-41,43-67
+packages/contracts/src/sse.ts
+  s_0e006fc6de5952::t_9f031b31fac154 1-3,6,8-39
+  s_0e006fc6de5952::t_9a70138936cbfa 4-5,7
+src/runtime/service/host.test.ts
+  s_0e006fc6de5952::t_6c173ab3d8ad68 219-220,233,237-239,248-265
+  s_0e006fc6de5952::t_301a114cf068b2 214-218,221-232,234-236,240-247
+src/channels/console/generator.test.ts
+  s_0e006fc6de5952::t_d2b6c901aa5475 107-125
+apps/web/src/RunPreview.tsx
+  s_0e006fc6de5952::t_6238717bf9dfa0 1-47
+src/agent/executor.test.ts
+  s_0e006fc6de5952::t_7cc374ba06a218 62-71
+src/infrastructure/models/deepseek-stream.test.ts
+  s_0e006fc6de5952::t_24dea7983c93d5 1-49
+src/testing/run-stream.ts
+  s_0e006fc6de5952::t_804c995b38886c 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f940c6a4956203680c4c3e38335f1664b5b56eea",
+  "prompts": {},
+  "sessions": {
+    "s_0e006fc6de5952": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a17cc8-5602-79c1-82af-529d8e12497f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "ledshic <ricardo.li1@icloud.com>"
+    }
+  }
+}
